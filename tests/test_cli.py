@@ -90,6 +90,26 @@ def test_cli_parser_accepts_init_scope() -> None:
     assert args.scope == "global"
 
 
+def test_cli_parser_accepts_benchmark_command() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["benchmark", "--sample-size", "50", "--boot-full-content-limit", "7"])
+
+    assert args.command == "benchmark"
+    assert args.sample_size == 50
+    assert args.boot_full_content_limit == 7
+
+
+def test_cli_parser_accepts_add_project_member_command() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["add-project-member", "--username", "rzjulio", "--project", "olinkb", "--role", "lead"])
+
+    assert args.command == "add-project-member"
+    assert args.project == "olinkb"
+    assert args.role == "lead"
+
+
 def test_cli_parser_rejects_removed_setup_workspace_command() -> None:
     parser = build_parser()
 
@@ -126,8 +146,9 @@ def test_viewer_build_prints_snapshot_guidance(monkeypatch, capsys) -> None:
     args = parser.parse_args(["viewer", "build", "--output", "olinkb-viewer/index.html"])
 
     class FakeStorage:
-        def __init__(self, pg_url: str) -> None:
+        def __init__(self, pg_url: str, pool_max_size: int = 5) -> None:
             self.pg_url = pg_url
+            self.pool_max_size = pool_max_size
 
         async def connect(self) -> None:
             return None
@@ -138,7 +159,7 @@ def test_viewer_build_prints_snapshot_guidance(monkeypatch, capsys) -> None:
         async def export_viewer_snapshot(self) -> dict[str, list[dict[str, object]]]:
             return {"memories": [], "sessions": [], "audit_log": [], "team_members": []}
 
-    settings = type("Settings", (), {"pg_url": "postgresql://unused"})()
+    settings = type("Settings", (), {"pg_url": "postgresql://unused", "pg_pool_max_size": 7})()
 
     monkeypatch.setattr(cli, "get_settings", lambda: settings)
     monkeypatch.setattr(cli, "PostgresStorage", FakeStorage)
@@ -150,6 +171,94 @@ def test_viewer_build_prints_snapshot_guidance(monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert "Static viewer snapshot written to olinkb-viewer/index.html" in output
     assert "For large-scale exploration, use: olinkb viewer" in output
+
+
+def test_benchmark_prints_payload_savings(monkeypatch, capsys) -> None:
+    parser = build_parser()
+    args = parser.parse_args(["benchmark", "--sample-size", "10"])
+
+    class FakeStorage:
+        def __init__(self, pg_url: str, pool_max_size: int = 5) -> None:
+            self.pg_url = pg_url
+            self.pool_max_size = pool_max_size
+
+        async def connect(self) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+        async def benchmark_payloads(self, **kwargs) -> dict[str, object]:
+            return {
+                "boot": {
+                    "full": {"bytes": 4000, "approx_tokens": 1000},
+                    "hybrid": {"bytes": 2500, "approx_tokens": 620},
+                    "savings": {"bytes": 1500, "approx_tokens": 380, "byte_pct": 37.5, "token_pct": 38.0},
+                },
+                "sample": {
+                    "full": {"bytes": 3000, "approx_tokens": 750},
+                    "lean": {"bytes": 1700, "approx_tokens": 430},
+                    "savings": {"bytes": 1300, "approx_tokens": 320, "byte_pct": 43.33, "token_pct": 42.67},
+                },
+            }
+
+    settings = type(
+        "Settings",
+        (),
+        {"pg_url": "postgresql://unused", "user": "rzjulio", "default_project": "olinkb", "pg_pool_max_size": 7},
+    )()
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "PostgresStorage", FakeStorage)
+
+    exit_code = asyncio.run(cli._run_admin_command(args))
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Payload benchmark" in output
+    assert "Boot full vs hybrid" in output
+    assert "Memory sample full vs lean" in output
+
+
+def test_add_project_member_prints_project_assignment(monkeypatch, capsys) -> None:
+    parser = build_parser()
+    args = parser.parse_args(["add-project-member", "--username", "rzjulio", "--project", "olinkb", "--role", "lead"])
+
+    class FakeStorage:
+        def __init__(self, pg_url: str, pool_max_size: int = 5) -> None:
+            self.pg_url = pg_url
+            self.pool_max_size = pool_max_size
+
+        async def connect(self) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+        async def ensure_member(self, username: str, team: str) -> dict[str, object]:
+            return {"id": "member-1", "username": username, "team": team}
+
+        async def create_or_update_project_member(self, **kwargs) -> dict[str, object]:
+            return {
+                "username": kwargs["username"],
+                "project": kwargs["project"],
+                "role": kwargs["role"],
+            }
+
+    settings = type(
+        "Settings",
+        (),
+        {"pg_url": "postgresql://unused", "user": "rzjulio", "default_project": "olinkb", "pg_pool_max_size": 7, "team": "default-team"},
+    )()
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "PostgresStorage", FakeStorage)
+
+    exit_code = asyncio.run(cli._run_admin_command(args))
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Project member ready: rzjulio (lead) on project olinkb" in output
 
 
 def test_bootstrap_workspace_preserves_existing_servers_and_is_idempotent(tmp_path) -> None:

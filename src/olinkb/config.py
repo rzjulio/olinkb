@@ -34,6 +34,7 @@ class Settings:
     default_project: str | None
     cache_ttl_seconds: int
     cache_max_entries: int
+    pg_pool_max_size: int = 5
     server_name: str = "OlinKB"
 
     @classmethod
@@ -50,6 +51,7 @@ class Settings:
             default_project=values.get("OLINKB_PROJECT"),
             cache_ttl_seconds=_get_int("OLINKB_CACHE_TTL_SECONDS", 300, values),
             cache_max_entries=_get_int("OLINKB_CACHE_MAX_ENTRIES", 256, values),
+            pg_pool_max_size=_get_int("OLINKB_PG_POOL_MAX_SIZE", 5, values),
             server_name=values.get("OLINKB_SERVER_NAME", "OlinKB"),
         )
 

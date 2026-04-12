@@ -18,6 +18,8 @@ ALLOWED_MEMORY_TYPES = {
 }
 
 ALLOWED_SCOPES = {"personal", "project", "team", "org", "system"}
+ALLOWED_MEMBER_ROLES = {"admin", "lead", "developer", "viewer"}
+APPROVER_MEMBER_ROLES = {"admin", "lead"}
 
 QUERYABLE_SCOPES = ["personal", "project", "team", "org", "system"]
 
@@ -42,6 +44,10 @@ def infer_scope_from_uri(uri: str) -> str:
     return scope
 
 
+def extract_scope_key(uri: str) -> str:
+    return extract_namespace(uri).split("://", 1)[1]
+
+
 def parse_tags(raw_tags: str | Iterable[str]) -> list[str]:
     if isinstance(raw_tags, str):
         items = raw_tags.split(",")
@@ -60,6 +66,12 @@ def validate_memory_type(memory_type: str) -> str:
     if memory_type not in ALLOWED_MEMORY_TYPES:
         raise ValueError(f"Unsupported memory_type: {memory_type}")
     return memory_type
+
+
+def validate_member_role(role: str) -> str:
+    if role not in ALLOWED_MEMBER_ROLES:
+        raise ValueError(f"Unsupported member role: {role}")
+    return role
 
 
 def scope_filters_for_query(scope: str) -> list[str]:

@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
 from olinkb.config import get_settings
+from olinkb.domain import APPROVER_MEMBER_ROLES
 from olinkb.storage.postgres import PostgresStorage
 from olinkb.viewer import build_empty_viewer_payload, build_viewer_payload, render_viewer_html
 
@@ -42,7 +43,16 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/viewer":
             try:
-                payload = asyncio.run(_load_viewer_payload(self.server.settings.pg_url, params=parse_qs(parsed.query)))
+                payload = asyncio.run(
+                    _load_viewer_payload(
+                        self.server.settings.pg_url,
+                        params=parse_qs(parsed.query),
+                        username=self.server.settings.user,
+                        team=self.server.settings.team,
+                        project=self.server.settings.default_project,
+                        pool_max_size=self.server.settings.pg_pool_max_size,
+                    )
+                )
             except ValueError as error:
                 self.send_error(HTTPStatus.BAD_REQUEST, str(error))
                 return
@@ -59,7 +69,16 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/viewer":
             try:
-                payload = asyncio.run(_load_viewer_payload(self.server.settings.pg_url, params=parse_qs(parsed.query)))
+                payload = asyncio.run(
+                    _load_viewer_payload(
+                        self.server.settings.pg_url,
+                        params=parse_qs(parsed.query),
+                        username=self.server.settings.user,
+                        team=self.server.settings.team,
+                        project=self.server.settings.default_project,
+                        pool_max_size=self.server.settings.pg_pool_max_size,
+                    )
+                )
             except ValueError as error:
                 self.send_error(HTTPStatus.BAD_REQUEST, str(error))
                 return
@@ -89,15 +108,29 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-async def _load_viewer_payload(pg_url: str, *, params: dict[str, list[str]]) -> dict[str, Any]:
-    storage = PostgresStorage(pg_url)
+async def _load_viewer_payload(
+    pg_url: str,
+    *,
+    params: dict[str, list[str]],
+    username: str | None,
+    team: str | None,
+    project: str | None,
+    pool_max_size: int = 5,
+) -> dict[str, Any]:
+    storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
     await storage.connect()
     try:
         query = _sanitize_query(_first_param(params, "q"))
         limit = _sanitize_limit(_first_param(params, "limit"))
         cursor = _decode_cursor(_first_param(params, "cursor"))
 
-        page = await storage.search_viewer_memories(query=query, limit=limit, cursor=cursor)
+        page = await storage.search_viewer_memories(
+            query=query,
+            limit=limit,
+            cursor=cursor,
+            team=team,
+            project=project,
+        )
         author_usernames = sorted(
             {
                 str(memory.get("author_username"))
@@ -107,11 +140,25 @@ async def _load_viewer_payload(pg_url: str, *, params: dict[str, list[str]]) -> 
         )
         team_members = await storage.load_team_members(author_usernames)
         sessions = await storage.load_recent_sessions_for_authors(author_usernames)
+        pending_approvals = {"enabled": False, "total_count": 0, "proposals": []}
+        if username and project:
+            project_member = await storage.get_project_member(username=username, project=project)
+            if project_member and project_member.get("role") in APPROVER_MEMBER_ROLES:
+                preview = await storage.load_pending_proposals(project=project, limit=5)
+                pending_approvals = {
+                    "enabled": True,
+                    "total_count": preview["total_count"],
+                    "proposals": preview["proposals"],
+                }
+                if preview["total_count"] > len(preview["proposals"]):
+                    full_queue = await storage.load_pending_proposals(project=project, limit=preview["total_count"])
+                    pending_approvals["proposals"] = full_queue["proposals"]
         payload = build_viewer_payload(
             memories=page["memories"],
             sessions=sessions,
             audit_log=[],
             team_members=team_members,
+            pending_approvals=pending_approvals,
         )
         payload["pageInfo"] = {
             "query": page["page_info"]["query"],

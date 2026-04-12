@@ -38,10 +38,15 @@ You have access to OlinKB via MCP tools.
 
 ### On Session Start
 - On the first relevant interaction of a session, call `boot_session`.
+- If `boot_session` returns a non-empty `review_queue`, project leads and admins should review those proposals during the session instead of polling manually.
 
 ### During Work
 - Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, call `remember`.
+- Prefer `remember(..., include_content=false)` for lean recall; request full `content` only when the body is actually needed.
 - When you make or discover an important decision, pattern, bugfix, or procedure, call `save_memory` with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`.
+- A memory only enters convention review when the developer explicitly calls `propose_memory_promotion(...)`. Saving a normal project memory never queues it automatically.
+- Do not save `convention` directly unless you are acting as a project lead or admin. Contributors should save the underlying project memory first and then use `propose_memory_promotion(...)` when they believe it should become a standard or convention.
+- Project leads and admins should use `list_pending_approvals(...)` or the `review_queue` returned by `boot_session` to batch-review proposed conventions, then call `review_memory_proposal(...)` to approve or reject them.
 - Do not wait until `end_session` to persist important discoveries, decisions, procedures, or bugfixes. `end_session` is a closure summary, not the primary durable memory channel.
 - Do not save a one-line summary if future work would still require re-reading code or reconstructing the situation from scratch.
 - Prefer richer context blocks with real operational depth so retrieved memories stay reusable weeks later.

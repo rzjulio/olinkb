@@ -3,12 +3,22 @@ from __future__ import annotations
 from typing import Any
 
 from olinkb.config import Settings, get_settings
-from olinkb.domain import parse_tags, validate_memory_type, validate_scope, validate_uri_matches_scope
+from olinkb.domain import (
+    APPROVER_MEMBER_ROLES,
+    extract_scope_key,
+    infer_scope_from_uri,
+    parse_tags,
+    validate_memory_type,
+    validate_scope,
+    validate_uri_matches_scope,
+)
 from olinkb.session import SessionManager
 from olinkb.storage import PostgresStorage, ReadCache
 
 
 SESSION_SUMMARY_MEMORY_TAGS = ["session-summary", "end_session", "sessions"]
+BOOT_FULL_CONTENT_LIMIT = 5
+WRITER_MEMBER_ROLES = {"admin", "lead", "developer"}
 SESSION_SUMMARY_HEADING_MARKERS = (
     "goal:",
     "instructions:",
@@ -28,7 +38,10 @@ SESSION_SUMMARY_HEADING_MARKERS = (
 class OlinKBApp:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = PostgresStorage(self.settings.pg_url)
+        self.storage = PostgresStorage(
+            self.settings.pg_url,
+            pool_max_size=self.settings.pg_pool_max_size,
+        )
         self.cache = ReadCache(
             max_size=self.settings.cache_max_entries,
             ttl_seconds=self.settings.cache_ttl_seconds,
@@ -50,13 +63,32 @@ class OlinKBApp:
             author_username=username,
             project=project_name,
         )
-        self.sessions.start(session_id=session_id, author=username, project=project_name)
+        self.sessions.start(session_id=session_id, author=username, team=team_name, project=project_name)
+
+        project_member = None
+        if project_name:
+            project_member = await self.storage.ensure_project_member(
+                member_id=member["id"],
+                username=username,
+                project=project_name,
+                team=team_name,
+                default_role=member.get("role", "developer"),
+            )
 
         cache_key = self._boot_cache_key(username, project_name)
         memories = self.cache.get(cache_key)
         if memories is None:
-            memories = await self.storage.load_boot_memories(username=username, project=project_name)
+            memories = await self.storage.load_boot_memories(
+                username=username,
+                project=project_name,
+                full_content_limit=BOOT_FULL_CONTENT_LIMIT,
+            )
             self.cache.set(cache_key, memories)
+
+        review_queue = {"total_count": 0, "proposals": []}
+        effective_role = (project_member or member).get("role") if (project_member or member) else None
+        if project_name and effective_role in APPROVER_MEMBER_ROLES:
+            review_queue = await self.storage.load_pending_proposals(project=project_name, limit=5)
 
         return {
             "session_id": session_id,
@@ -65,6 +97,7 @@ class OlinKBApp:
             "project": project_name,
             "loaded_count": len(memories),
             "memories": memories,
+            "review_queue": review_queue,
         }
 
     async def remember(
@@ -73,12 +106,29 @@ class OlinKBApp:
         scope: str = "all",
         limit: int = 5,
         session_id: str | None = None,
+        include_content: bool = False,
     ) -> list[dict[str, Any]]:
-        project_name = self._remember_project_name(session_id, scope)
-        cache_key = self._remember_cache_key(query, scope, limit, project_name)
+        username, team_name, project_name = self._remember_context(session_id, scope)
+        cache_key = self._remember_cache_key(
+            query,
+            scope,
+            limit,
+            username,
+            team_name,
+            project_name,
+            include_content,
+        )
         results = self.cache.get(cache_key)
         if results is None:
-            memory_results = await self.storage.search_memories(query=query, scope=scope, limit=limit)
+            memory_results = await self.storage.search_memories(
+                query=query,
+                scope=scope,
+                limit=limit,
+                include_content=include_content,
+                username=username,
+                team=team_name,
+                project=project_name,
+            )
             session_results: list[dict[str, Any]] = []
             if scope in {"all", "project"}:
                 session_results = await self.storage.search_session_summaries(
@@ -118,6 +168,8 @@ class OlinKBApp:
 
         username = author or self.settings.user
         member = await self.storage.ensure_member(username=username, team=self.settings.team)
+        project_member = await self._project_member_for_uri(uri=uri, member=member, username=username)
+        self._authorize_memory_write(scope=scope, memory_type=memory_type, username=username, uri=uri, member=member, project_member=project_member)
         result = await self.storage.save_memory(
             uri=uri,
             title=title,
@@ -132,6 +184,103 @@ class OlinKBApp:
         self.cache.invalidate_prefix(self._boot_cache_prefix(username))
         self.cache.invalidate_prefix("remember:")
         if session_id and result["status"] != "unchanged":
+            self.sessions.bump_writes(session_id)
+        return result
+
+    async def propose_memory_promotion(
+        self,
+        *,
+        uri: str,
+        rationale: str,
+        target_memory_type: str = "convention",
+        session_id: str | None = None,
+        author: str | None = None,
+    ) -> dict[str, Any]:
+        normalized_target_type = self._normalize_target_memory_type(target_memory_type)
+        username = author or self.settings.user
+        member = await self.storage.ensure_member(username=username, team=self.settings.team)
+        scope = infer_scope_from_uri(uri)
+        if scope != "project":
+            raise ValueError("Only project memories can be proposed for promotion")
+
+        project_member = await self.storage.ensure_project_member(
+            member_id=member["id"],
+            username=username,
+            project=extract_scope_key(uri),
+            team=member["team"],
+            default_role=member.get("role", "developer"),
+        )
+        if project_member.get("role") not in WRITER_MEMBER_ROLES:
+            raise PermissionError("Only project contributors can propose a convention or standard")
+
+        result = await self.storage.propose_memory_promotion(
+            uri=uri,
+            proposed_memory_type=normalized_target_type,
+            rationale=rationale,
+            actor_id=member["id"],
+            actor_username=username,
+        )
+        self.cache.invalidate_prefix(self._boot_cache_prefix(username))
+        self.cache.invalidate_prefix("remember:")
+        if session_id:
+            self.sessions.bump_writes(session_id)
+        return result
+
+    async def list_pending_approvals(
+        self,
+        *,
+        project: str | None = None,
+        limit: int = 10,
+        author: str | None = None,
+    ) -> dict[str, Any]:
+        username = author or self.settings.user
+        member = await self.storage.ensure_member(username=username, team=self.settings.team)
+        project_name = project or self.settings.default_project
+        if not project_name:
+            raise ValueError("A project is required to list pending approvals")
+        project_member = await self.storage.ensure_project_member(
+            member_id=member["id"],
+            username=username,
+            project=project_name,
+            team=member["team"],
+            default_role=member.get("role", "developer"),
+        )
+        self._authorize_project_review(project_name=project_name, project_member=project_member)
+        return await self.storage.load_pending_proposals(project=project_name, limit=limit)
+
+    async def review_memory_proposal(
+        self,
+        *,
+        uri: str,
+        action: str,
+        note: str = "",
+        session_id: str | None = None,
+        author: str | None = None,
+    ) -> dict[str, Any]:
+        username = author or self.settings.user
+        member = await self.storage.ensure_member(username=username, team=self.settings.team)
+        scope = infer_scope_from_uri(uri)
+        if scope != "project":
+            raise ValueError("Only project memories can be reviewed through the approval queue")
+        project_name = extract_scope_key(uri)
+        project_member = await self.storage.ensure_project_member(
+            member_id=member["id"],
+            username=username,
+            project=project_name,
+            team=member["team"],
+            default_role=member.get("role", "developer"),
+        )
+        self._authorize_project_review(project_name=project_name, project_member=project_member)
+        result = await self.storage.review_memory_proposal(
+            uri=uri,
+            action=action,
+            note=note,
+            reviewer_id=member["id"],
+            reviewer_username=username,
+        )
+        self.cache.invalidate_prefix(self._boot_cache_prefix(username))
+        self.cache.invalidate_prefix("remember:")
+        if session_id:
             self.sessions.bump_writes(session_id)
         return result
 
@@ -209,6 +358,8 @@ class OlinKBApp:
     ) -> dict[str, Any]:
         username = author or self.settings.user
         member = await self.storage.ensure_member(username=username, team=self.settings.team)
+        project_member = await self._project_member_for_uri(uri=uri, member=member, username=username)
+        self._authorize_forget(uri=uri, username=username, member=member, project_member=project_member)
         result = await self.storage.forget_memory(
             uri=uri,
             reason=reason,
@@ -229,18 +380,33 @@ class OlinKBApp:
     def _boot_cache_prefix(author: str) -> str:
         return f"boot:{author}:"
 
-    def _remember_project_name(self, session_id: str | None, scope: str) -> str | None:
-        if scope not in {"all", "project"}:
-            return None
+    def _remember_context(self, session_id: str | None, scope: str) -> tuple[str, str, str | None]:
+        username = self.settings.user
+        team_name = self.settings.team
+        project_name = self.settings.default_project if scope in {"all", "project"} else None
         if session_id:
             session = self.sessions.get(session_id)
             if session is not None:
-                return session.project
-        return self.settings.default_project
+                username = session.author
+                team_name = session.team
+                if scope in {"all", "project"}:
+                    project_name = session.project
+        return username, team_name, project_name
 
     @staticmethod
-    def _remember_cache_key(query: str, scope: str, limit: int, project: str | None) -> str:
-        return f"remember:{scope}:{project or '-'}:{limit}:{query.strip().lower()}"
+    def _remember_cache_key(
+        query: str,
+        scope: str,
+        limit: int,
+        username: str,
+        team: str,
+        project: str | None,
+        include_content: bool,
+    ) -> str:
+        return (
+            f"remember:{scope}:{username}:{team}:{project or '-'}:{limit}:"
+            f"{int(include_content)}:{query.strip().lower()}"
+        )
 
     @staticmethod
     def _merge_remember_results(
@@ -307,3 +473,87 @@ class OlinKBApp:
         if any(marker in lowered for marker in SESSION_SUMMARY_HEADING_MARKERS):
             return True
         return len(stripped.split()) >= 30
+
+    async def _project_member_for_uri(
+        self,
+        *,
+        uri: str,
+        member: dict[str, Any],
+        username: str,
+    ) -> dict[str, Any] | None:
+        if infer_scope_from_uri(uri) != "project":
+            return None
+        return await self.storage.ensure_project_member(
+            member_id=member["id"],
+            username=username,
+            project=extract_scope_key(uri),
+            team=member["team"],
+            default_role=member.get("role", "developer"),
+        )
+
+    @staticmethod
+    def _normalize_target_memory_type(target_memory_type: str) -> str:
+        normalized = target_memory_type.strip().lower()
+        if normalized == "standard":
+            normalized = "convention"
+        validate_memory_type(normalized)
+        if normalized != "convention":
+            raise ValueError("Only promotion to convention or standard is supported")
+        return normalized
+
+    @staticmethod
+    def _authorize_project_review(*, project_name: str, project_member: dict[str, Any]) -> None:
+        if project_member.get("role") not in APPROVER_MEMBER_ROLES:
+            raise PermissionError(f"Only project leads or admins can review pending conventions for {project_name}")
+
+    @staticmethod
+    def _authorize_memory_write(
+        *,
+        scope: str,
+        memory_type: str,
+        username: str,
+        uri: str,
+        member: dict[str, Any],
+        project_member: dict[str, Any] | None,
+    ) -> None:
+        role = member.get("role", "developer")
+        if scope == "project":
+            project_role = (project_member or {}).get("role", role)
+            if project_role not in WRITER_MEMBER_ROLES:
+                raise PermissionError(f"Only project contributors can save memories for {extract_scope_key(uri)}")
+            if memory_type == "convention" and project_role not in APPROVER_MEMBER_ROLES:
+                raise PermissionError(
+                    "Only project leads or admins can save conventions directly. Save the memory first and then explicitly call propose_memory_promotion(...) if it should be reviewed as a convention."
+                )
+            return
+
+        if scope == "personal":
+            if extract_scope_key(uri) != username:
+                raise PermissionError("You can only write your own personal memories")
+            return
+
+        if role not in APPROVER_MEMBER_ROLES:
+            raise PermissionError(f"Only leads or admins can write {scope}-scope memories")
+
+    def _authorize_forget(
+        self,
+        *,
+        uri: str,
+        username: str,
+        member: dict[str, Any],
+        project_member: dict[str, Any] | None,
+    ) -> None:
+        scope = infer_scope_from_uri(uri)
+        if scope == "personal":
+            if extract_scope_key(uri) != username:
+                raise PermissionError("You can only forget your own personal memories")
+            return
+        if scope == "project":
+            project_role = (project_member or {}).get("role", member.get("role", "developer"))
+            if project_role not in APPROVER_MEMBER_ROLES:
+                raise PermissionError(
+                    f"Only project leads or admins can forget memories for {extract_scope_key(uri)}"
+                )
+            return
+        if member.get("role") not in APPROVER_MEMBER_ROLES:
+            raise PermissionError(f"Only leads or admins can forget {scope}-scope memories")

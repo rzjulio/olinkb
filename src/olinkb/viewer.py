@@ -109,6 +109,7 @@ def build_empty_viewer_payload() -> dict[str, Any]:
         "teamMembers": [],
         "graph": {"nodes": [], "edges": []},
         "highlights": [],
+        "pendingApprovals": {"enabled": False, "total_count": 0, "proposals": []},
     }
 
 
@@ -118,6 +119,7 @@ def build_viewer_payload(
     sessions: list[dict[str, Any]],
     audit_log: list[dict[str, Any]],
     team_members: list[dict[str, Any]],
+  pending_approvals: dict[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     memories = [memory for memory in memories if memory.get("scope") != "personal"]
@@ -130,6 +132,7 @@ def build_viewer_payload(
     normalized_memories = [_normalize_memory(memory, teams_by_username) for memory in memories]
     normalized_sessions = [_normalize_session(session) for session in sessions]
     normalized_audit_log = [_normalize_audit(entry) for entry in audit_log]
+    normalized_pending_approvals = _normalize_pending_approvals(pending_approvals, teams_by_username)
 
     scopes = sorted({memory["scope"] for memory in normalized_memories if memory.get("scope")})
     authors = sorted({memory["author_username"] for memory in normalized_memories if memory.get("author_username")})
@@ -196,6 +199,7 @@ def build_viewer_payload(
         "teamMembers": normalized_team_members,
         "graph": graph,
         "highlights": highlights,
+        "pendingApprovals": normalized_pending_approvals,
     }
 
 
@@ -517,6 +521,52 @@ def render_viewer_html(
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }}
+    .approval-queue {{ display: grid; gap: 10px; }}
+    .approval-card {{
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line-soft);
+    }}
+    .approval-card-header {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }}
+    .approval-card-title {{ font-size: 0.86rem; font-weight: 700; color: var(--text-strong); }}
+    .approval-card-meta {{ color: var(--muted); font-size: 0.8rem; line-height: 1.5; }}
+    .approval-list {{ display: grid; gap: 8px; max-height: 220px; overflow: auto; }}
+    .approval-item {{
+      width: 100%;
+      text-align: left;
+      display: grid;
+      gap: 4px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line-soft);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }}
+    .approval-item:hover,
+    .approval-item:focus-visible {{ border-color: var(--accent-border); background: var(--panel-hover); outline: none; }}
+    .approval-item.active {{ border-color: var(--accent-strong); box-shadow: 0 0 0 1px var(--accent-soft) inset; }}
+    .approval-item-title {{ font-size: 0.88rem; font-weight: 700; color: var(--text-strong); }}
+    .approval-item-meta {{ font-size: 0.76rem; color: var(--muted); }}
+    .approval-item-text {{ font-size: 0.8rem; color: var(--text-soft); line-height: 1.45; }}
+    .approval-pill {{
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }}
+    .approval-empty {{ font-size: 0.8rem; color: var(--muted); }}
     .search-pagination {{
       display: grid;
       gap: 8px;
@@ -757,6 +807,15 @@ def render_viewer_html(
     }}
     .graph-stage canvas.dragging {{ cursor: grabbing; }}
     .empty-state {{ color: var(--muted); font-size: 0.9rem; line-height: 1.6; }}
+    .note-alert {{
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+    }}
+    .note-alert strong {{ color: var(--text-strong); }}
     @media (max-width: 1280px) {{
       .app-shell {{ grid-template-columns: 300px minmax(0, 1fr); }}
       .graph-resizer {{ display: none; }}
@@ -789,6 +848,7 @@ def render_viewer_html(
         <input id="search" class="search" type="search" placeholder="Search notes...">
         <div class="vault-stats" id="vault-stats"></div>
         <div class="search-pagination" id="search-pagination"></div>
+        <div class="approval-queue" id="approval-queue"></div>
       </div>
       <div class="sidebar-list" id="memory-list"></div>
     </aside>
@@ -823,13 +883,14 @@ def render_viewer_html(
   <script>
     (() => {{
       const THEME_STORAGE_KEY = "olinkb.viewer.theme";
-      let data = window.__OLINKB_VIEWER_DATA__ || {{ memories: [], sessions: [], auditLog: [], graph: {{ nodes: [], edges: [] }}, stats: {{}} }};
+      let data = window.__OLINKB_VIEWER_DATA__ || {{ memories: [], sessions: [], auditLog: [], graph: {{ nodes: [], edges: [] }}, stats: {{}}, pendingApprovals: {{ enabled: false, total_count: 0, proposals: [] }} }};
       const liveApiPath = {serialized_live_api_path};
       const state = {{
         theme: getStoredTheme(),
         search: "",
         graphWidth: Math.max(320, Math.round(window.innerWidth * 0.4)),
         selectedId: data.highlights?.[0]?.id || data.memories?.[0]?.id || null,
+        viewMode: "all",
         expandedFolders: new Set(),
         explorerInitialized: false,
         live: {{
@@ -847,6 +908,7 @@ def render_viewer_html(
         search: document.getElementById("search"),
         vaultStats: document.getElementById("vault-stats"),
         searchPagination: document.getElementById("search-pagination"),
+        approvalQueue: document.getElementById("approval-queue"),
         memoryList: document.getElementById("memory-list"),
         noteHeader: document.getElementById("note-header"),
         noteMain: document.getElementById("note-main"),
@@ -954,11 +1016,13 @@ def render_viewer_html(
       }}
 
       function render() {{
-        const memories = getFilteredMemories();
+        const memories = getVisibleMemories();
+        normalizeViewMode(memories);
         ensureValidSelection(memories);
         const graph = getFilteredGraph(memories);
         elements.appShell.style.setProperty("--graph-width", `${{state.graphWidth}}px`);
-        renderVaultStats(graph);
+        renderVaultStats(memories, graph);
+        renderApprovalQueue();
         renderSearchPagination(memories);
         renderExplorer(memories);
         renderNote(memories, graph);
@@ -971,12 +1035,13 @@ def render_viewer_html(
         graphController.update(graph, state.selectedId);
       }}
 
-      function renderVaultStats(graph) {{
-        const memoryCount = liveApiPath
-          ? (data.pageInfo?.returned_count ?? (data.memories || []).length)
-          : (data.memories || []).length;
+      function renderVaultStats(memories, graph) {{
+        const memoryCount = memories.length;
+        const primaryLabel = state.viewMode === "pending"
+          ? "Pending"
+          : (liveApiPath ? "Visible" : "Notes");
         const stats = [
-          [liveApiPath ? "Visible" : "Notes", memoryCount],
+          [primaryLabel, memoryCount],
           ["Authors", data.stats?.authorCount ?? 0],
           ["Links", graph.edges.length],
         ];
@@ -989,6 +1054,14 @@ def render_viewer_html(
       }}
 
       function renderSearchPagination(memories) {{
+        if (state.viewMode === "pending") {{
+          const totalPending = data.pendingApprovals?.total_count ?? 0;
+          const metaText = totalPending
+            ? `${{formatNumber(memories.length)}} pending proposals visible · ${{formatNumber(totalPending)}} total in queue`
+            : "No pending approvals right now";
+          elements.searchPagination.innerHTML = `<div class="search-pagination-meta">${{escapeHtml(metaText)}}</div>`;
+          return;
+        }}
         if (!liveApiPath) {{
           elements.searchPagination.innerHTML = "";
           return;
@@ -1023,7 +1096,68 @@ def render_viewer_html(
         }});
       }}
 
+      function renderApprovalQueue() {{
+        const pendingApprovals = data.pendingApprovals || {{ enabled: false, total_count: 0, proposals: [] }};
+        if (!pendingApprovals.enabled) {{
+          state.viewMode = "all";
+          elements.approvalQueue.innerHTML = "";
+          return;
+        }}
+
+        const visiblePending = getPendingMemories();
+        const isPendingView = state.viewMode === "pending";
+        const summaryText = pendingApprovals.total_count
+          ? `${{formatNumber(pendingApprovals.total_count)}} proposed conventions need authorization.`
+          : "No convention proposals are waiting for review.";
+
+        elements.approvalQueue.innerHTML = `
+          <section class="approval-card">
+            <div class="approval-card-header">
+              <div>
+                <div class="approval-card-title">Pending approvals</div>
+                <div class="approval-card-meta">${{escapeHtml(summaryText)}}</div>
+              </div>
+              <button id="toggle-pending-view" class="section-action" type="button" ${{pendingApprovals.total_count ? "" : "disabled"}}>
+                <span>${{isPendingView ? "Back to all notes" : "View pending"}}</span>
+              </button>
+            </div>
+            ${{pendingApprovals.total_count ? `
+              <div class="approval-list">
+                ${{visiblePending.length ? visiblePending.map((memory) => `
+                  <button class="approval-item ${{memory.id === state.selectedId && isPendingView ? "active" : ""}}" type="button" data-approval-memory-id="${{memory.id}}">
+                    <div class="approval-item-title">${{escapeHtml(memory.title)}}</div>
+                    <div class="approval-item-meta">${{escapeHtml(memory.proposed_by_username || memory.author_username || "unknown")}} · ${{formatDate(memory.proposed_at || memory.updated_at)}}</div>
+                    <div class="approval-item-text">${{escapeHtml(memory.proposal_note || memory.preview || "No approval note provided.")}}</div>
+                  </button>
+                `).join("") : '<div class="approval-empty">No pending approvals match the current search.</div>'}}
+              </div>
+            ` : '<div class="approval-empty">The queue is empty.</div>'}}
+          </section>
+        `;
+
+        elements.approvalQueue.querySelector("#toggle-pending-view")?.addEventListener("click", () => {{
+          if (!pendingApprovals.total_count) return;
+          state.viewMode = isPendingView ? "all" : "pending";
+          state.selectedId = state.viewMode === "pending"
+            ? (visiblePending[0]?.id || null)
+            : (data.highlights?.[0]?.id || data.memories?.[0]?.id || null);
+          render();
+        }});
+
+        elements.approvalQueue.querySelectorAll("[data-approval-memory-id]").forEach((node) => {{
+          node.addEventListener("click", () => {{
+            state.viewMode = "pending";
+            state.selectedId = node.getAttribute("data-approval-memory-id");
+            render();
+          }});
+        }});
+      }}
+
       function renderExplorer(memories) {{
+        if (state.viewMode === "pending") {{
+          renderPendingExplorer(memories);
+          return;
+        }}
         if (!memories.length) {{
           elements.memoryList.innerHTML = '<div class="empty-state">No notes match the current search.</div>';
           return;
@@ -1038,6 +1172,7 @@ def render_viewer_html(
           <div class="explorer-shell">
             ${{searchActive ? "" : `
               <div class="explorer-toolbar">
+                <span class="toolbar-label">All notes</span>
                 <button id="collapse-explorer" class="section-action" type="button" data-direction="${{actionDirection}}" aria-label="${{actionLabel}} notes tree">
                   <span class="section-action-icon" aria-hidden="true"></span>
                   <span>${{actionLabel}}</span>
@@ -1068,6 +1203,36 @@ def render_viewer_html(
             if (!folderKey) return;
             if (node.open) state.expandedFolders.add(folderKey);
             else state.expandedFolders.delete(folderKey);
+          }});
+        }});
+      }}
+
+      function renderPendingExplorer(memories) {{
+        if (!memories.length) {{
+          elements.memoryList.innerHTML = '<div class="empty-state">No pending approvals match the current search.</div>';
+          return;
+        }}
+
+        elements.memoryList.innerHTML = `
+          <div class="explorer-shell">
+            <div class="explorer-toolbar">
+              <span class="toolbar-label">Pending approvals</span>
+              <span class="approval-pill">${{formatNumber(data.pendingApprovals?.total_count ?? memories.length)}}</span>
+            </div>
+            <div class="explorer-tree">
+              ${{memories.map((memory) => `
+                <button class="tree-note ${{memory.id === state.selectedId ? "active" : ""}}" type="button" data-memory-id="${{memory.id}}">
+                  <span class="tree-note-label">${{highlightSearchText(memory.title)}}</span>
+                </button>
+              `).join("")}}
+            </div>
+          </div>
+        `;
+
+        elements.memoryList.querySelectorAll("[data-memory-id]").forEach((node) => {{
+          node.addEventListener("click", () => {{
+            state.selectedId = node.getAttribute("data-memory-id");
+            render();
           }});
         }});
       }}
@@ -1238,6 +1403,8 @@ def render_viewer_html(
             <span class="chip accent">${{escapeHtml(selected.memory_type)}}</span>
             <span class="chip">${{escapeHtml(selected.author_username)}}</span>
             <span class="chip">${{formatDate(selected.updated_at)}}</span>
+            ${{selected.approval_status === "pending" ? '<span class="chip accent">Pending approval</span>' : ""}}
+            ${{selected.proposed_memory_type ? `<span class="chip">Target: ${{escapeHtml(selected.proposed_memory_type)}}</span>` : ""}}
             ${{selected.isDeleted ? '<span class="chip red">Forgotten</span>' : '<span class="chip green">Active</span>'}}
             ${{(selected.tags || []).slice(0, 4).map((tag) => `<span class="chip">#${{escapeHtml(tag)}}</span>`).join("")}}
           </div>
@@ -1263,6 +1430,7 @@ def render_viewer_html(
           }})
           .join("");
         const remainingContent = (noteSections.remaining || "").trim();
+        const fallbackContent = selected.content || selected.preview || "No content available.";
         const noteBody = sectionBlocks || remainingContent
           ? `
             <div class="note-structured-content">
@@ -1275,13 +1443,29 @@ def render_viewer_html(
               ` : ""}}
             </div>
           `
-          : `<div class="note-markdown">${{highlightSearchText(selected.content || "No content available.")}}</div>`;
+          : `<div class="note-markdown">${{highlightSearchText(fallbackContent)}}</div>`;
+
+        const approvalSection = selected.approval_status === "pending" || selected.proposed_memory_type
+          ? `
+            <section class="note-section">
+              <h3>Approval request</h3>
+              <div class="note-alert">
+                <div><strong>Status:</strong> ${{escapeHtml(selected.approval_status || "not requested")}}</div>
+                <div><strong>Requested type:</strong> ${{escapeHtml(selected.proposed_memory_type || selected.memory_type || "-")}}</div>
+                <div><strong>Proposed by:</strong> ${{escapeHtml(selected.proposed_by_username || selected.author_username || "unknown")}}</div>
+                <div><strong>Submitted:</strong> ${{escapeHtml(formatDate(selected.proposed_at || selected.updated_at))}}</div>
+                ${{selected.proposal_note ? `<div><strong>Reviewer context:</strong> ${{highlightSearchText(selected.proposal_note)}}</div>` : ""}}
+              </div>
+            </section>
+          `
+          : "";
 
         elements.noteMain.innerHTML = `
           <section class="note-section">
             <h3>Note content</h3>
             ${{noteBody}}
           </section>
+          ${{approvalSection}}
           <section class="note-section">
             <h3>Directly connected notes</h3>
             <div class="related-list">
@@ -1313,6 +1497,8 @@ def render_viewer_html(
               <div><strong>Project:</strong> <span>${{escapeHtml(selected.project || extractNamespacePart(selected.namespace, "project") || "-")}}</span></div>
               <div><strong>Namespace:</strong> <span>${{escapeHtml(selected.namespace || "no namespace")}}</span></div>
               <div><strong>Reads:</strong> <span>${{formatNumber(selected.retrieval_count || 0)}}</span></div>
+              ${{selected.approval_status ? `<div><strong>Approval:</strong> <span>${{escapeHtml(selected.approval_status)}}</span></div>` : ""}}
+              ${{selected.proposed_memory_type ? `<div><strong>Requested type:</strong> <span>${{escapeHtml(selected.proposed_memory_type)}}</span></div>` : ""}}
             </div>
           </section>
           <section class="side-card">
@@ -1326,13 +1512,44 @@ def render_viewer_html(
 
       function getFilteredMemories() {{
         if (liveApiPath) return data.memories || [];
+        return filterMemoriesBySearch(data.memories || []);
+      }}
+
+      function getPendingMemories() {{
+        return filterMemoriesBySearch(data.pendingApprovals?.proposals || []);
+      }}
+
+      function getVisibleMemories() {{
+        return state.viewMode === "pending" ? getPendingMemories() : getFilteredMemories();
+      }}
+
+      function filterMemoriesBySearch(memories) {{
         const searchQuery = getNormalizedSearchQuery();
-        return (data.memories || []).filter((memory) => {{
-          const searchable = [memory.title, memory.uri, memory.content, ...(memory.tags || []), memory.author_username, memory.memory_type, memory.team, memory.project]
+        return memories.filter((memory) => {{
+          const searchable = [
+            memory.title,
+            memory.uri,
+            memory.content,
+            memory.preview,
+            memory.proposal_note,
+            memory.proposed_by_username,
+            ...(memory.tags || []),
+            memory.author_username,
+            memory.memory_type,
+            memory.team,
+            memory.project,
+          ]
             .join(" ")
             .toLowerCase();
           return !searchQuery || searchable.includes(searchQuery);
         }});
+      }}
+
+      function normalizeViewMode(memories) {{
+        if (state.viewMode !== "pending") return;
+        if (data.pendingApprovals?.enabled && (data.pendingApprovals?.total_count ?? 0) > 0) return;
+        if (memories.length) return;
+        state.viewMode = "all";
       }}
 
       function getFilteredGraph(memories) {{
@@ -1990,6 +2207,21 @@ def _normalize_audit(entry: dict[str, Any]) -> dict[str, Any]:
 
 def _normalize_team_member(member: dict[str, Any]) -> dict[str, Any]:
     return dict(member)
+
+
+def _normalize_pending_approvals(
+  pending_approvals: dict[str, Any] | None,
+  teams_by_username: dict[str, str] | None = None,
+) -> dict[str, Any]:
+  if not pending_approvals:
+    return {"enabled": False, "total_count": 0, "proposals": []}
+
+  proposals = pending_approvals.get("proposals") or []
+  return {
+    "enabled": bool(pending_approvals.get("enabled")),
+    "total_count": int(pending_approvals.get("total_count") or 0),
+    "proposals": [_normalize_memory(proposal, teams_by_username) for proposal in proposals],
+  }
 
 
 def _graph_project_label(memory: dict[str, Any]) -> str:

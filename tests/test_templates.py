@@ -42,3 +42,5 @@ def test_render_instructions_encourages_richer_context_blocks() -> None:
     assert "Evidence:" in rendered
     assert "Next Steps:" in rendered
     assert "without reopening every touched file first" in rendered
+    assert "include_content=false" in rendered
+    assert "explicitly calls `propose_memory_promotion(...)`" in rendered

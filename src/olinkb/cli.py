@@ -32,11 +32,25 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("mcp", help="Alias for serving the OlinKB MCP server over stdio")
     subparsers.add_parser("migrate", help="Apply PostgreSQL migrations")
 
+    benchmark = subparsers.add_parser("benchmark", help="Measure payload savings for lean and hybrid memory payloads")
+    benchmark.add_argument("--sample-size", type=int, default=200)
+    benchmark.add_argument("--boot-limit", type=int, default=40)
+    benchmark.add_argument("--boot-full-content-limit", type=int, default=5)
+    benchmark.add_argument("--username")
+    benchmark.add_argument("--project")
+
     add_member = subparsers.add_parser("add-member", help="Create or update a team member")
     add_member.add_argument("--username", required=True)
     add_member.add_argument("--team")
     add_member.add_argument("--role", default="developer")
     add_member.add_argument("--display-name")
+
+    add_project_member = subparsers.add_parser("add-project-member", help="Create or update a project member")
+    add_project_member.add_argument("--username", required=True)
+    add_project_member.add_argument("--project", required=True)
+    add_project_member.add_argument("--team")
+    add_project_member.add_argument("--role", default="developer")
+    add_project_member.add_argument("--display-name")
 
     viewer = subparsers.add_parser(
         "viewer",
@@ -126,7 +140,10 @@ def _prompt_choice(label: str, choices: tuple[str, ...], default: str) -> str:
 
 async def _run_admin_command(args: argparse.Namespace) -> int:
     settings = get_settings()
-    storage = PostgresStorage(settings.pg_url)
+    storage = PostgresStorage(
+        settings.pg_url,
+        pool_max_size=getattr(settings, "pg_pool_max_size", 5),
+    )
     await storage.connect()
     try:
         if args.command == "migrate":
@@ -147,6 +164,47 @@ async def _run_admin_command(args: argparse.Namespace) -> int:
                 team=args.team or settings.team,
             )
             print(f"Member ready: {member['username']} ({member['role']}) on team {member['team']}")
+            return 0
+
+        if args.command == "add-project-member":
+            member = await storage.ensure_member(username=args.username, team=args.team or settings.team)
+            project_member = await storage.create_or_update_project_member(
+                member_id=member["id"],
+                username=args.username,
+                project=args.project,
+                team=args.team or member["team"],
+                role=args.role,
+            )
+            print(
+                f"Project member ready: {project_member['username']} ({project_member['role']}) "
+                f"on project {project_member['project']}"
+            )
+            return 0
+
+        if args.command == "benchmark":
+            benchmark = await storage.benchmark_payloads(
+                username=args.username or settings.user,
+                project=args.project if args.project is not None else settings.default_project,
+                sample_size=args.sample_size,
+                boot_limit=args.boot_limit,
+                boot_full_content_limit=args.boot_full_content_limit,
+            )
+            print("Payload benchmark")
+            print(
+                "- Boot full vs hybrid: "
+                f"{benchmark['boot']['full']['approx_tokens']} -> {benchmark['boot']['hybrid']['approx_tokens']} approx tokens "
+                f"({benchmark['boot']['savings']['approx_tokens']} saved, {benchmark['boot']['savings']['token_pct']}%)"
+            )
+            print(
+                "- Memory sample full vs lean: "
+                f"{benchmark['sample']['full']['approx_tokens']} -> {benchmark['sample']['lean']['approx_tokens']} approx tokens "
+                f"({benchmark['sample']['savings']['approx_tokens']} saved, {benchmark['sample']['savings']['token_pct']}%)"
+            )
+            print(
+                "- Bytes full vs hybrid boot: "
+                f"{benchmark['boot']['full']['bytes']} -> {benchmark['boot']['hybrid']['bytes']} "
+                f"({benchmark['boot']['savings']['bytes']} saved, {benchmark['boot']['savings']['byte_pct']}%)"
+            )
             return 0
 
         if args.command == "viewer" and args.viewer_command == "build":

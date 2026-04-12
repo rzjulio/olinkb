@@ -223,6 +223,33 @@ def test_build_viewer_payload_preserves_metadata_and_defaults_missing_values() -
         sessions=[],
         audit_log=[],
         team_members=[],
+        pending_approvals={
+            "enabled": True,
+            "total_count": 1,
+            "proposals": [
+                {
+                    "id": "m3",
+                    "uri": "project://olinkb/decisions/pending-standard",
+                    "title": "Pending standard",
+                    "content": "What: Standardize review flow",
+                    "memory_type": "decision",
+                    "scope": "project",
+                    "namespace": "project://olinkb",
+                    "author_username": "ana",
+                    "proposed_by_username": "ana",
+                    "proposed_memory_type": "convention",
+                    "approval_status": "pending",
+                    "proposal_note": "Make this the default review path.",
+                    "proposed_at": "2026-04-11T12:00:00+00:00",
+                    "tags": [],
+                    "metadata": None,
+                    "retrieval_count": 0,
+                    "created_at": "2026-04-11T10:00:00+00:00",
+                    "updated_at": "2026-04-11T12:00:00+00:00",
+                    "deleted_at": None,
+                }
+            ],
+        },
     )
 
     memories = {memory["id"]: memory for memory in payload["memories"]}
@@ -231,6 +258,8 @@ def test_build_viewer_payload_preserves_metadata_and_defaults_missing_values() -
     assert memories["m2"]["metadata"] == {}
     assert memories["m1"]["sections"]["what"] == "Persist richer memory context"
     assert memories["m2"]["sections"]["remaining"] == "Free form note"
+    assert payload["pendingApprovals"]["enabled"] is True
+    assert payload["pendingApprovals"]["proposals"][0]["approval_status"] == "pending"
 
 
 def test_extract_note_sections_prefers_metadata_and_preserves_remaining_content() -> None:
@@ -339,6 +368,7 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
         "teamMembers": [],
         "graph": {"nodes": [], "edges": []},
         "highlights": [],
+        "pendingApprovals": {"enabled": True, "total_count": 2, "proposals": []},
     }
 
     html = render_viewer_html(payload)
@@ -350,6 +380,7 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'class="vault-title"' in html
     assert 'class="note-markdown"' in html
     assert 'id="graph-resizer"' in html
+    assert 'id="approval-queue"' in html
     assert 'class="explorer-folder"' in html
     assert 'tree-note' in html
     assert 'Directly connected notes' in html
@@ -388,6 +419,9 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'note-subcontent' in html
     assert 'Additional content' in html
     assert 'const noteSections = selected.sections || {};' in html
+    assert 'Pending approvals' in html
+    assert 'toggle-pending-view' in html
+    assert 'state.viewMode === "pending"' in html
     assert 'pageInfo?.has_next' in html
     assert 'data-live-page="next"' in html
     assert 'data-live-page="prev"' in html

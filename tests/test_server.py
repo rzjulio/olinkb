@@ -7,9 +7,35 @@ class FakeApp:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
 
+    async def remember(self, **kwargs):
+        self.calls.append(kwargs)
+        return []
+
     async def save_memory(self, **kwargs):
         self.calls.append(kwargs)
         return {"status": "created", "uri": kwargs["uri"]}
+
+    async def propose_memory_promotion(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"status": "pending", "uri": kwargs["uri"]}
+
+    async def list_pending_approvals(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"total_count": 1, "proposals": []}
+
+    async def review_memory_proposal(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"status": kwargs["action"], "uri": kwargs["uri"]}
+
+
+@pytest.mark.asyncio
+async def test_server_remember_exposes_include_content_flag(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    await server.remember(query="lean recall", scope="project", include_content=True)
+
+    assert app.calls[0]["include_content"] is True
 
 
 @pytest.mark.asyncio
@@ -29,3 +55,44 @@ async def test_server_save_memory_passes_metadata_to_app(monkeypatch) -> None:
 
     assert result["status"] == "created"
     assert app.calls[0]["metadata"] == metadata
+
+
+@pytest.mark.asyncio
+async def test_server_propose_memory_promotion_passes_target_type(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    result = await server.propose_memory_promotion(
+        uri="project://olinkb/decisions/richer-memory-context",
+        rationale="Should become the project standard.",
+        target_memory_type="standard",
+    )
+
+    assert result["status"] == "pending"
+    assert app.calls[0]["target_memory_type"] == "standard"
+
+
+@pytest.mark.asyncio
+async def test_server_list_pending_approvals_passes_limit(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    result = await server.list_pending_approvals(project="olinkb", limit=7)
+
+    assert result["total_count"] == 1
+    assert app.calls[0]["limit"] == 7
+
+
+@pytest.mark.asyncio
+async def test_server_review_memory_proposal_passes_action(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    result = await server.review_memory_proposal(
+        uri="project://olinkb/decisions/richer-memory-context",
+        action="approve",
+        note="Looks good.",
+    )
+
+    assert result["status"] == "approve"
+    assert app.calls[0]["action"] == "approve"

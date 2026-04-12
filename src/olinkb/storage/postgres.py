@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
+import math
 from pathlib import Path
 import re
 from typing import Any
@@ -10,23 +11,50 @@ from uuid import UUID
 
 import asyncpg
 
-from olinkb.domain import extract_namespace, parse_tags, scope_filters_for_query
+from olinkb.domain import extract_namespace, parse_tags, scope_filters_for_query, validate_member_role
 
 
 STRUCTURED_METADATA_PATTERN = re.compile(
-    r"^(?P<label>What|Why|Where|Learned|Context|Decision|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):\s*(?P<value>.*?)(?=^(?:What|Why|Where|Learned|Context|Decision|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):|\Z)",
+    r"^(?P<label>What|Why|Where|Learned|Context|Decision|Evidence|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):\s*(?P<value>.*?)(?=^(?:What|Why|Where|Learned|Context|Decision|Evidence|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):|\Z)",
     re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
+LEAN_PREVIEW_MAX_CHARS = 120
+BOOT_SCOPE_SCORE = {"system": 40, "team": 28, "project": 18, "personal": 8, "org": 6}
+BOOT_MEMORY_TYPE_SCORE = {
+    "convention": 18,
+    "procedure": 16,
+    "decision": 14,
+    "constraint": 12,
+    "bugfix": 11,
+    "failure_pattern": 10,
+    "tool_affordance": 9,
+    "discovery": 7,
+    "fact": 5,
+    "event": 3,
+    "preference": 1,
+}
+PREVIEW_METADATA_KEYS = (
+    "what",
+    "decision",
+    "why",
+    "learned",
+    "context",
+    "evidence",
+    "goal",
+    "accomplished",
+    "next_steps",
 )
 
 
 class PostgresStorage:
-    def __init__(self, dsn: str) -> None:
+    def __init__(self, dsn: str, pool_max_size: int = 5) -> None:
         self._dsn = dsn
+        self._pool_max_size = max(1, pool_max_size)
         self._pool: asyncpg.Pool | None = None
 
     async def connect(self) -> None:
         if self._pool is None:
-            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=5)
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=self._pool_max_size)
 
     async def close(self) -> None:
         if self._pool is not None:
@@ -107,6 +135,315 @@ class PostgresStorage:
             return dict(row)
         return await self.create_or_update_member(username=username, team=team)
 
+    async def create_or_update_project_member(
+        self,
+        *,
+        member_id: UUID,
+        username: str,
+        project: str,
+        team: str,
+        role: str = "developer",
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+        validate_member_role(role)
+
+        row = await self._pool.fetchrow(
+            """
+            INSERT INTO project_members (project, member_id, username, team, role, is_active)
+            VALUES ($1, $2, $3, $4, $5, TRUE)
+            ON CONFLICT (project, username)
+            DO UPDATE SET
+                member_id = EXCLUDED.member_id,
+                team = EXCLUDED.team,
+                role = EXCLUDED.role,
+                is_active = TRUE,
+                updated_at = NOW()
+            RETURNING id, project, member_id, username, team, role, is_active
+            """,
+            project,
+            member_id,
+            username,
+            team,
+            role,
+        )
+        return dict(row)
+
+    async def ensure_project_member(
+        self,
+        *,
+        member_id: UUID,
+        username: str,
+        project: str,
+        team: str,
+        default_role: str = "developer",
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+
+        row = await self._pool.fetchrow(
+            """
+            SELECT id, project, member_id, username, team, role, is_active
+            FROM project_members
+            WHERE project = $1 AND username = $2
+            """,
+            project,
+            username,
+        )
+        if row is None:
+            return await self.create_or_update_project_member(
+                member_id=member_id,
+                username=username,
+                project=project,
+                team=team,
+                role=default_role,
+            )
+        if row["member_id"] != member_id or row["team"] != team or row["is_active"] is not True:
+            row = await self._pool.fetchrow(
+                """
+                UPDATE project_members
+                SET member_id = $3,
+                    team = $4,
+                    is_active = TRUE,
+                    updated_at = NOW()
+                WHERE project = $1 AND username = $2
+                RETURNING id, project, member_id, username, team, role, is_active
+                """,
+                project,
+                username,
+                member_id,
+                team,
+            )
+        return dict(row)
+
+    async def get_project_member(self, *, username: str, project: str) -> dict[str, Any] | None:
+        await self.connect()
+        assert self._pool is not None
+
+        row = await self._pool.fetchrow(
+            """
+            SELECT id, project, member_id, username, team, role, is_active
+            FROM project_members
+            WHERE project = $1 AND username = $2
+            """,
+            project,
+            username,
+        )
+        if row is None:
+            return None
+        return dict(row)
+
+    async def load_pending_proposals(self, *, project: str, limit: int = 5) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+
+        namespace = f"project://{project}"
+        total_count = await self._pool.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM memories
+            WHERE deleted_at IS NULL
+              AND scope = 'project'
+              AND namespace = $1
+              AND approval_status = 'pending'
+            """,
+            namespace,
+        )
+        rows = await self._pool.fetch(
+            """
+            SELECT id, uri, title, content, memory_type, proposed_memory_type, approval_status,
+                   author_username, proposed_by_username, proposed_at, proposal_note,
+                   scope, namespace, metadata, updated_at
+            FROM memories
+            WHERE deleted_at IS NULL
+              AND scope = 'project'
+              AND namespace = $1
+              AND approval_status = 'pending'
+            ORDER BY proposed_at DESC NULLS LAST, updated_at DESC
+            LIMIT $2
+            """,
+            namespace,
+            limit,
+        )
+        return {
+            "total_count": int(total_count or 0),
+            "proposals": [self._serialize_memory(row, include_content=False) for row in rows],
+        }
+
+    async def propose_memory_promotion(
+        self,
+        *,
+        uri: str,
+        proposed_memory_type: str,
+        rationale: str,
+        actor_id: UUID,
+        actor_username: str,
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+
+        async with self._pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                """
+                SELECT id, uri, scope, namespace, memory_type, proposed_memory_type, approval_status
+                FROM memories
+                WHERE uri = $1 AND deleted_at IS NULL
+                """,
+                uri,
+            )
+            if existing is None:
+                raise ValueError(f"Memory not found for URI: {uri}")
+            if existing["scope"] != "project":
+                raise ValueError("Only project memories can be proposed for promotion")
+
+            row = await conn.fetchrow(
+                """
+                UPDATE memories
+                SET proposed_memory_type = $2,
+                    approval_status = 'pending',
+                    proposed_by = $3,
+                    proposed_by_username = $4,
+                    proposed_at = NOW(),
+                    proposal_note = $5,
+                    reviewed_by = NULL,
+                    reviewed_by_username = NULL,
+                    reviewed_at = NULL,
+                    review_note = NULL,
+                    updated_at = NOW()
+                WHERE uri = $1
+                RETURNING id, uri, namespace, scope, memory_type, proposed_memory_type, approval_status
+                """,
+                uri,
+                proposed_memory_type,
+                actor_id,
+                actor_username,
+                rationale,
+            )
+            await conn.execute(
+                """
+                INSERT INTO audit_log (actor_id, actor_username, action, memory_id, uri, old_content, new_content, metadata)
+                VALUES ($1, $2, 'propose_promotion', $3, $4, NULL, NULL, $5::jsonb)
+                """,
+                actor_id,
+                actor_username,
+                row["id"],
+                uri,
+                json.dumps(
+                    {
+                        "proposed_memory_type": proposed_memory_type,
+                        "rationale": rationale,
+                        "previous_memory_type": existing["memory_type"],
+                    }
+                ),
+            )
+
+        return {
+            "status": "pending",
+            "id": str(row["id"]),
+            "uri": row["uri"],
+            "namespace": row["namespace"],
+            "scope": row["scope"],
+            "memory_type": row["memory_type"],
+            "proposed_memory_type": row["proposed_memory_type"],
+            "approval_status": row["approval_status"],
+        }
+
+    async def review_memory_proposal(
+        self,
+        *,
+        uri: str,
+        action: str,
+        note: str,
+        reviewer_id: UUID,
+        reviewer_username: str,
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+
+        if action not in {"approve", "reject"}:
+            raise ValueError(f"Unsupported review action: {action}")
+
+        async with self._pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                """
+                SELECT id, uri, scope, namespace, memory_type, proposed_memory_type, approval_status
+                FROM memories
+                WHERE uri = $1 AND deleted_at IS NULL
+                """,
+                uri,
+            )
+            if existing is None:
+                raise ValueError(f"Memory not found for URI: {uri}")
+            if existing["approval_status"] != "pending" or not existing["proposed_memory_type"]:
+                raise ValueError(f"Memory does not have a pending proposal: {uri}")
+
+            if action == "approve":
+                row = await conn.fetchrow(
+                    """
+                    UPDATE memories
+                    SET memory_type = proposed_memory_type,
+                        approval_status = 'approved',
+                        reviewed_by = $2,
+                        reviewed_by_username = $3,
+                        reviewed_at = NOW(),
+                        review_note = $4,
+                        updated_at = NOW()
+                    WHERE uri = $1
+                    RETURNING id, uri, namespace, scope, memory_type, proposed_memory_type, approval_status
+                    """,
+                    uri,
+                    reviewer_id,
+                    reviewer_username,
+                    note,
+                )
+            else:
+                row = await conn.fetchrow(
+                    """
+                    UPDATE memories
+                    SET approval_status = 'rejected',
+                        reviewed_by = $2,
+                        reviewed_by_username = $3,
+                        reviewed_at = NOW(),
+                        review_note = $4,
+                        updated_at = NOW()
+                    WHERE uri = $1
+                    RETURNING id, uri, namespace, scope, memory_type, proposed_memory_type, approval_status
+                    """,
+                    uri,
+                    reviewer_id,
+                    reviewer_username,
+                    note,
+                )
+            await conn.execute(
+                """
+                INSERT INTO audit_log (actor_id, actor_username, action, memory_id, uri, old_content, new_content, metadata)
+                VALUES ($1, $2, $3, $4, $5, NULL, NULL, $6::jsonb)
+                """,
+                reviewer_id,
+                reviewer_username,
+                f"{action}_proposal",
+                row["id"],
+                uri,
+                json.dumps(
+                    {
+                        "note": note,
+                        "proposed_memory_type": existing["proposed_memory_type"],
+                        "previous_memory_type": existing["memory_type"],
+                    }
+                ),
+            )
+
+        return {
+            "status": row["approval_status"],
+            "id": str(row["id"]),
+            "uri": row["uri"],
+            "namespace": row["namespace"],
+            "scope": row["scope"],
+            "memory_type": row["memory_type"],
+            "proposed_memory_type": row["proposed_memory_type"],
+            "approval_status": row["approval_status"],
+        }
+
     async def start_session(self, author_id: UUID, author_username: str, project: str | None) -> str:
         await self.connect()
         assert self._pool is not None
@@ -164,7 +501,13 @@ class PostgresStorage:
             return None
         return dict(row)
 
-    async def load_boot_memories(self, username: str, project: str | None, limit: int = 40) -> list[dict[str, Any]]:
+    async def load_boot_memories(
+        self,
+        username: str,
+        project: str | None,
+        limit: int = 40,
+        full_content_limit: int = 5,
+    ) -> list[dict[str, Any]]:
         await self.connect()
         assert self._pool is not None
 
@@ -196,44 +539,66 @@ class PostgresStorage:
             personal_prefix,
             limit,
         )
-        return [self._serialize_memory(row) for row in rows]
+        serialized_rows = [self._serialize_memory(row, include_content=True) for row in rows]
+        full_content_indexes = self._select_boot_full_content_indexes(serialized_rows, full_content_limit)
+        return [
+            self._finalize_memory_payload(memory.copy(), include_content=index in full_content_indexes)
+            for index, memory in enumerate(serialized_rows)
+        ]
 
     async def search_memories(
         self,
         query: str,
         scope: str,
         limit: int,
+        include_content: bool = False,
+        username: str | None = None,
+        team: str | None = None,
+        project: str | None = None,
     ) -> list[dict[str, Any]]:
         await self.connect()
         assert self._pool is not None
 
         scope_filters = scope_filters_for_query(scope)
+        project_namespace = f"project://{project}" if project else None
         rows = await self._pool.fetch(
             """
-            SELECT id, uri, title, content, memory_type, scope, namespace, author_username, metadata, updated_at,
+            SELECT m.id, m.uri, m.title, m.content, m.memory_type, m.scope, m.namespace,
+                   m.author_username, m.metadata, m.updated_at,
                    GREATEST(
-                       similarity(title, $1),
-                       similarity(content, $1),
-                       similarity(uri, $1)
+                       similarity(m.title, $1),
+                       similarity(m.content, $1),
+                       similarity(m.uri, $1)
                    ) AS relevance
-            FROM memories
-            WHERE deleted_at IS NULL
-              AND scope = ANY($2::text[])
+            FROM memories AS m
+            LEFT JOIN team_members AS tm ON tm.id = m.author_id
+            WHERE m.deleted_at IS NULL
+              AND m.scope = ANY($2::text[])
               AND (
-                    title % $1
-                 OR content % $1
-                 OR uri % $1
-                 OR title ILIKE '%' || $1 || '%'
-                 OR content ILIKE '%' || $1 || '%'
+                    m.scope = 'system'
+                 OR m.scope = 'org'
+                 OR (m.scope = 'personal' AND m.author_username = $4)
+                 OR (m.scope = 'project' AND $5::text IS NOT NULL AND m.namespace = $5)
+                 OR (m.scope = 'team' AND $6::text IS NOT NULL AND tm.team = $6)
               )
-            ORDER BY relevance DESC, retrieval_count DESC, updated_at DESC
+              AND (
+                    m.title % $1
+                 OR m.content % $1
+                 OR m.uri % $1
+                 OR m.title ILIKE '%' || $1 || '%'
+                 OR m.content ILIKE '%' || $1 || '%'
+              )
+            ORDER BY relevance DESC, m.retrieval_count DESC, m.updated_at DESC
             LIMIT $3
             """,
             query,
             scope_filters,
             limit,
+            username,
+            project_namespace,
+            team,
         )
-        return [self._serialize_memory(row) for row in rows]
+        return [self._serialize_memory(row, include_content=include_content) for row in rows]
 
     async def search_session_summaries(
         self,
@@ -281,12 +646,15 @@ class PostgresStorage:
         query: str,
         limit: int,
         cursor: dict[str, Any] | None,
+        team: str | None = None,
+        project: str | None = None,
     ) -> dict[str, Any]:
         await self.connect()
         assert self._pool is not None
 
         normalized_query = query.strip()
         fetch_limit = max(1, limit) + 1
+        project_namespace = f"project://{project}" if project else None
         cursor_relevance = None if cursor is None else float(cursor["relevance"])
         cursor_updated_at = None if cursor is None else cursor["updated_at"]
         cursor_id = None if cursor is None else cursor["id"]
@@ -294,33 +662,42 @@ class PostgresStorage:
         rows = await self._pool.fetch(
             """
             WITH ranked AS (
-                SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
-                       metadata, tags, vitality_score, retrieval_count, last_accessed, deleted_at,
-                       created_at, updated_at,
+                SELECT m.id, m.uri, m.title, m.content, m.memory_type, m.scope, m.namespace,
+                       m.author_username, m.metadata, m.tags, m.vitality_score, m.retrieval_count,
+                       m.last_accessed, m.deleted_at, m.created_at, m.updated_at,
                        CASE
                            WHEN $1::text = '' THEN 0::double precision
-                           ELSE GREATEST(similarity(title, $1), similarity(content, $1))
+                           ELSE GREATEST(similarity(m.title, $1), similarity(m.content, $1))
                        END AS relevance
-                FROM memories
-                WHERE scope <> 'personal'
+                FROM memories AS m
+                LEFT JOIN team_members AS tm ON tm.id = m.author_id
+                WHERE m.scope <> 'personal'
+                  AND (
+                        m.scope = 'system'
+                     OR m.scope = 'org'
+                     OR (m.scope = 'project' AND $2::text IS NOT NULL AND m.namespace = $2)
+                     OR (m.scope = 'team' AND $3::text IS NOT NULL AND tm.team = $3)
+                  )
                   AND (
                         $1::text = ''
-                     OR title % $1
-                     OR content % $1
-                     OR title ILIKE '%' || $1 || '%'
-                     OR content ILIKE '%' || $1 || '%'
+                     OR m.title % $1
+                     OR m.content % $1
+                     OR m.title ILIKE '%' || $1 || '%'
+                     OR m.content ILIKE '%' || $1 || '%'
                   )
             )
             SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
                    metadata, tags, vitality_score, retrieval_count, last_accessed, deleted_at,
                    created_at, updated_at, relevance
             FROM ranked
-            WHERE $2::double precision IS NULL
-               OR ROW(relevance, updated_at, id) < ROW($2, $3::timestamptz, $4::uuid)
+            WHERE $4::double precision IS NULL
+               OR ROW(relevance, updated_at, id) < ROW($4, $5::timestamptz, $6::uuid)
             ORDER BY relevance DESC, updated_at DESC, id DESC
-            LIMIT $5
+            LIMIT $7
             """,
             normalized_query,
+            project_namespace,
+            team,
             cursor_relevance,
             cursor_updated_at,
             cursor_id,
@@ -619,26 +996,64 @@ class PostgresStorage:
             "team_members": [self._serialize_record(row) for row in team_members],
         }
 
-    def _serialize_memory(self, row: asyncpg.Record) -> dict[str, Any]:
-        serialized = self._serialize_record(row)
-        metadata = serialized.get("metadata")
-        if isinstance(metadata, str):
-            stripped_metadata = metadata.strip()
-            if stripped_metadata:
-                try:
-                    metadata = json.loads(stripped_metadata)
-                except json.JSONDecodeError:
-                    serialized["metadata"] = metadata
-                    return serialized
-            else:
-                metadata = None
+    async def benchmark_payloads(
+        self,
+        *,
+        username: str,
+        project: str | None,
+        sample_size: int = 200,
+        boot_limit: int = 40,
+        boot_full_content_limit: int = 5,
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
 
-        if metadata:
-            serialized["metadata"] = metadata
-            return serialized
+        boot_full = await self.load_boot_memories(
+            username=username,
+            project=project,
+            limit=boot_limit,
+            full_content_limit=boot_limit,
+        )
+        boot_hybrid = await self.load_boot_memories(
+            username=username,
+            project=project,
+            limit=boot_limit,
+            full_content_limit=boot_full_content_limit,
+        )
+        sample_rows = await self._pool.fetch(
+            """
+            SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
+                   tags, metadata, vitality_score, retrieval_count, last_accessed, deleted_at,
+                   created_at, updated_at
+            FROM memories
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT $1
+            """,
+            sample_size,
+        )
+        sample_full = [self._serialize_memory(row, include_content=True) for row in sample_rows]
+        sample_lean = [self._serialize_memory(row, include_content=False) for row in sample_rows]
 
-        serialized["metadata"] = self._extract_metadata_from_content(serialized.get("content") or "")
-        return serialized
+        full_boot_metrics = self._measure_payload(boot_full)
+        hybrid_boot_metrics = self._measure_payload(boot_hybrid)
+        full_sample_metrics = self._measure_payload(sample_full)
+        lean_sample_metrics = self._measure_payload(sample_lean)
+
+        return {
+            "boot": {
+                "limit": boot_limit,
+                "full_content_limit": boot_full_content_limit,
+                "full": full_boot_metrics,
+                "hybrid": hybrid_boot_metrics,
+                "savings": self._measure_payload_savings(full_boot_metrics, hybrid_boot_metrics),
+            },
+            "sample": {
+                "size": len(sample_rows),
+                "full": full_sample_metrics,
+                "lean": lean_sample_metrics,
+                "savings": self._measure_payload_savings(full_sample_metrics, lean_sample_metrics),
+            },
+        }
 
     def _serialize_session_summary(self, row: asyncpg.Record) -> dict[str, Any]:
         serialized = self._serialize_record(row)
@@ -650,7 +1065,6 @@ class PostgresStorage:
             "session_id": session_id,
             "uri": f"project://{project}/sessions/{session_id}" if project else f"system://sessions/{session_id}",
             "title": f"Session summary {project or serialized.get('author_username') or 'unknown'} {session_id[:8]}",
-            "content": summary,
             "summary": summary,
             "memory_type": "session_summary",
             "scope": "project" if project else "system",
@@ -663,6 +1077,116 @@ class PostgresStorage:
             "updated_at": serialized.get("ended_at") or serialized.get("started_at"),
             "retrieval_count": 0,
             "project": project,
+        }
+
+    def _serialize_memory(self, row: asyncpg.Record, *, include_content: bool = True) -> dict[str, Any]:
+        serialized = self._serialize_record(row)
+        metadata = serialized.get("metadata")
+        if isinstance(metadata, str):
+            stripped_metadata = metadata.strip()
+            if stripped_metadata:
+                try:
+                    metadata = json.loads(stripped_metadata)
+                except json.JSONDecodeError:
+                    serialized["metadata"] = metadata
+                    return self._finalize_memory_payload(serialized, include_content=include_content)
+            else:
+                metadata = None
+
+        if metadata:
+            serialized["metadata"] = metadata
+            return self._finalize_memory_payload(serialized, include_content=include_content)
+
+        serialized["metadata"] = self._extract_metadata_from_content(serialized.get("content") or "")
+        return self._finalize_memory_payload(serialized, include_content=include_content)
+
+    @staticmethod
+    def _finalize_memory_payload(serialized: dict[str, Any], *, include_content: bool) -> dict[str, Any]:
+        if not include_content:
+            preview = PostgresStorage._build_preview(serialized)
+            if preview:
+                serialized["preview"] = preview
+            serialized.pop("content", None)
+        return serialized
+
+    @staticmethod
+    def _select_boot_full_content_indexes(memories: list[dict[str, Any]], full_content_limit: int) -> set[int]:
+        if full_content_limit <= 0:
+            return set()
+        scored = [
+            (PostgresStorage._boot_memory_score(memory, index), index)
+            for index, memory in enumerate(memories)
+        ]
+        selected = sorted(scored, key=lambda item: (-item[0], item[1]))[: min(full_content_limit, len(memories))]
+        return {index for _, index in selected}
+
+    @staticmethod
+    def _boot_memory_score(memory: dict[str, Any], index: int) -> int:
+        metadata = memory.get("metadata") if isinstance(memory.get("metadata"), dict) else {}
+        scope = str(memory.get("scope") or "")
+        memory_type = str(memory.get("memory_type") or "")
+        score = BOOT_SCOPE_SCORE.get(scope, 0)
+        score += BOOT_MEMORY_TYPE_SCORE.get(memory_type, 0)
+        score += max(0, 8 - index)
+        score += min(len(metadata), 4) * 2
+        if metadata.get("what"):
+            score += 3
+        if metadata.get("decision"):
+            score += 3
+        if metadata.get("learned"):
+            score += 2
+        return score
+
+    @staticmethod
+    def _build_preview(serialized: dict[str, Any]) -> str | None:
+        metadata = serialized.get("metadata")
+        if isinstance(metadata, dict):
+            for key in PREVIEW_METADATA_KEYS:
+                value = metadata.get(key)
+                if value:
+                    return PostgresStorage._truncate_preview(f"{key.replace('_', ' ').title()}: {str(value).strip()}")
+
+        content = str(serialized.get("content") or "").strip()
+        if not content:
+            return None
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped:
+                return PostgresStorage._truncate_preview(stripped)
+        return None
+
+    @staticmethod
+    def _truncate_preview(value: str) -> str:
+        normalized = re.sub(r"\s+", " ", value).strip()
+        if len(normalized) <= LEAN_PREVIEW_MAX_CHARS:
+            return normalized
+        return normalized[: LEAN_PREVIEW_MAX_CHARS - 1].rstrip() + "…"
+
+    @staticmethod
+    def _measure_payload(payload: Any) -> dict[str, int]:
+        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        char_count = len(serialized)
+        return {
+            "bytes": len(serialized.encode("utf-8")),
+            "chars": char_count,
+            "approx_tokens": math.ceil(char_count / 4) if char_count else 0,
+        }
+
+    @staticmethod
+    def _measure_payload_savings(full_metrics: dict[str, int], lean_metrics: dict[str, int]) -> dict[str, int | float]:
+        byte_savings = max(0, full_metrics["bytes"] - lean_metrics["bytes"])
+        token_savings = max(0, full_metrics["approx_tokens"] - lean_metrics["approx_tokens"])
+        byte_pct = 0.0
+        token_pct = 0.0
+        if full_metrics["bytes"]:
+            byte_pct = round((byte_savings / full_metrics["bytes"]) * 100, 2)
+        if full_metrics["approx_tokens"]:
+            token_pct = round((token_savings / full_metrics["approx_tokens"]) * 100, 2)
+        return {
+            "bytes": byte_savings,
+            "approx_tokens": token_savings,
+            "byte_pct": byte_pct,
+            "token_pct": token_pct,
         }
 
     @staticmethod

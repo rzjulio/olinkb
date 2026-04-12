@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OlinKB Visual Companion</title>
+    <style>
+        :root {
+            --paper: #f6f1e8;
+            --paper-strong: #efe7d8;
+            --ink: #1f1b16;
+            --muted: #6c6258;
+            --line: #c9bba9;
+            --accent: #bc5a45;
+            --accent-deep: #8e3327;
+            --accent-soft: #f2c8bc;
+            --teal: #0e6a67;
+            --teal-soft: #caebe7;
+            --gold: #c58c1a;
+            --gold-soft: #f7e6ba;
+            --shadow: 0 18px 40px rgba(31, 27, 22, 0.09);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --max: 1380px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at top left, rgba(188, 90, 69, 0.16), transparent 22%),
+                radial-gradient(circle at 85% 12%, rgba(14, 106, 103, 0.14), transparent 18%),
+                linear-gradient(180deg, #fcf8f1 0%, var(--paper) 100%);
+            color: var(--ink);
+            font-family: Avenir Next, Avenir, Helvetica Neue, sans-serif;
+        }
+
+        .page-shell {
+            width: min(calc(100% - 40px), var(--max));
+            margin: 0 auto;
+            padding: 28px 0 64px;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(143, 122, 101, 0.28);
+            border-radius: 34px;
+            padding: 34px;
+            background: linear-gradient(135deg, rgba(255, 251, 245, 0.92), rgba(246, 241, 232, 0.88));
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -90px -110px auto;
+            width: 280px;
+            height: 280px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(14, 106, 103, 0.18), rgba(14, 106, 103, 0));
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(188, 90, 69, 0.11);
+            color: var(--accent-deep);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            font-family: Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        h1 {
+            font-size: clamp(2.4rem, 6vw, 4.7rem);
+            line-height: 0.96;
+            max-width: 11ch;
+            margin-top: 16px;
+        }
+
+        .hero-copy {
+            max-width: 62ch;
+            margin-top: 18px;
+            color: #40382e;
+            font-size: 1.02rem;
+            line-height: 1.65;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 22px;
+            align-items: start;
+            margin-top: 26px;
+        }
+
+        .hero-card,
+        .panel,
+        .step,
+        .lane-card,
+        .artifact-card,
+        .runtime-card,
+        .fact-card,
+        .mini-panel {
+            border: 1px solid rgba(143, 122, 101, 0.24);
+            background: rgba(255, 251, 245, 0.82);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+        }
+
+        .hero-card {
+            padding: 22px;
+        }
+
+        .hero-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .stat {
+            border-radius: 16px;
+            padding: 14px;
+            background: linear-gradient(180deg, rgba(242, 200, 188, 0.34), rgba(255, 255, 255, 0.7));
+            border: 1px solid rgba(188, 90, 69, 0.18);
+        }
+
+        .stat strong {
+            display: block;
+            font-size: 1.8rem;
+            line-height: 1;
+            margin-bottom: 6px;
+            color: var(--accent-deep);
+        }
+
+        .stat span {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .pill-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .pill {
+            border-radius: 999px;
+            padding: 9px 13px;
+            background: var(--paper-strong);
+            border: 1px solid rgba(143, 122, 101, 0.2);
+            font-size: 0.88rem;
+            color: #493f35;
+        }
+
+        nav.toc {
+            position: sticky;
+            top: 16px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 12px;
+            margin: 18px 0 26px;
+            border-radius: 18px;
+            background: rgba(255, 251, 245, 0.85);
+            border: 1px solid rgba(143, 122, 101, 0.18);
+            backdrop-filter: blur(10px);
+        }
+
+        nav.toc a {
+            text-decoration: none;
+            color: var(--ink);
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(239, 231, 216, 0.7);
+            border: 1px solid rgba(143, 122, 101, 0.16);
+        }
+
+        section {
+            margin-top: 28px;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        .section-head p {
+            margin: 0;
+            max-width: 64ch;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .section-head h2 {
+            font-size: clamp(1.7rem, 3vw, 2.6rem);
+            line-height: 1.02;
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .step {
+            position: relative;
+            padding: 18px;
+            min-height: 250px;
+            overflow: hidden;
+        }
+
+        .step::before {
+            content: attr(data-step);
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 3rem;
+            line-height: 1;
+            color: rgba(188, 90, 69, 0.14);
+            font-weight: 800;
+        }
+
+        .step-label {
+            display: inline-flex;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--teal-soft);
+            color: var(--teal);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .step p,
+        .artifact-card p,
+        .lane-card p,
+        .runtime-card p,
+        .fact-card p,
+        .mini-panel p,
+        .hero-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .step ul,
+        .lane-card ul,
+        .artifact-card ul,
+        .runtime-card ul,
+        .fact-card ul {
+            margin: 12px 0 0;
+            padding-left: 18px;
+            color: #433a31;
+            line-height: 1.55;
+        }
+
+        .visible-hidden {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .panel {
+            padding: 22px;
+        }
+
+        .panel.visible {
+            background: linear-gradient(180deg, rgba(247, 230, 186, 0.45), rgba(255, 251, 245, 0.86));
+        }
+
+        .panel.hidden {
+            background: linear-gradient(180deg, rgba(202, 235, 231, 0.48), rgba(255, 251, 245, 0.86));
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .panel-head span {
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .panel.visible .panel-head span {
+            color: #7a5609;
+        }
+
+        .panel.hidden .panel-head span {
+            color: var(--teal);
+        }
+
+        .machine-map {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .lane-card {
+            padding: 18px;
+            min-height: 280px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lane-card::after {
+            content: "";
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 16px;
+            height: 6px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(188, 90, 69, 0.28), rgba(14, 106, 103, 0.22));
+        }
+
+        .lane-tag {
+            display: inline-block;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: rgba(31, 27, 22, 0.05);
+        }
+
+        .artifact-grid,
+        .facts,
+        .runtime-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .wheel-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 18px;
+        }
+
+        .flow-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .flow-chip {
+            position: relative;
+            padding: 14px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(242, 200, 188, 0.24), rgba(255, 251, 245, 0.84));
+            border: 1px solid rgba(188, 90, 69, 0.18);
+            min-height: 120px;
+        }
+
+        .flow-chip::after {
+            content: "→";
+            position: absolute;
+            top: 50%;
+            right: -10px;
+            transform: translateY(-50%);
+            color: rgba(142, 51, 39, 0.55);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .flow-chip:last-child::after {
+            content: "";
+        }
+
+        .flow-chip strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--accent-deep);
+        }
+
+        .artifact-card,
+        .runtime-card,
+        .fact-card {
+            padding: 20px;
+        }
+
+        .artifact-path,
+        .mono {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: #1d1d1f;
+            color: #f8f5ef;
+            font-family: IBM Plex Mono, SFMono-Regular, Menlo, monospace;
+            font-size: 0.84rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .stack {
+            display: grid;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .stack-item {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            align-items: start;
+            padding: 12px 14px;
+            background: rgba(255, 251, 245, 0.7);
+            border: 1px solid rgba(143, 122, 101, 0.18);
+            border-radius: 14px;
+        }
+
+        .stack-item strong {
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent-deep);
+        }
+
+        .runtime-board {
+            border-radius: 28px;
+            padding: 22px;
+            background: linear-gradient(180deg, rgba(202, 235, 231, 0.26), rgba(255, 251, 245, 0.88));
+            border: 1px solid rgba(14, 106, 103, 0.18);
+            box-shadow: var(--shadow);
+        }
+
+        .runtime-flow {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .runtime-tabs {
+            display: grid;
+            gap: 10px;
+        }
+
+        .runtime-tab {
+            border: 1px solid rgba(143, 122, 101, 0.2);
+            background: rgba(255, 251, 245, 0.88);
+            color: var(--ink);
+            border-radius: 14px;
+            padding: 14px;
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+            font: inherit;
+        }
+
+        .runtime-tab:hover,
+        .runtime-tab[aria-selected="true"] {
+            transform: translateX(4px);
+            border-color: rgba(188, 90, 69, 0.42);
+            background: rgba(242, 200, 188, 0.42);
+        }
+
+        .runtime-stage {
+            display: none;
+            padding: 18px;
+            border-radius: 20px;
+            background: rgba(255, 251, 245, 0.76);
+            border: 1px solid rgba(143, 122, 101, 0.16);
+            min-height: 360px;
+        }
+
+        .runtime-stage.active {
+            display: block;
+            animation: rise 0.24s ease;
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .runtime-stage .mini-panel {
+            padding: 16px;
+            margin-top: 14px;
+            background: rgba(255, 255, 255, 0.74);
+        }
+
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .highlight {
+            color: var(--accent-deep);
+            font-weight: 700;
+        }
+
+        .check-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .check-list {
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(143, 122, 101, 0.2);
+            background: rgba(255, 251, 245, 0.82);
+            box-shadow: var(--shadow);
+        }
+
+        .check-list h3 {
+            margin-bottom: 12px;
+            font-size: 1.2rem;
+        }
+
+        .check-row {
+            display: flex;
+            gap: 12px;
+            align-items: start;
+            padding: 10px 0;
+            border-top: 1px dashed rgba(143, 122, 101, 0.24);
+        }
+
+        .check-row:first-of-type {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .badge {
+            flex: 0 0 auto;
+            width: 28px;
+            height: 28px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 800;
+        }
+
+        .badge.yes {
+            background: rgba(14, 106, 103, 0.12);
+            color: var(--teal);
+        }
+
+        .badge.no {
+            background: rgba(188, 90, 69, 0.12);
+            color: var(--accent-deep);
+        }
+
+        .footer-note {
+            margin-top: 30px;
+            padding: 20px 22px;
+            border-radius: 20px;
+            background: #1f1b16;
+            color: #f8f5ef;
+            display: grid;
+            gap: 8px;
+        }
+
+        .footer-note strong {
+            font-family: Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 1120px) {
+
+            .hero-grid,
+            .timeline,
+            .machine-map,
+            .artifact-grid,
+            .wheel-grid,
+            .facts,
+            .runtime-grid,
+            .visible-hidden,
+            .check-grid,
+            .runtime-flow,
+            .mini-grid,
+            .flow-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .stack-item {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .page-shell {
+                width: min(calc(100% - 24px), var(--max));
+                padding-top: 18px;
+            }
+
+            .hero,
+            .panel,
+            .runtime-board,
+            .step,
+            .lane-card,
+            .artifact-card,
+            .runtime-card,
+            .fact-card,
+            .check-list {
+                padding: 18px;
+            }
+
+            h1 {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <div class="eyebrow">Visual Companion · OlinKB CLI + MCP</div>
+            <h1>Qué instala la CLI y qué pasa realmente cuando el editor usa OlinKB</h1>
+            <p class="hero-copy">
+                Esta vista separa la historia en tres capas: <span class="highlight">instalación del paquete</span>,
+                <span class="highlight">bootstrap del workspace</span> y <span class="highlight">ejecución MCP en tiempo
+                    real</span>.
+                La meta es que puedas ver, casi como una radiografía, qué aparece en la máquina del developer y qué se
+                mueve detrás del telón.
+            </p>
+            <div class="hero-grid">
+                <div class="hero-card">
+                    <h3>Resumen en una frase</h3>
+                    <p>
+                        OlinKB no instala un daemon: instala un comando local <span class="mono">olinkb</span>, escribe
+                        configuración MCP para VS Code,
+                        usa PostgreSQL como memoria persistente y deja que el editor levante un proceso <span
+                            class="mono">olinkb mcp</span> por demanda vía <span class="mono">stdio</span>.
+                    </p>
+                    <div class="pill-list">
+                        <span class="pill">Python package</span>
+                        <span class="pill">FastMCP server</span>
+                        <span class="pill">PostgreSQL backend</span>
+                        <span class="pill">VS Code MCP registry</span>
+                        <span class="pill">Repo instructions</span>
+                    </div>
+                </div>
+                <div class="hero-card">
+                    <h3>A simple vista</h3>
+                    <div class="stat-grid">
+                        <div class="stat"><strong>1</strong><span>comando principal: <span
+                                    class="mono">olinkb</span></span></div>
+                        <div class="stat"><strong>2</strong><span>dependencias Python clave: <span
+                                    class="mono">fastmcp</span> y <span class="mono">asyncpg</span></span></div>
+                        <div class="stat"><strong>5</strong><span>tools MCP visibles: boot, remember, save, end,
+                                forget</span></div>
+                        <div class="stat"><strong>0</strong><span>daemons residentes creados por OlinKB</span></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="toc" aria-label="Secciones del companion">
+            <a href="#timeline">Timeline</a>
+            <a href="#wheel">Dentro del wheel</a>
+            <a href="#visible-hidden">Visible vs oculto</a>
+            <a href="#machine">Mapa de máquina</a>
+            <a href="#artifacts">Archivos creados</a>
+            <a href="#runtime">Runtime MCP</a>
+            <a href="#installed">Qué sí / qué no</a>
+        </nav>
+
+        <section id="timeline">
+            <div class="section-head">
+                <div>
+                    <h2>Timeline de instalación</h2>
+                </div>
+                <p>De izquierda a derecha: lo que ejecuta el developer y la consecuencia material de cada paso.</p>
+            </div>
+            <div class="timeline">
+                <article class="step" data-step="01">
+                    <div class="step-label">Paquete</div>
+                    <h3>pipx instala el wheel</h3>
+                    <p>Se descarga o abre el wheel, se crea un venv aislado y se expone el launcher <span
+                            class="mono">olinkb</span>.</p>
+                    <ul>
+                        <li>Script entrypoint: <span class="mono">olinkb = olinkb.cli:main</span></li>
+                        <li>Dependencias: <span class="mono">fastmcp</span>, <span class="mono">asyncpg</span></li>
+                        <li>No toca todavía VS Code ni PostgreSQL</li>
+                    </ul>
+                </article>
+                <article class="step" data-step="02">
+                    <div class="step-label">Bootstrap</div>
+                    <h3><span class="mono">olinkb --init</span></h3>
+                    <p>Pregunta scope, URL de PostgreSQL y team. Detecta el nombre del proyecto si el scope es de
+                        repositorio.</p>
+                    <ul>
+                        <li>Scope: <span class="mono">repository</span> o <span class="mono">global</span></li>
+                        <li>Construye el bloque MCP con env vars</li>
+                        <li>Hace merge en lugar de reescribir ciegamente</li>
+                    </ul>
+                </article>
+                <article class="step" data-step="03">
+                    <div class="step-label">Editor</div>
+                    <h3>VS Code queda cableado</h3>
+                    <p>El editor ahora sabe que existe un servidor MCP llamado <span class="mono">olinkb</span> y cómo
+                        arrancarlo.</p>
+                    <ul>
+                        <li>Usa <span class="mono">command: olinkb</span></li>
+                        <li>Usa <span class="mono">args: ["mcp"]</span></li>
+                        <li>Pasa <span class="mono">OLINKB_PG_URL</span>, <span class="mono">OLINKB_TEAM</span>, <span
+                                class="mono">OLINKB_USER</span></li>
+                    </ul>
+                </article>
+                <article class="step" data-step="04">
+                    <div class="step-label">Base de datos</div>
+                    <h3><span class="mono">olinkb migrate</span></h3>
+                    <p>Se crean extensiones, tablas e índices. Aquí nace el storage persistente real.</p>
+                    <ul>
+                        <li>Extensiones: <span class="mono">uuid-ossp</span>, <span class="mono">pgcrypto</span>, <span
+                                class="mono">pg_trgm</span></li>
+                        <li>Tablas: team_members, memories, sessions, audit_log</li>
+                        <li>La DB es la memoria compartida real</li>
+                    </ul>
+                </article>
+                <article class="step" data-step="05">
+                    <div class="step-label">Uso real</div>
+                    <h3>El editor levanta el subprocess MCP</h3>
+                    <p>Cada vez que Copilot necesita memoria, puede arrancar <span class="mono">olinkb mcp</span> y
+                        hablar por stdin/stdout.</p>
+                    <ul>
+                        <li>No hay puerto HTTP para MCP</li>
+                        <li>No hay servicio siempre encendido</li>
+                        <li>La caché vive solo mientras vive el proceso</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section id="wheel">
+            <div class="section-head">
+                <div>
+                    <h2>Qué instala exactamente el wheel</h2>
+                </div>
+                <p>Esta es la parte que normalmente queda invisible: el wheel no instala solo un comando, instala un
+                    paquete Python completo y un launcher que apunta al entrypoint del proyecto.</p>
+            </div>
+            <div class="wheel-grid">
+                <article class="artifact-card">
+                    <h3>Lo que queda en disco</h3>
+                    <p>Tras <span class="mono">pipx install olinkb-0.1.0-py3-none-any.whl</span>, pipx crea un venv
+                        aislado y dentro instala el paquete Python con su código y metadatos.</p>
+                    <div class="artifact-path">site-packages/
+                        olinkb/
+                        __init__.py
+                        cli.py
+                        app.py
+                        server.py
+                        bootstrap.py
+                        olinkb-0.1.0.dist-info/</div>
+                    <ul>
+                        <li>Sí, hay archivos <span class="mono">.py</span> reales instalados en tu máquina.</li>
+                        <li>También quedan las dependencias <span class="mono">fastmcp</span> y <span
+                                class="mono">asyncpg</span> en ese mismo entorno.</li>
+                        <li>El código no vive en tu Python global, sino en el entorno aislado que maneja pipx.</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Cómo nace el comando <span class="mono">olinkb</span></h3>
+                    <p>El wheel trae metadata para que el instalador genere un launcher a partir del script declarado en
+                        el proyecto.</p>
+                    <div class="artifact-path">[project.scripts]
+                        olinkb = "olinkb.cli:main"</div>
+                    <ul>
+                        <li>Eso le dice al instalador qué función debe ejecutar el comando.</li>
+                        <li>El launcher suele ser un script pequeño o shim que llama al Python del venv.</li>
+                        <li>Cuando escribes <span class="mono">olinkb ...</span>, en realidad terminas ejecutando <span
+                                class="mono">main()</span> de <span class="mono">olinkb/cli.py</span>.</li>
+                    </ul>
+                </article>
+            </div>
+            <div class="flow-strip" aria-label="Flujo interno del launcher olinkb">
+                <div class="flow-chip">
+                    <strong>1. Shell</strong>
+                    Tu terminal resuelve <span class="mono">olinkb</span> desde el PATH.
+                </div>
+                <div class="flow-chip">
+                    <strong>2. Launcher</strong>
+                    El wrapper apunta al Python del venv creado por pipx.
+                </div>
+                <div class="flow-chip">
+                    <strong>3. Import</strong>
+                    Python importa <span class="mono">olinkb.cli</span> desde los archivos instalados.
+                </div>
+                <div class="flow-chip">
+                    <strong>4. Entry point</strong>
+                    Se ejecuta <span class="mono">olinkb.cli:main</span> y de ahí salen <span class="mono">mcp</span>,
+                    <span class="mono">migrate</span>, <span class="mono">--init</span> y demás.
+                </div>
+            </div>
+            <div class="mini-grid">
+                <div class="mini-panel">
+                    <h3>Lo importante</h3>
+                    <p>Instalar el wheel sí deja software Python local en tu máquina. No es un acceso remoto al repo ni
+                        un alias vacío.</p>
+                </div>
+                <div class="mini-panel">
+                    <h3>Lo que no hace</h3>
+                    <p>No instala PostgreSQL, no crea un daemon y no migra la base automáticamente. Solo deja el
+                        software local listo para usarse.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="visible-hidden">
+            <div class="section-head">
+                <div>
+                    <h2>Lo visible y lo invisible</h2>
+                </div>
+                <p>Esta separación aclara por qué OlinKB puede sentirse “simple” por fuera y, aun así, tener varias
+                    capas internas.</p>
+            </div>
+            <div class="visible-hidden">
+                <article class="panel visible">
+                    <div class="panel-head">
+                        <h3>Lo que el developer sí ve</h3>
+                        <span>front stage</span>
+                    </div>
+                    <ul>
+                        <li>El comando <span class="mono">olinkb</span> aparece disponible en la terminal.</li>
+                        <li><span class="mono">olinkb --init</span> pide pocos datos y escribe config.</li>
+                        <li>Se crean archivos en <span class="mono">.vscode</span>, <span class="mono">.github</span> y
+                            opcionalmente en el viewer scaffold.</li>
+                        <li><span class="mono">olinkb migrate</span> imprime migraciones aplicadas.</li>
+                        <li>Luego el agente usa memoria sin pedir comandos manuales en cada prompt.</li>
+                    </ul>
+                </article>
+                <article class="panel hidden">
+                    <div class="panel-head">
+                        <h3>Lo que ocurre por detrás</h3>
+                        <span>back stage</span>
+                    </div>
+                    <ul>
+                        <li>El entrypoint del paquete entra por <span class="mono">olinkb.cli:main</span>.</li>
+                        <li>El bootstrap hace merge de JSON e inserta o actualiza el protocolo en instrucciones del
+                            repo.</li>
+                        <li>El runtime MCP crea un <span class="mono">OlinKBApp</span> con settings, cache TTL y session
+                            manager.</li>
+                        <li>Las búsquedas <span class="mono">remember</span> usan trigram similarity con <span
+                                class="mono">pg_trgm</span>.</li>
+                        <li>La persistencia real no vive en el proceso MCP: vive en PostgreSQL.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section id="machine">
+            <div class="section-head">
+                <div>
+                    <h2>Mapa de la máquina del developer</h2>
+                </div>
+                <p>Cuatro zonas: package install, editor config, subprocess MCP y base persistente.</p>
+            </div>
+            <div class="machine-map">
+                <article class="lane-card">
+                    <div class="lane-tag">1 · Python tooling</div>
+                    <h3>pipx / venv aislado</h3>
+                    <p>Es donde vive el paquete instalado y sus dependencias Python.</p>
+                    <ul>
+                        <li>Wheel de OlinKB</li>
+                        <li>Launcher <span class="mono">olinkb</span></li>
+                        <li><span class="mono">fastmcp</span> y <span class="mono">asyncpg</span></li>
+                    </ul>
+                </article>
+                <article class="lane-card">
+                    <div class="lane-tag">2 · Workspace o usuario</div>
+                    <h3>VS Code MCP registry</h3>
+                    <p>Es donde el editor aprende cómo arrancar el servidor y con qué variables de entorno.</p>
+                    <ul>
+                        <li><span class="mono">.vscode/mcp.json</span> o user <span class="mono">mcp.json</span></li>
+                        <li>Instructions del repo para activar las tools</li>
+                        <li>Project name inyectado en modo repository</li>
+                    </ul>
+                </article>
+                <article class="lane-card">
+                    <div class="lane-tag">3 · Proceso efímero</div>
+                    <h3>Subprocess <span class="mono">olinkb mcp</span></h3>
+                    <p>Vive mientras la conversación necesita el servidor MCP. Después desaparece.</p>
+                    <ul>
+                        <li>Transport: stdin/stdout</li>
+                        <li>FastMCP router</li>
+                        <li>ReadCache + SessionManager en RAM</li>
+                    </ul>
+                </article>
+                <article class="lane-card">
+                    <div class="lane-tag">4 · Persistencia</div>
+                    <h3>PostgreSQL compartido</h3>
+                    <p>Es la fuente de verdad que sobrevive a reinicios, cierres del editor y múltiples developers.</p>
+                    <ul>
+                        <li>memories</li>
+                        <li>sessions</li>
+                        <li>audit_log</li>
+                        <li>team_members</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section id="artifacts">
+            <div class="section-head">
+                <div>
+                    <h2>Archivos y artefactos que aparecen</h2>
+                </div>
+                <p>No todo se crea en el mismo momento. Algunos artefactos son de bootstrap, otros son de migración y
+                    otros son puramente runtime.</p>
+            </div>
+            <div class="artifact-grid">
+                <article class="artifact-card">
+                    <h3>Instalación del comando</h3>
+                    <p>Esto aparece por instalar el wheel con pipx.</p>
+                    <div class="artifact-path">pipx venv + launcher
+                        olinkb</div>
+                    <ul>
+                        <li>Expone el entrypoint CLI</li>
+                        <li>Contiene el código Python del paquete</li>
+                        <li>No crea todavía schema ni config de VS Code</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Bootstrap repository</h3>
+                    <p>Esto aparece cuando el scope es del repo actual.</p>
+                    <div class="artifact-path">.vscode/mcp.json
+                        .github/copilot-instructions.md
+                        olinkb-viewer/index.html
+                        olinkb-viewer/README.md</div>
+                    <ul>
+                        <li>Registra el servidor MCP</li>
+                        <li>Le enseña al agente cuándo usar memoria</li>
+                        <li>Evita duplicar bloques al re-ejecutarse</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Bootstrap global</h3>
+                    <p>Esto aparece cuando el developer elige scope global.</p>
+                    <div class="artifact-path">macOS
+                        ~/Library/Application Support/Code/User/mcp.json</div>
+                    <ul>
+                        <li>Configura VS Code a nivel usuario</li>
+                        <li>No escribe instrucciones del repo</li>
+                        <li>Útil si no quieres commitear la integración</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Schema PostgreSQL</h3>
+                    <p>Esto nace cuando se ejecuta la migración.</p>
+                    <div class="artifact-path">schema_migrations
+                        team_members
+                        memories
+                        sessions
+                        audit_log</div>
+                    <ul>
+                        <li>También crea índices trigram GIN</li>
+                        <li>Las extensiones quedan habilitadas en la DB</li>
+                        <li>Aquí vive la memoria compartida</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Estado efímero</h3>
+                    <p>Esto existe solo mientras vive el proceso MCP actual.</p>
+                    <div class="artifact-path">ReadCache (TTL)
+                        SessionManager
+                        settings cargados en RAM</div>
+                    <ul>
+                        <li>No sobrevive al cierre del subprocess</li>
+                        <li>Sirve para velocidad y contexto inmediato</li>
+                        <li>No reemplaza a PostgreSQL</li>
+                    </ul>
+                </article>
+                <article class="artifact-card">
+                    <h3>Integración automática</h3>
+                    <p>Lo más importante no es solo el binario; es la combinación de binario + registro MCP +
+                        instrucciones.</p>
+                    <div class="artifact-path">command: olinkb
+                        args: ["mcp"]
+                        env: OLINKB_*</div>
+                    <ul>
+                        <li>Sin esto, el editor no lo invoca automáticamente</li>
+                        <li>Sin instrucciones, el modelo puede usarlo de forma inconsistente</li>
+                        <li>Sin DB, el servidor no tiene memoria real</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section id="runtime">
+            <div class="section-head">
+                <div>
+                    <h2>Runtime MCP, paso por paso</h2>
+                </div>
+                <p>Cambia de pestaña para seguir el recorrido interno del subprocess desde que VS Code lo levanta hasta
+                    que termina.</p>
+            </div>
+            <div class="runtime-board">
+                <div class="runtime-flow">
+                    <div class="runtime-tabs" role="tablist" aria-label="Etapas del runtime MCP">
+                        <button class="runtime-tab" role="tab" aria-selected="true" aria-controls="stage-1"
+                            id="tab-1">1. Arranque</button>
+                        <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-2"
+                            id="tab-2">2. Settings</button>
+                        <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-3"
+                            id="tab-3">3. FastMCP</button>
+                        <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-4"
+                            id="tab-4">4. Tool call</button>
+                        <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-5"
+                            id="tab-5">5. Persistencia</button>
+                        <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-6"
+                            id="tab-6">6. Cierre</button>
+                    </div>
+                    <div>
+                        <article class="runtime-stage active" id="stage-1" role="tabpanel" aria-labelledby="tab-1">
+                            <h3>El editor ejecuta <span class="mono">olinkb mcp</span></h3>
+                            <p>VS Code no llama funciones Python directamente. Ejecuta un proceso del sistema operativo
+                                y habla con él por stdio. Esa es la frontera MCP real.</p>
+                            <div class="mini-grid">
+                                <div class="mini-panel">
+                                    <h3>Visible</h3>
+                                    <p>No suele verse nada en pantalla. Solo “funciona” cuando el agente decide usar
+                                        memoria.</p>
+                                </div>
+                                <div class="mini-panel">
+                                    <h3>Interno</h3>
+                                    <p>El entrypoint CLI reconoce <span class="mono">mcp</span> o <span
+                                            class="mono">serve</span> y delega a <span class="mono">run_server()</span>.
+                                    </p>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="runtime-stage" id="stage-2" role="tabpanel" aria-labelledby="tab-2">
+                            <h3>Se leen variables de entorno</h3>
+                            <p>El proceso construye <span class="mono">Settings</span> a partir de <span
+                                    class="mono">OLINKB_PG_URL</span>, <span class="mono">OLINKB_TEAM</span>, <span
+                                    class="mono">OLINKB_USER</span> y opcionalmente <span
+                                    class="mono">OLINKB_PROJECT</span>.</p>
+                            <div class="stack">
+                                <div class="stack-item"><strong>Obligatorio</strong><span><span
+                                            class="mono">OLINKB_PG_URL</span> y <span
+                                            class="mono">OLINKB_TEAM</span></span></div>
+                                <div class="stack-item"><strong>Fallback</strong><span>Si no existe <span
+                                            class="mono">OLINKB_USER</span>, usa <span class="mono">USER</span> o <span
+                                            class="mono">USERNAME</span>.</span></div>
+                                <div class="stack-item"><strong>Opcional</strong><span>Project por defecto y parámetros
+                                        del cache TTL.</span></div>
+                            </div>
+                        </article>
+
+                        <article class="runtime-stage" id="stage-3" role="tabpanel" aria-labelledby="tab-3">
+                            <h3>FastMCP publica las tools</h3>
+                            <p>El objeto <span class="mono">FastMCP("OlinKB")</span> registra funciones como <span
+                                    class="mono">boot_session</span>, <span class="mono">remember</span>, <span
+                                    class="mono">save_memory</span>, <span class="mono">end_session</span> y <span
+                                    class="mono">forget</span>.</p>
+                            <div class="runtime-grid">
+                                <div class="runtime-card">
+                                    <h3>boot_session</h3>
+                                    <p>Arranca sesión y precarga memoria relevante.</p>
+                                </div>
+                                <div class="runtime-card">
+                                    <h3>remember</h3>
+                                    <p>Busca memorias por trigram similarity y puede devolver payload lean.</p>
+                                </div>
+                                <div class="runtime-card">
+                                    <h3>save_memory</h3>
+                                    <p>Persiste memoria con deduplicación por hash y metadata opcional.</p>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="runtime-stage" id="stage-4" role="tabpanel" aria-labelledby="tab-4">
+                            <h3>La tool entra en <span class="mono">OlinKBApp</span></h3>
+                            <p>Aquí se conectan reglas de negocio, caché y acceso a base. Este es el cerebro operativo
+                                del subprocess.</p>
+                            <div class="mini-grid">
+                                <div class="mini-panel">
+                                    <h3>ReadCache</h3>
+                                    <p>Evita repetir lecturas costosas en el mismo proceso. TTL por defecto: 300
+                                        segundos.</p>
+                                </div>
+                                <div class="mini-panel">
+                                    <h3>SessionManager</h3>
+                                    <p>Guarda estado de la sesión activa solo en memoria del proceso.</p>
+                                </div>
+                            </div>
+                            <div class="mini-panel">
+                                <h3>Ejemplo mental</h3>
+                                <p><span class="mono">remember</span> intenta cache, si falla consulta PostgreSQL,
+                                    mezcla resultados, toca contadores y devuelve contexto al agente.</p>
+                            </div>
+                        </article>
+
+                        <article class="runtime-stage" id="stage-5" role="tabpanel" aria-labelledby="tab-5">
+                            <h3>La DB hace el trabajo persistente</h3>
+                            <p>PostgreSQL no es un accesorio. Es la fuente de verdad del sistema: membresía, memorias,
+                                sesiones y trazabilidad.</p>
+                            <div class="facts">
+                                <div class="fact-card">
+                                    <h3>pg_trgm</h3>
+                                    <p>Permite similarity y matching difuso para <span class="mono">remember</span>.</p>
+                                </div>
+                                <div class="fact-card">
+                                    <h3>audit_log</h3>
+                                    <p>Guarda trail de acciones y forgets. Sirve para trazabilidad.</p>
+                                </div>
+                                <div class="fact-card">
+                                    <h3>sessions</h3>
+                                    <p>Permite cerrar sesiones y persistir summaries más allá del proceso actual.</p>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="runtime-stage" id="stage-6" role="tabpanel" aria-labelledby="tab-6">
+                            <h3>La conexión termina y el proceso muere</h3>
+                            <p>Al cerrarse la conexión MCP, el subprocess termina. Lo que estaba en cache o en session
+                                manager desaparece. Lo que estaba en PostgreSQL queda.</p>
+                            <div class="check-grid">
+                                <div class="check-list">
+                                    <h3>Se conserva</h3>
+                                    <div class="check-row"><span class="badge yes">+</span>
+                                        <div><strong>Memories</strong>
+                                            <p>Persisten en la tabla correspondiente.</p>
+                                        </div>
+                                    </div>
+                                    <div class="check-row"><span class="badge yes">+</span>
+                                        <div><strong>Audit trail</strong>
+                                            <p>Queda en <span class="mono">audit_log</span>.</p>
+                                        </div>
+                                    </div>
+                                    <div class="check-row"><span class="badge yes">+</span>
+                                        <div><strong>Sessions cerradas</strong>
+                                            <p>Sobreviven al reinicio del editor.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="check-list">
+                                    <h3>Se pierde</h3>
+                                    <div class="check-row"><span class="badge no">−</span>
+                                        <div><strong>ReadCache</strong>
+                                            <p>Es solo RAM del proceso actual.</p>
+                                        </div>
+                                    </div>
+                                    <div class="check-row"><span class="badge no">−</span>
+                                        <div><strong>SessionManager vivo</strong>
+                                            <p>No sobrevive al cierre del subprocess.</p>
+                                        </div>
+                                    </div>
+                                    <div class="check-row"><span class="badge no">−</span>
+                                        <div><strong>Estado efímero del boot</strong>
+                                            <p>Se recalcula al arrancar un nuevo proceso.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="installed">
+            <div class="section-head">
+                <div>
+                    <h2>Qué sí se instala y qué no</h2>
+                </div>
+                <p>Este es el punto que más confunde: instalar la CLI no equivale a instalar toda la plataforma
+                    alrededor.</p>
+            </div>
+            <div class="check-grid">
+                <article class="check-list">
+                    <h3>Lo que OlinKB sí deja listo</h3>
+                    <div class="check-row"><span class="badge yes">+</span>
+                        <div><strong>CLI local</strong>
+                            <p>El comando <span class="mono">olinkb</span> queda utilizable desde terminal y por VS
+                                Code.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge yes">+</span>
+                        <div><strong>Dependencias Python</strong>
+                            <p><span class="mono">fastmcp</span> para protocolo MCP y <span class="mono">asyncpg</span>
+                                para hablar con PostgreSQL.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge yes">+</span>
+                        <div><strong>Registro MCP</strong>
+                            <p>La integración con VS Code queda configurada por archivo JSON.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge yes">+</span>
+                        <div><strong>Protocolo del repo</strong>
+                            <p>El agente aprende cuándo debe usar memoria automáticamente.</p>
+                        </div>
+                    </div>
+                </article>
+                <article class="check-list">
+                    <h3>Lo que el developer debe tener o provisionar</h3>
+                    <div class="check-row"><span class="badge no">−</span>
+                        <div><strong>Python 3.11+</strong>
+                            <p>Precondición del paquete, no parte de OlinKB.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge no">−</span>
+                        <div><strong>pipx</strong>
+                            <p>Herramienta de instalación recomendada, externa a OlinKB.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge no">−</span>
+                        <div><strong>PostgreSQL corriendo</strong>
+                            <p>Puede ser local con Docker o remoto; OlinKB no te lo provisiona por sí mismo.</p>
+                        </div>
+                    </div>
+                    <div class="check-row"><span class="badge no">−</span>
+                        <div><strong>VS Code + Copilot</strong>
+                            <p>El cliente que invoca MCP ya debe existir y estar operativo.</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-head">
+                <div>
+                    <h2>Resumen operativo</h2>
+                </div>
+                <p>Si tuvieras que contárselo a otro developer en 20 segundos, esta sería la versión correcta.</p>
+            </div>
+            <div class="hero-card">
+                <p>
+                    <strong>OlinKB instala un comando local, no un servicio residente.</strong> Ese comando registra un
+                    servidor MCP en VS Code,
+                    usa variables de entorno para saber a qué PostgreSQL conectarse, y el editor lo arranca como
+                    subprocess por demanda.
+                    PostgreSQL guarda la memoria duradera; el proceso MCP solo aporta routing, caché efímera y
+                    coordinación de tools.
+                </p>
+            </div>
+        </section>
+
+        <footer class="footer-note">
+            <strong>Tip de lectura</strong>
+            <span>Si quieres recorrerlo como onboarding: primero mira Timeline, luego Mapa de máquina y finalmente
+                Runtime MCP.</span>
+        </footer>
+    </div>
+
+    <script>
+        const tabs = Array.from(document.querySelectorAll('.runtime-tab'));
+        const stages = Array.from(document.querySelectorAll('.runtime-stage'));
+
+        function activateStage(index) {
+            tabs.forEach((tab, tabIndex) => {
+                const active = tabIndex === index;
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            stages.forEach((stage, stageIndex) => {
+                stage.classList.toggle('active', stageIndex === index);
+            });
+        }
+
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => activateStage(index));
+        });
+    </script>
+</body>
+
+</html>

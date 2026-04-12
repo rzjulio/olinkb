@@ -13,6 +13,7 @@ def utcnow() -> datetime:
 class ActiveSession:
     session_id: str
     author: str
+    team: str
     project: str | None
     started_at: datetime
     ended_at: datetime | None = None
@@ -25,10 +26,11 @@ class SessionManager:
     def __init__(self) -> None:
         self._sessions: dict[str, ActiveSession] = {}
 
-    def start(self, session_id: str, author: str, project: str | None) -> ActiveSession:
+    def start(self, session_id: str, author: str, team: str = "", project: str | None = None) -> ActiveSession:
         session = ActiveSession(
             session_id=session_id,
             author=author,
+            team=team,
             project=project,
             started_at=utcnow(),
         )
