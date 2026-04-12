@@ -1,8 +1,10 @@
-# OlinkB v2 — Re-Análisis, Brainstorming y Plan PostgreSQL
+# OlinKB — Re-Análisis, Brainstorming y Plan PostgreSQL
 
 > Fecha: Abril 2026
 > Contexto: Revisión profunda del plan v1 (SQLite) vs capacidades reales de los repos analizados.
 > Objetivo: Un sistema que funcione verdaderamente para equipos de cualquier tamaño.
+
+> Nota de fase actual: en la implementación actual de OlinKB, PostgreSQL oficial + `pg_trgm` cubren la base operativa. Las referencias a `pgvector` en este documento deben leerse como una mejora futura para búsqueda semántica, no como parte del runtime de esta fase.
 
 ---
 
@@ -82,7 +84,7 @@ v1 acumularía memorias redundantes sin mecanismo de consolidación inteligente.
 - mcp-mem0: user-scoped pero sin roles
 - DeerFlow: sub-agent isolation pero sin permisos de equipo
 
-**Esta es un área donde OlinkB puede innovar genuinamente.**
+**Esta es un área donde OlinKB puede innovar genuinamente.**
 
 #### Brecha 5: Sin mecanismo de olvido inteligente
 
@@ -113,9 +115,9 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
 
 ---
 
-### 1.3 Lo que NINGÚN repo resuelve (oportunidad real de OlinkB)
+### 1.3 Lo que NINGÚN repo resuelve (oportunidad real de OlinKB)
 
-| Problema | Estado en los 20 repos | Oportunidad para OlinkB |
+| Problema | Estado en los 20 repos | Oportunidad para OlinKB |
 |----------|----------------------|------------------------|
 | Memoria compartida multi-equipo real | Nadie lo resuelve bien | PostgreSQL + Row-Level Security + namespaces |
 | RBAC (roles y permisos) en memoria | No existe | Roles por dev, permisos por namespace |
@@ -139,7 +141,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
                            │ MCP Protocol (SSE over HTTP)
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                OlinkB MCP Server (1 instancia)               │
+│                OlinKB MCP Server (1 instancia)               │
 │  ┌───────────┐  ┌───────────┐  ┌────────────┐              │
 │  │Write Guard│→ │Permission │→ │Query Router │              │
 │  │           │  │  Check    │  │(URI→schema) │              │
@@ -186,7 +188,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
 ┌──────────────────────────────────────────────────────────────────┐
 │                    Dev Machine (cada uno)                         │
 │  ┌───────────────────────────────────────────────────────────┐   │
-│  │   OlinkB MCP Server (local, stdio)                        │   │
+│  │   OlinKB MCP Server (local, stdio)                        │   │
 │  │   ┌────────────┐   ┌────────────┐   ┌─────────────────┐  │   │
 │  │   │Working Mem  │   │Personal Mem│   │  Sync Engine    │  │   │
 │  │   │(in-memory)  │   │(SQLite)    │   │  (←→ PG)       │  │   │
@@ -196,7 +198,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
                                                   │ HTTPS
                                                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                   OlinkB Sync API                                │
+│                   OlinKB Sync API                                │
 │   ┌────────────────┐   ┌────────────────────────────────┐       │
 │   │  Conflict Res  │   │        PostgreSQL               │       │
 │   │  (LWW/CRDT)    │   │  team://, org://, shared mem    │       │
@@ -234,7 +236,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
 ┌──────────────────────────────────────────────────────────────────┐
 │                    Dev Machine (cada uno)                         │
 │  ┌───────────────────────────────────────────────────────────┐   │
-│  │   OlinkB MCP Server (local, stdio)                        │   │
+│  │   OlinKB MCP Server (local, stdio)                        │   │
 │  │   ┌────────────┐   ┌────────────────────────────────────┐ │   │
 │  │   │Working Mem  │   │  Read Cache (SQLite/in-memory)     │ │   │
 │  │   │(session)    │   │  TTL-based invalidation            │ │   │
@@ -294,7 +296,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
 
 ---
 
-## Parte 3: Plan OlinkB v2 — PostgreSQL-First con Read Cache
+## Parte 3: Plan OlinKB — PostgreSQL-First con Read Cache
 
 ### 3.1 Principios de Diseño (actualizados)
 
@@ -319,7 +321,7 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
                                │ stdio (local server per dev)
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│            OlinkB MCP Server (proceso local por dev)                 │
+│            OlinKB MCP Server (proceso local por dev)                 │
 │                                                                      │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
 │  │ Working Memory │  │  Read Cache  │  │   Retrieval Pipeline     │  │
@@ -674,7 +676,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 3.4 MCP Tools (v2)
+### 3.4 MCP Tools (arquitectura actual)
 
 #### Tier 1: Core (MVP — 6 tools)
 
@@ -849,7 +851,7 @@ save_memory(
 
 ### 3.9 Onboarding de Nuevos Devs
 
-Uno de los beneficios únicos de OlinkB v2: cuando un dev nuevo se une al equipo:
+Uno de los beneficios únicos de OlinKB: cuando un dev nuevo se une al equipo:
 
 ```
 1. Admin ejecuta: olinkb add-member --username "nueva-dev" --role developer --team "mi-equipo"
@@ -864,7 +866,7 @@ Uno de los beneficios únicos de OlinkB v2: cuando un dev nuevo se une al equipo
 
 Esto resuelve un problema real que ningún repo aborda: la transferencia de conocimiento tácito.
 
-### 3.10 Namespaces v2
+### 3.10 Namespaces de la Arquitectura Actual
 
 | Namespace | Propósito | Persistencia | Acceso |
 |-----------|----------|-------------|--------|
@@ -973,8 +975,8 @@ olinkb/
 │   └── test_forgetting.py
 │
 ├── docker/
-│   ├── Dockerfile                 # OlinkB server
-│   ├── docker-compose.yml         # PostgreSQL + pgvector + OlinkB
+│   ├── Dockerfile                 # OlinKB server
+│   ├── docker-compose.yml         # PostgreSQL + pgvector + OlinKB
 │   └── init.sql                   # Bootstrap DB
 │
 └── docs/
@@ -1035,34 +1037,34 @@ olinkb/
 
 ---
 
-## Parte 4: Comparación v1 vs v2
+## Parte 4: Comparación v1 vs la Arquitectura Actual
 
 ### 4.1 Tabla Comparativa Directa
 
-| Aspecto | v1 (SQLite) | v2 (PostgreSQL) | Ventaja |
+| Aspecto | v1 (SQLite) | Arquitectura actual (PostgreSQL) | Ventaja |
 |---------|-------------|-----------------|---------|
-| **Storage** | SQLite local | PostgreSQL central + read cache | v2: un equipo de 50 devs funciona sin lock contention |
-| **Concurrencia** | WAL mode (1 writer) | MVCC (N writers) | v2: escrituras concurrentes nativas |
-| **Búsqueda keyword** | FTS5 | pg_trgm (fuzzy) + GIN | v2: fuzzy matching sin setup adicional |
-| **Búsqueda semántica** | Opcional (futura) | pgvector nativo (HNSW) | v2: embeddings integrados desde fase 3 |
-| **Retrieval** | FTS5 → resultados | Intent-aware pipeline (4 fases) | v2: entiende qué tipo de pregunta es |
-| **Dedup** | SHA256 | SHA256 + clustering semántico LLM | v2: detecta duplicados con palabras diferentes |
-| **Permisos** | Namespace string check | RLS PostgreSQL + RBAC | v2: permisos reales a nivel de DB |
-| **Roles** | No hay | admin / lead / developer / viewer | v2: governance real |
-| **Sharing** | SQLite file + sync (vago) | PostgreSQL central (nativo) | v2: compartir sin sync |
-| **Real-time** | No | LISTEN/NOTIFY → cache invalidation | v2: otros devs ven cambios en segundos |
+| **Storage** | SQLite local | PostgreSQL central + read cache | Actual: un equipo de 50 devs funciona sin lock contention |
+| **Concurrencia** | WAL mode (1 writer) | MVCC (N writers) | Actual: escrituras concurrentes nativas |
+| **Búsqueda keyword** | FTS5 | pg_trgm (fuzzy) + GIN | Actual: fuzzy matching sin setup adicional |
+| **Búsqueda semántica** | Opcional (futura) | pgvector nativo (HNSW) | Actual: embeddings integrados desde fase 3 |
+| **Retrieval** | FTS5 → resultados | Intent-aware pipeline (4 fases) | Actual: entiende qué tipo de pregunta es |
+| **Dedup** | SHA256 | SHA256 + clustering semántico LLM | Actual: detecta duplicados con palabras diferentes |
+| **Permisos** | Namespace string check | RLS PostgreSQL + RBAC | Actual: permisos reales a nivel de DB |
+| **Roles** | No hay | admin / lead / developer / viewer | Actual: governance real |
+| **Sharing** | SQLite file + sync (vago) | PostgreSQL central (nativo) | Actual: compartir sin sync |
+| **Real-time** | No | LISTEN/NOTIFY → cache invalidation | Actual: otros devs ven cambios en segundos |
 | **Modo offline** | Completo (local-first) | Parcial (read cache + working memory) | v1: funciona sin red |
 | **Latencia lectura** | <1ms (SQLite) | <1ms (cache hit) / ~10ms (cache miss) | Empate en práctica |
 | **Latencia escritura** | <1ms (SQLite) | ~5-20ms (red + PostgreSQL) | v1: más rápido |
 | **Setup** | `pip install` + file | PostgreSQL + pip install + config | v1: más simple |
 | **Dependencias** | 3 (fastmcp, aiosqlite, pydantic) | 4 (fastmcp, asyncpg, pydantic, pgvector) | v1: más ligero |
-| **Olvidación** | vitality_score (sin impl.) | Forgetting engine completo | v2: implementación real |
-| **Grafo de relaciones** | No | `memory_links` table + link_type | v2: memorias conectadas |
-| **Audit trail** | Snapshots | `audit_log` inmutable + temporal | v2: auditoría completa |
-| **Onboarding** | Manual | boot_session carga contexto del equipo | v2: automatizado |
-| **Multi-proyecto** | No | `project://`, `org://` namespaces | v2: múltiples proyectos y equipos |
-| **Working memory** | No distingue | `session://*` separado de long-term | v2: separación clara |
-| **Analytics** | No | `memory_analytics` tool | v2: visibilidad del uso |
+| **Olvidación** | vitality_score (sin impl.) | Forgetting engine completo | Actual: implementación real |
+| **Grafo de relaciones** | No | `memory_links` table + link_type | Actual: memorias conectadas |
+| **Audit trail** | Snapshots | `audit_log` inmutable + temporal | Actual: auditoría completa |
+| **Onboarding** | Manual | boot_session carga contexto del equipo | Actual: automatizado |
+| **Multi-proyecto** | No | `project://`, `org://` namespaces | Actual: múltiples proyectos y equipos |
+| **Working memory** | No distingue | `session://*` separado de long-term | Actual: separación clara |
+| **Analytics** | No | `memory_analytics` tool | Actual: visibilidad del uso |
 
 ### 4.2 Pros y Contras Resumidos
 
@@ -1085,7 +1087,7 @@ olinkb/
 - ❌ No hay audit trail confiable
 - ❌ No soporta equipos reales en producción
 
-#### v2: PostgreSQL Central + Cache
+#### Arquitectura actual: PostgreSQL Central + Cache
 
 **Pros**:
 - ✅ Escala de 1 dev a 100+ devs sin cambios
@@ -1113,17 +1115,17 @@ olinkb/
 |-----------|---------------|
 | Dev solo / hobby project | v1 (SQLite) |
 | Equipo de 2-3 devs, misma máquina | v1 con shared SQLite |
-| Equipo de 3-10 devs | **v2** — PostgreSQL ya justifica el setup |
-| Equipo de 10-50 devs | **v2** — imposible con SQLite |
-| Organización multi-equipo | **v2** con `org://` namespace |
-| Equipo sin infra propia | v2 con PostgreSQL managed (Supabase, Railway, Neon) |
-| Equipo con reqs de privacidad | v2 self-hosted con RLS |
+| Equipo de 3-10 devs | Arquitectura actual — PostgreSQL ya justifica el setup |
+| Equipo de 10-50 devs | Arquitectura actual — imposible con SQLite |
+| Organización multi-equipo | Arquitectura actual con `org://` namespace |
+| Equipo sin infra propia | Arquitectura actual con PostgreSQL managed (Supabase, Railway, Neon) |
+| Equipo con reqs de privacidad | Arquitectura actual self-hosted con RLS |
 
 ---
 
-## Parte 5: Lo que Tomamos de Cada Repo (v2 actualizado)
+## Parte 5: Lo que Tomamos de Cada Repo (actualizado)
 
-| Repo | Lo que se adopta en v2 | Cómo se mejora en v2 |
+| Repo | Lo que se adopta en la arquitectura actual | Cómo se mejora hoy |
 |------|----------------------|---------------------|
 | **nocturne_memory** | URI namespaces, Write Guard, soberanía de memoria | + `org://` + `session://`, RLS enforcement real, RBAC |
 | **LycheeMem** | Memory types (7+3 nuevos), intent-aware retrieval pipeline | + integrado en PostgreSQL functions, sin LanceDB separado |
@@ -1138,7 +1140,7 @@ olinkb/
 
 ---
 
-## Parte 6: Innovaciones Únicas de OlinkB v2
+## Parte 6: Innovaciones Únicas de OlinKB
 
 Cosas que **ningún** repo de los 20 analizados implementa:
 
@@ -1160,7 +1162,7 @@ Cosas que **ningún** repo de los 20 analizados implementa:
 
 ---
 
-## Parte 7: Quick Start v2
+## Parte 7: Quick Start de la Arquitectura Actual
 
 ```bash
 # === Opción 1: PostgreSQL managed (más rápido) ===
@@ -1168,7 +1170,7 @@ Cosas que **ningún** repo de los 20 analizados implementa:
 # 1. Crear PostgreSQL en Supabase/Railway/Neon (free tier suficiente para empezar)
 # 2. Copiar connection string
 
-# 3. Instalar OlinkB
+# 3. Instalar OlinKB
 pip install olinkb
 
 # 4. Inicializar DB + crear admin
@@ -1187,7 +1189,7 @@ olinkb template instructions > .github/copilot-instructions.md
 
 # 7. Commit al repo — todos los devs configurados al hacer pull
 git add .vscode/mcp.json .github/copilot-instructions.md
-git commit -m "feat: add OlinkB team memory"
+git commit -m "feat: add OlinKB team memory"
 
 # 8. Abrir VSCode — Copilot ya tiene acceso a la memoria del equipo
 
@@ -1197,7 +1199,7 @@ git commit -m "feat: add OlinkB team memory"
 # 1. Clonar repo
 git clone https://github.com/equipo/olinkb && cd olinkb
 
-# 2. Levantar PostgreSQL + OlinkB
+# 2. Levantar PostgreSQL + OlinKB
 docker-compose up -d
 
 # 3. Mismo flujo desde paso 4

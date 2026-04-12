@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: olinkb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: olinkb
+      POSTGRES_USER: olinkb
+      POSTGRES_PASSWORD: olinkb
+    ports:
+      - "${OLINKB_PG_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:

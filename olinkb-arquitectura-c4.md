@@ -1,14 +1,17 @@
-# OlinkB v2 — Arquitectura C4
+# OlinKB — Arquitectura C4
 
 ## Resumen Ejecutivo
-OlinkB v2 es una arquitectura de memoria compartida para equipos de desarrollo donde PostgreSQL pasa a ser la fuente única de verdad y cada desarrollador opera mediante un servidor MCP local. Ese servidor local mantiene dos cosas que hacen viable la experiencia diaria: working memory de la sesión y un read cache en memoria para que la mayoría de las lecturas no dependan de la red.
+OlinKB es una arquitectura de memoria compartida para equipos de desarrollo donde PostgreSQL pasa a ser la fuente única de verdad y cada desarrollador opera mediante un servidor MCP local. Ese servidor local mantiene dos cosas que hacen viable la experiencia diaria: working memory de la sesión y un read cache en memoria para que la mayoría de las lecturas no dependan de la red.
 
-El cambio importante frente a v1 es estructural. v1 servía como memoria personal o para equipos muy pequeños porque SQLite resuelve bien el caso local, pero no el caso multiusuario serio. v2 mueve la persistencia compartida a PostgreSQL para ganar concurrencia real, permisos nativos con RLS, auditoría, búsqueda híbrida y una base más sólida para escalar de un equipo pequeño a una organización con varios equipos.
+El cambio importante frente a v1 es estructural. v1 servía como memoria personal o para equipos muy pequeños porque SQLite resuelve bien el caso local, pero no el caso multiusuario serio. La arquitectura actual mueve la persistencia compartida a PostgreSQL para ganar concurrencia real, permisos nativos con RLS, auditoría, búsqueda híbrida y una base más sólida para escalar de un equipo pequeño a una organización con varios equipos.
 
 La idea no es crear otro RAG genérico ni otra wiki con embeddings. La idea es construir una memoria de equipo gobernada, consultable por agentes, con separación clara entre memoria personal, de proyecto, de equipo, de organización y de sesión.
 
+## Nota de Fase
+En la fase actual, OlinKB se apoya en PostgreSQL oficial más búsqueda textual con `pg_trgm`. La búsqueda semántica con `pgvector` queda explícitamente fuera del runtime actual y se considera una mejora futura para una fase posterior.
+
 ## Objetivo del Sistema
-OlinkB v2 debe permitir que un agente de desarrollo:
+OlinKB debe permitir que un agente de desarrollo:
 
 - Recupere decisiones, convenciones y procedimientos del equipo en tiempo real.
 - Mantenga working memory local durante la sesión sin inflar la base central.
@@ -31,7 +34,7 @@ OlinkB v2 debe permitir que un agente de desarrollo:
 ## Restricciones
 | Restricción | Consecuencia |
 |---|---|
-| PostgreSQL es obligatorio en v2 | No hay multi-backend ni sync con otros motores |
+| PostgreSQL es obligatorio en la arquitectura actual | No hay multi-backend ni sync con otros motores |
 | El servidor MCP corre local a cada dev | La experiencia es local, pero las escrituras van al backend central |
 | El cache local no es fuente de verdad | Todo write debe llegar a PostgreSQL |
 | El modo offline no cubre escritura | Se tolera offline parcial solo para working memory y lecturas cacheadas |
@@ -50,11 +53,11 @@ OlinkB v2 debe permitir que un agente de desarrollo:
 ## C4 — Nivel 1: Contexto del Sistema
 ```mermaid
 C4Context
-    title OlinkB v2 - Nivel 1 - Contexto del Sistema
+    title OlinKB - Nivel 1 - Contexto del Sistema
     Person(dev, "Desarrollador", "Trabaja en VS Code con un agente asistente")
     System_Ext(client, "VS Code + Copilot/Claude/Cursor", "Cliente MCP que invoca herramientas")
-    System(olinkb, "OlinkB MCP Server Local", "Servidor MCP local con working memory, cache y retrieval")
-    SystemDb(pg, "PostgreSQL OlinkB", "Fuente central de verdad con RLS, pgvector y pg_trgm")
+    System(olinkb, "OlinKB MCP Server Local", "Servidor MCP local con working memory, cache y retrieval")
+    SystemDb(pg, "PostgreSQL OlinKB", "Fuente central de verdad con RLS y pg_trgm")
     System_Ext(llm, "Proveedor LLM", "Consolidación semántica y embeddings opcionales")
     Rel(dev, client, "Usa")
     Rel(client, olinkb, "Invoca herramientas MCP", "stdio")
@@ -64,20 +67,20 @@ C4Context
 ```
 
 ### Lectura del Contexto
-El desarrollador trabaja en su editor normal. El cliente MCP del editor habla con un proceso local de OlinkB. Ese proceso local no persiste la memoria compartida por sí mismo; consulta y escribe sobre PostgreSQL. El proveedor LLM aparece como dependencia opcional para consolidación semántica, clasificación o embeddings, pero no como núcleo del sistema.
+El desarrollador trabaja en su editor normal. El cliente MCP del editor habla con un proceso local de OlinKB. Ese proceso local no persiste la memoria compartida por sí mismo; consulta y escribe sobre PostgreSQL. El proveedor LLM aparece como dependencia opcional para consolidación semántica, clasificación o embeddings, pero no como núcleo del sistema.
 
 ## C4 — Nivel 2: Contenedores
 ```mermaid
 C4Container
-    title OlinkB v2 - Nivel 2 - Contenedores
+    title OlinKB - Nivel 2 - Contenedores
     Person(dev, "Desarrollador", "Usa el asistente desde VS Code")
     System_Ext(client, "VS Code + Copilot/Claude/Cursor", "Cliente MCP")
     System_Boundary(dev_machine, "Máquina del desarrollador") {
-        Container(mcp, "OlinkB MCP Server", "Python + FastMCP", "Expone tools MCP y coordina sesiones, permisos y retrieval")
+        Container(mcp, "OlinKB MCP Server", "Python + FastMCP", "Expone tools MCP y coordina sesiones, permisos y retrieval")
         Container(cache, "Read Cache", "In-memory LRU/TTL", "Cache local de lecturas frecuentes e invalidación por eventos")
         Container(session, "Working Memory", "Estado en proceso", "Contexto activo de la sesión actual")
     }
-    SystemDb(pg, "PostgreSQL Central", "PostgreSQL + pgvector + pg_trgm", "Memorias, enlaces, sesiones, auditoría y políticas")
+    SystemDb(pg, "PostgreSQL Central", "PostgreSQL + pg_trgm", "Memorias, enlaces, sesiones, auditoría y políticas")
     System_Ext(llm, "Proveedor LLM", "Consolidación y enriquecimiento opcional")
     Rel(dev, client, "Usa")
     Rel(client, mcp, "Invoca tools MCP", "stdio")
@@ -92,7 +95,7 @@ C4Container
 ### Lectura de Contenedores
 La unidad operativa real está en la máquina del desarrollador. Ahí viven:
 
-- El `OlinkB MCP Server`, que expone las tools.
+- El `OlinKB MCP Server`, que expone las tools.
 - La `Working Memory`, que representa el estado efímero de la sesión.
 - El `Read Cache`, que reduce viajes repetidos a PostgreSQL.
 
@@ -101,8 +104,8 @@ Fuera de la máquina del desarrollador vive PostgreSQL, que centraliza identidad
 ## C4 — Nivel 3: Componentes del MCP Server Local
 ```mermaid
 C4Component
-    title OlinkB v2 - Nivel 3 - Componentes del MCP Server Local
-    Container_Boundary(mcp_boundary, "OlinkB MCP Server Local") {
+    title OlinKB - Nivel 3 - Componentes del MCP Server Local
+    Container_Boundary(mcp_boundary, "OlinKB MCP Server Local") {
         Component(api, "MCP Tools API", "FastMCP", "Expone boot_session, remember, save_memory y demás tools")
         Component(session_state, "Session Manager", "Python", "Mantiene working memory y ciclo de vida de la sesión")
         Component(cache_mgr, "Cache Manager", "Python", "LRU/TTL, precarga e invalidación")
@@ -146,7 +149,7 @@ El corazón de la arquitectura está en cómo se separan responsabilidades dentr
 ```mermaid
 sequenceDiagram
     participant IDE as Cliente MCP
-    participant MCP as OlinkB MCP Local
+    participant MCP as OlinKB MCP Local
     participant SESSION as Session Manager
     participant CACHE as Read Cache
     participant PG as PostgreSQL
@@ -173,13 +176,13 @@ sequenceDiagram
 - Precarga contexto del proyecto actual.
 - Hidrata working memory con contexto operativo útil.
 
-Ese comportamiento es el que convierte a OlinkB v2 en una herramienta de onboarding automático y no solo en un buscador.
+Ese comportamiento es el que convierte a OlinKB en una herramienta de onboarding automático y no solo en un buscador.
 
 ## Flujo Operativo: remember
 ```mermaid
 sequenceDiagram
     participant IDE as Cliente MCP
-    participant MCP as OlinkB MCP Local
+    participant MCP as OlinKB MCP Local
     participant INTENT as Intent Classifier
     participant CACHE as Read Cache
     participant RET as Retrieval Pipeline
@@ -216,7 +219,7 @@ El valor aquí está en que `remember` no trata todas las consultas igual. Algun
 ```mermaid
 sequenceDiagram
     participant IDE as Cliente MCP
-    participant MCP as OlinkB MCP Local
+    participant MCP as OlinKB MCP Local
     participant WG as Write Guard
     participant PERM as Permission Enforcer
     participant PG as PostgreSQL
@@ -245,7 +248,7 @@ sequenceDiagram
 ```
 
 ### Qué hace realmente `save_memory`
-Aquí es donde v2 se diferencia de una libreta compartida. El write path está gobernado. El sistema valida que la URI tenga sentido, detecta duplicados evidentes, verifica si el autor tiene derecho a escribir en ese namespace y deja un rastro auditable. Si un developer intenta publicar una convención de equipo, puede terminar creando una propuesta en lugar de una memoria activa.
+Aquí es donde la arquitectura actual se diferencia de una libreta compartida. El write path está gobernado. El sistema valida que la URI tenga sentido, detecta duplicados evidentes, verifica si el autor tiene derecho a escribir en ese namespace y deja un rastro auditable. Si un developer intenta publicar una convención de equipo, puede terminar creando una propuesta en lugar de una memoria activa.
 
 ## Modelo de Datos Resumido
 ### Tabla `team_members`
@@ -332,7 +335,7 @@ Es el fundamento real del modelo multiusuario. Sin RLS, el sistema seguiría dep
 Es la pieza que evita polling agresivo y permite que el read cache siga siendo útil sin quedar demasiado viejo. Cada write relevante genera una notificación de invalidación.
 
 ### Retrieval Pipeline
-Es el motor que hace que la memoria sirva para trabajar y no solo para almacenar. Un pipeline razonable para v2 es:
+Es el motor que hace que la memoria sirva para trabajar y no solo para almacenar. Un pipeline razonable para la arquitectura actual es:
 
 1. Clasificación de intención.
 2. Expansión o normalización de consulta.
@@ -390,7 +393,7 @@ Objetivo: activar embeddings, retrieval híbrido completo, consolidación semán
 ### Fase 4: Scale
 Objetivo: multi-equipo, `org://`, approval workflows completos, import/export, métricas y endurecimiento operativo.
 
-## Lo Que Hace Diferente a OlinkB v2
+## Lo Que Hace Diferente a OlinKB
 1. Tiene gobierno real de memoria, no solo almacenamiento colaborativo.
 2. Convierte el arranque de sesión en onboarding automático.
 3. Trata la memoria como un grafo evolutivo y no como una lista plana.
@@ -401,7 +404,7 @@ Objetivo: multi-equipo, `org://`, approval workflows completos, import/export, m
 8. Mantiene velocidad local con cache sin caer en una arquitectura de sync difícil de sostener.
 
 ## Estado y Siguiente Paso
-La idea de v2 ya queda documentada como arquitectura operable: contexto, contenedores, componentes, flujos clave, modelo de datos, trust boundaries, decisiones y roadmap.
+La arquitectura actual ya queda documentada como operable: contexto, contenedores, componentes, flujos clave, modelo de datos, trust boundaries, decisiones y roadmap.
 
 El siguiente paso natural, si quieres bajar esto a implementación, es definir el esqueleto inicial del repo con:
 
