@@ -1,0 +1,17 @@
+{
+  "servers": {
+    "olinkb": {
+      "command": "olinkb",
+      "args": [
+        "mcp"
+      ],
+      "type": "stdio",
+      "env": {
+        "OLINKB_PG_URL": "postgresql://olinkb:olinkb@localhost:5433/olinkb",
+        "OLINKB_TEAM": "rz-develop",
+        "OLINKB_USER": "${env:USER}",
+        "OLINKB_PROJECT": "olinkb"
+      }
+    }
+  }
+}

@@ -17,10 +17,10 @@ Release summary for __VERSION__.
 pipx install ./olinkb-__VERSION__-py3-none-any.whl
 ```
 
-3. Configure the current repository against the team PostgreSQL server:
+3. Initialize OlinKB and choose repository or global installation:
 
 ```bash
-olinkb setup-workspace --pg-url postgresql://usuario:password@host:5432/olinkb --team mi-equipo --project mi-proyecto
+olinkb --init
 ```
 
 4. Verify the CLI is available:

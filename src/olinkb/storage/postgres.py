@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any
 from uuid import UUID
 
 import asyncpg
 
 from olinkb.domain import extract_namespace, parse_tags, scope_filters_for_query
+
+
+STRUCTURED_METADATA_PATTERN = re.compile(
+    r"^(?P<label>What|Why|Where|Learned|Context|Decision|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):\s*(?P<value>.*?)(?=^(?:What|Why|Where|Learned|Context|Decision|Next(?:\s+|_)?Steps|Goal|Instructions|Discoveries|Accomplished):|\Z)",
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
 
 
 class PostgresStorage:
@@ -140,6 +148,22 @@ class PostgresStorage:
             memories_written,
         )
 
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
+        await self.connect()
+        assert self._pool is not None
+
+        row = await self._pool.fetchrow(
+            """
+            SELECT id::text AS id, author_username, project, summary, memories_read, memories_written, ended_at
+            FROM sessions
+            WHERE id = $1::uuid
+            """,
+            session_id,
+        )
+        if row is None:
+            return None
+        return dict(row)
+
     async def load_boot_memories(self, username: str, project: str | None, limit: int = 40) -> list[dict[str, Any]]:
         await self.connect()
         assert self._pool is not None
@@ -148,7 +172,7 @@ class PostgresStorage:
         personal_prefix = f"personal://{username}/%"
         rows = await self._pool.fetch(
             """
-            SELECT uri, title, content, memory_type, scope, namespace, author_username, updated_at
+            SELECT uri, title, content, memory_type, scope, namespace, author_username, metadata, updated_at
             FROM memories
             WHERE deleted_at IS NULL
               AND (
@@ -186,7 +210,7 @@ class PostgresStorage:
         scope_filters = scope_filters_for_query(scope)
         rows = await self._pool.fetch(
             """
-            SELECT id, uri, title, content, memory_type, scope, namespace, author_username, updated_at,
+            SELECT id, uri, title, content, memory_type, scope, namespace, author_username, metadata, updated_at,
                    GREATEST(
                        similarity(title, $1),
                        similarity(content, $1),
@@ -210,6 +234,171 @@ class PostgresStorage:
             limit,
         )
         return [self._serialize_memory(row) for row in rows]
+
+    async def search_session_summaries(
+        self,
+        *,
+        query: str,
+        limit: int,
+        project: str | None = None,
+    ) -> list[dict[str, Any]]:
+        await self.connect()
+        assert self._pool is not None
+
+        rows = await self._pool.fetch(
+            """
+            SELECT id::text AS session_id, author_username, project, started_at, ended_at, summary,
+                   GREATEST(
+                       similarity(COALESCE(summary, ''), $1),
+                       similarity(COALESCE(project, ''), $1),
+                       similarity(author_username, $1)
+                   ) AS relevance
+            FROM sessions
+            WHERE ended_at IS NOT NULL
+              AND summary IS NOT NULL
+              AND btrim(summary) <> ''
+              AND ($2::text IS NULL OR project = $2)
+              AND (
+                    summary % $1
+                 OR summary ILIKE '%' || $1 || '%'
+                 OR author_username % $1
+                 OR author_username ILIKE '%' || $1 || '%'
+                 OR COALESCE(project, '') % $1
+                 OR COALESCE(project, '') ILIKE '%' || $1 || '%'
+              )
+            ORDER BY relevance DESC, ended_at DESC, started_at DESC
+            LIMIT $3
+            """,
+            query,
+            project,
+            limit,
+        )
+        return [self._serialize_session_summary(row) for row in rows]
+
+    async def search_viewer_memories(
+        self,
+        *,
+        query: str,
+        limit: int,
+        cursor: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        await self.connect()
+        assert self._pool is not None
+
+        normalized_query = query.strip()
+        fetch_limit = max(1, limit) + 1
+        cursor_relevance = None if cursor is None else float(cursor["relevance"])
+        cursor_updated_at = None if cursor is None else cursor["updated_at"]
+        cursor_id = None if cursor is None else cursor["id"]
+
+        rows = await self._pool.fetch(
+            """
+            WITH ranked AS (
+                SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
+                       metadata, tags, vitality_score, retrieval_count, last_accessed, deleted_at,
+                       created_at, updated_at,
+                       CASE
+                           WHEN $1::text = '' THEN 0::double precision
+                           ELSE GREATEST(similarity(title, $1), similarity(content, $1))
+                       END AS relevance
+                FROM memories
+                WHERE scope <> 'personal'
+                  AND (
+                        $1::text = ''
+                     OR title % $1
+                     OR content % $1
+                     OR title ILIKE '%' || $1 || '%'
+                     OR content ILIKE '%' || $1 || '%'
+                  )
+            )
+            SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
+                   metadata, tags, vitality_score, retrieval_count, last_accessed, deleted_at,
+                   created_at, updated_at, relevance
+            FROM ranked
+            WHERE $2::double precision IS NULL
+               OR ROW(relevance, updated_at, id) < ROW($2, $3::timestamptz, $4::uuid)
+            ORDER BY relevance DESC, updated_at DESC, id DESC
+            LIMIT $5
+            """,
+            normalized_query,
+            cursor_relevance,
+            cursor_updated_at,
+            cursor_id,
+            fetch_limit,
+        )
+
+        has_next = len(rows) > limit
+        visible_rows = rows[:limit]
+        next_cursor = None
+        if has_next and visible_rows:
+            last_row = visible_rows[-1]
+            next_cursor = {
+                "relevance": float(last_row["relevance"]),
+                "updated_at": last_row["updated_at"].isoformat(),
+                "id": str(last_row["id"]),
+            }
+
+        return {
+            "memories": [self._serialize_memory(row) for row in visible_rows],
+            "page_info": {
+                "has_next": has_next,
+                "next_cursor": next_cursor,
+                "returned_count": len(visible_rows),
+                "query": normalized_query,
+            },
+        }
+
+    async def load_team_members(self, usernames: list[str]) -> list[dict[str, Any]]:
+        await self.connect()
+        assert self._pool is not None
+
+        if not usernames:
+            return []
+
+        rows = await self._pool.fetch(
+            """
+            SELECT username, display_name, role, team, is_active, created_at
+            FROM team_members
+            WHERE username = ANY($1::text[])
+            ORDER BY username ASC
+            """,
+            usernames,
+        )
+        return [self._serialize_record(row) for row in rows]
+
+    async def load_recent_sessions_for_authors(
+        self,
+        usernames: list[str],
+        *,
+        limit_per_author: int = 4,
+    ) -> list[dict[str, Any]]:
+        await self.connect()
+        assert self._pool is not None
+
+        if not usernames:
+            return []
+
+        rows = await self._pool.fetch(
+            """
+            SELECT id, author_username, project, started_at, ended_at, summary,
+                   memories_read, memories_written
+            FROM (
+                SELECT id, author_username, project, started_at, ended_at, summary,
+                       memories_read, memories_written,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY author_username
+                           ORDER BY started_at DESC, id DESC
+                       ) AS author_rank
+                FROM sessions
+                WHERE author_username = ANY($1::text[])
+            ) ranked_sessions
+            WHERE author_rank <= $2
+            ORDER BY started_at DESC, id DESC
+            """,
+            usernames,
+            max(1, limit_per_author),
+        )
+        return [self._serialize_record(row) for row in rows]
 
     async def touch_memories(self, memory_ids: list[str]) -> None:
         if not memory_ids:
@@ -235,6 +424,7 @@ class PostgresStorage:
         memory_type: str,
         scope: str,
         tags: list[str],
+        metadata: dict[str, Any] | None,
         author_id: UUID,
         author_username: str,
     ) -> dict[str, Any]:
@@ -243,13 +433,15 @@ class PostgresStorage:
 
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
         namespace = extract_namespace(uri)
+        structured_metadata = self._normalize_metadata(content=content, metadata=metadata)
 
         async with self._pool.acquire() as conn:
             existing = await conn.fetchrow(
-                "SELECT id, content, content_hash, memory_type, scope, namespace FROM memories WHERE uri = $1",
+                "SELECT id, content, content_hash, memory_type, scope, namespace, metadata FROM memories WHERE uri = $1",
                 uri,
             )
-            if existing is not None and existing["content_hash"] == content_hash:
+            existing_metadata = dict(existing).get("metadata") if existing is not None else None
+            if existing is not None and existing["content_hash"] == content_hash and (existing_metadata or {}) == structured_metadata:
                 return {
                     "status": "unchanged",
                     "id": str(existing["id"]),
@@ -264,9 +456,9 @@ class PostgresStorage:
                         """
                         INSERT INTO memories (
                             uri, title, content, memory_type, scope, namespace,
-                            author_id, author_username, tags, content_hash
+                            author_id, author_username, tags, content_hash, metadata
                         )
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11::jsonb)
                         RETURNING id, uri, namespace, scope
                         """,
                         uri,
@@ -279,6 +471,7 @@ class PostgresStorage:
                         author_username,
                         tags,
                         content_hash,
+                        json.dumps(structured_metadata),
                     )
                     operation = "create"
                     old_content = None
@@ -293,6 +486,7 @@ class PostgresStorage:
                             namespace = $6,
                             tags = $7::text[],
                             content_hash = $8,
+                            metadata = $9::jsonb,
                             deleted_at = NULL,
                             updated_at = NOW()
                         WHERE uri = $1
@@ -306,6 +500,7 @@ class PostgresStorage:
                         namespace,
                         tags,
                         content_hash,
+                        json.dumps(structured_metadata),
                     )
                     operation = "update"
                     old_content = existing["content"]
@@ -322,7 +517,14 @@ class PostgresStorage:
                     uri,
                     old_content,
                     content,
-                    json.dumps({"scope": scope, "memory_type": memory_type, "tags": tags}),
+                    json.dumps(
+                        {
+                            "scope": scope,
+                            "memory_type": memory_type,
+                            "tags": tags,
+                            "memory_metadata": structured_metadata,
+                        }
+                    ),
                 )
 
         return {
@@ -374,10 +576,122 @@ class PostgresStorage:
 
         return {"status": "forgotten", "id": str(existing["id"]), "uri": uri}
 
+    async def export_viewer_snapshot(self) -> dict[str, list[dict[str, Any]]]:
+        await self.connect()
+        assert self._pool is not None
+
+        memories = await self._pool.fetch(
+            """
+            SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
+                 tags, metadata, vitality_score, retrieval_count, last_accessed, deleted_at,
+                   created_at, updated_at
+            FROM memories
+            ORDER BY updated_at DESC, created_at DESC
+            """
+        )
+        sessions = await self._pool.fetch(
+            """
+            SELECT id, author_username, project, started_at, ended_at, summary,
+                   memories_read, memories_written
+            FROM sessions
+            ORDER BY started_at DESC
+            """
+        )
+        audit_log = await self._pool.fetch(
+            """
+            SELECT id, timestamp, actor_username, action, memory_id, uri, metadata
+            FROM audit_log
+            ORDER BY timestamp DESC
+            """
+        )
+        team_members = await self._pool.fetch(
+            """
+            SELECT username, display_name, role, team, is_active, created_at
+            FROM team_members
+            ORDER BY username ASC
+            """
+        )
+
+        return {
+            "memories": [self._serialize_memory(row) for row in memories],
+            "sessions": [self._serialize_record(row) for row in sessions],
+            "audit_log": [self._serialize_record(row) for row in audit_log],
+            "team_members": [self._serialize_record(row) for row in team_members],
+        }
+
     def _serialize_memory(self, row: asyncpg.Record) -> dict[str, Any]:
+        serialized = self._serialize_record(row)
+        metadata = serialized.get("metadata")
+        if isinstance(metadata, str):
+            stripped_metadata = metadata.strip()
+            if stripped_metadata:
+                try:
+                    metadata = json.loads(stripped_metadata)
+                except json.JSONDecodeError:
+                    serialized["metadata"] = metadata
+                    return serialized
+            else:
+                metadata = None
+
+        if metadata:
+            serialized["metadata"] = metadata
+            return serialized
+
+        serialized["metadata"] = self._extract_metadata_from_content(serialized.get("content") or "")
+        return serialized
+
+    def _serialize_session_summary(self, row: asyncpg.Record) -> dict[str, Any]:
+        serialized = self._serialize_record(row)
+        summary = str(serialized.get("summary") or "")
+        project = serialized.get("project")
+        session_id = serialized["session_id"]
+        return {
+            "result_type": "session_summary",
+            "session_id": session_id,
+            "uri": f"project://{project}/sessions/{session_id}" if project else f"system://sessions/{session_id}",
+            "title": f"Session summary {project or serialized.get('author_username') or 'unknown'} {session_id[:8]}",
+            "content": summary,
+            "summary": summary,
+            "memory_type": "session_summary",
+            "scope": "project" if project else "system",
+            "namespace": f"project://{project}" if project else "system://sessions",
+            "author_username": serialized.get("author_username"),
+            "metadata": self._extract_metadata_from_content(summary),
+            "relevance": serialized.get("relevance", 0),
+            "started_at": serialized.get("started_at"),
+            "ended_at": serialized.get("ended_at"),
+            "updated_at": serialized.get("ended_at") or serialized.get("started_at"),
+            "retrieval_count": 0,
+            "project": project,
+        }
+
+    @staticmethod
+    def _normalize_metadata(content: str, metadata: dict[str, Any] | None) -> dict[str, Any]:
+        if metadata is None:
+            return PostgresStorage._extract_metadata_from_content(content)
+        return {
+            str(key): value
+            for key, value in metadata.items()
+            if value not in (None, "")
+        }
+
+    @staticmethod
+    def _extract_metadata_from_content(content: str) -> dict[str, str]:
+        metadata: dict[str, str] = {}
+        for match in STRUCTURED_METADATA_PATTERN.finditer(content):
+            label = re.sub(r"[\s_]+", " ", match.group("label").strip().lower())
+            value = match.group("value").strip()
+            if not value:
+                continue
+            key = "next_steps" if label == "next steps" else label
+            metadata[key] = value
+        return metadata
+
+    def _serialize_record(self, row: asyncpg.Record) -> dict[str, Any]:
         serialized = dict(row)
-        if "id" in serialized and serialized["id"] is not None:
-            serialized["id"] = str(serialized["id"])
-        if "updated_at" in serialized and serialized["updated_at"] is not None:
-            serialized["updated_at"] = serialized["updated_at"].isoformat()
+        for key, value in list(serialized.items()):
+            if isinstance(value, UUID):
+                serialized[key] = str(value)
+            elif isinstance(value, datetime):
+                serialized[key] = value.isoformat()
         return serialized

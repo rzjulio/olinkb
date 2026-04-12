@@ -14,6 +14,7 @@ ALLOWED_MEMORY_TYPES = {
     "convention",
     "decision",
     "discovery",
+    "bugfix",
 }
 
 ALLOWED_SCOPES = {"personal", "project", "team", "org", "system"}

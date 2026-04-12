@@ -1,6 +1,12 @@
 import pytest
 
-from olinkb.domain import extract_namespace, parse_tags, scope_filters_for_query, validate_scope
+from olinkb.domain import (
+    extract_namespace,
+    parse_tags,
+    scope_filters_for_query,
+    validate_memory_type,
+    validate_scope,
+)
 
 
 def test_extract_namespace_uses_first_path_segment() -> None:
@@ -19,3 +25,12 @@ def test_scope_filters_for_query_expands_all() -> None:
 def test_validate_scope_rejects_unknown_scope() -> None:
     with pytest.raises(ValueError):
         validate_scope("unknown")
+
+
+def test_validate_memory_type_accepts_bugfix() -> None:
+    assert validate_memory_type("bugfix") == "bugfix"
+
+
+def test_validate_memory_type_rejects_unknown_type() -> None:
+    with pytest.raises(ValueError):
+        validate_memory_type("unknown")

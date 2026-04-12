@@ -19,7 +19,7 @@ git commit -m "Prepare vX.Y.Z release"
 ## Pre-Push Checklist
 
 1. Confirm the package version is correct in `pyproject.toml` and `src/olinkb/__init__.py`.
-2. Update `CHANGELOG.md` with the new version entry.
+2. Update `docs/CHANGELOG.md` with the new version entry.
 3. Add or update `docs/releases/vX.Y.Z.md`.
 4. Run the local test suite:
 

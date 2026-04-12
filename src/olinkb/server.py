@@ -36,10 +36,11 @@ async def save_memory(
     memory_type: str,
     scope: str = "personal",
     tags: str = "",
+    metadata: dict | None = None,
     session_id: str | None = None,
     author: str | None = None,
 ) -> dict:
-    """Create or update a memory entry with audit logging and SHA256 deduplication."""
+    """Create or update a memory entry with audit logging, optional metadata, and SHA256 deduplication."""
     return await get_app().save_memory(
         uri=uri,
         title=title,
@@ -47,6 +48,7 @@ async def save_memory(
         memory_type=memory_type,
         scope=scope,
         tags=tags,
+        metadata=metadata,
         session_id=session_id,
         author=author,
     )

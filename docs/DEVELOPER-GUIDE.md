@@ -63,7 +63,7 @@ The matching environment example is available in `.env.example`.
 ```bash
 olinkb migrate
 olinkb add-member --username rzjulio --role lead
-olinkb setup-workspace --pg-url postgresql://db.example.com:5432/olinkb --team mi-equipo
+olinkb --init
 olinkb mcp
 olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team mi-equipo
 olinkb template instructions
@@ -92,8 +92,18 @@ pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0
 After installation, the developer only needs the external PostgreSQL connection string and team name:
 
 ```bash
-olinkb setup-workspace --pg-url postgresql://usuario:password@host:5432/olinkb --team mi-equipo --project mi-proyecto
+olinkb --init
 ```
+
+The interactive initializer asks for:
+
+- installation scope: `1 repository` or `2 global`
+- PostgreSQL URL
+- team name
+
+For `repository`, the project name is detected automatically from the current directory name and written into the generated MCP configuration.
+
+For `global`, OlinKB writes the MCP server into the user's VS Code `mcp.json` and skips repository instructions because they are repository-specific.
 
 ## GitHub release flow
 
@@ -119,7 +129,7 @@ GitHub Actions will then:
 - create or update the GitHub Release for that tag
 - upload both artifacts as downloadable assets
 
-The prepared release notes for the initial version live in [releases/v0.1.0.md](releases/v0.1.0.md), future releases can start from [releases/TEMPLATE.md](releases/TEMPLATE.md), and the maintainer checklist lives in [releases/RELEASING.md](releases/RELEASING.md). The version history is tracked in [../CHANGELOG.md](../CHANGELOG.md).
+The prepared release notes for the initial version live in [releases/v0.1.0.md](releases/v0.1.0.md), future releases can start from [releases/TEMPLATE.md](releases/TEMPLATE.md), and the maintainer checklist lives in [releases/RELEASING.md](releases/RELEASING.md). The version history is tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## VS Code integration helpers
 
@@ -135,10 +145,14 @@ The first command prints a ready-to-paste `mcp.json` server block using `olinkb 
 If you want the end-user flow to be a single step, use:
 
 ```bash
-olinkb setup-workspace --pg-url postgresql://db.example.com:5432/olinkb --team mi-equipo
+olinkb --init
 ```
 
-That command writes `.vscode/mcp.json` and `.github/copilot-instructions.md` in the current workspace, preserving other MCP servers already registered and avoiding duplicate OlinKB protocol blocks when rerun.
+That command asks for the install scope, PostgreSQL URL, and team.
+
+When the user chooses `repository`, OlinKB detects the project from the current workspace folder and writes `.vscode/mcp.json` and `.github/copilot-instructions.md` in the current workspace, preserving other MCP servers already registered and avoiding duplicate OlinkB protocol blocks when rerun.
+
+When the user chooses `global`, OlinKB writes the server into the VS Code user-level `mcp.json` and skips repository instructions.
 
 ## Tools exposed by the server
 
