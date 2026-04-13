@@ -267,6 +267,7 @@ class BenchmarkQueryPool:
 class ViewerQueryPool:
     def __init__(self) -> None:
         self.fetch_calls: list[tuple[str, tuple[object, ...]]] = []
+        self.fetchval_calls: list[tuple[str, tuple[object, ...]]] = []
 
     async def fetch(self, query: str, *args: object):
         self.fetch_calls.append((query, args))
@@ -331,6 +332,12 @@ class ViewerQueryPool:
                 "relevance": 0.61,
             },
         ]
+
+    async def fetchval(self, query: str, *args: object):
+        self.fetchval_calls.append((query, args))
+        if "SELECT COUNT(*)" not in query:
+            raise AssertionError(f"Unexpected fetchval query: {query}")
+        return 7
 
 
 @pytest.mark.asyncio
@@ -700,6 +707,32 @@ async def test_search_memories_applies_project_team_and_personal_scoping() -> No
 
 
 @pytest.mark.asyncio
+async def test_search_memories_matches_documentation_queries_against_tags_and_type_terms() -> None:
+    storage = PostgresStorage("postgresql://unused")
+    pool = TenantQueryPool()
+    storage._pool = pool
+
+    await storage.search_memories(
+        query="hay documentacion tecnica global",
+        scope="all",
+        limit=5,
+        username="rzjulio",
+        team="rz-develop",
+        project="olinkb",
+    )
+
+    query, args = pool.fetch_calls[0]
+    assert "m.memory_type ILIKE '%' || term || '%'" in query
+    assert "unnest(COALESCE(m.tags, ARRAY[]::text[]))" in query
+    assert "COALESCE(m.metadata::text, '') ILIKE '%' || term || '%'" in query
+    assert "documentacion" in args[6]
+    assert "documentation" in args[6]
+    assert "tecnica" in args[6]
+    assert "technical-documentation" in args[6]
+    assert "global" in args[6]
+
+
+@pytest.mark.asyncio
 async def test_benchmark_payloads_reports_boot_and_sample_savings() -> None:
     storage = PostgresStorage("postgresql://unused")
     boot_rows = [
@@ -818,10 +851,53 @@ async def test_search_viewer_memories_uses_title_content_query_and_cursor_pagina
     assert "content % $1" in query
     assert "title ILIKE '%' || $1 || '%'" in query
     assert "content ILIKE '%' || $1 || '%'" in query
+    assert "m.memory_type ILIKE '%' || term || '%'" in query
+    assert "unnest(COALESCE(m.tags, ARRAY[]::text[]))" in query
     assert "uri % $1" not in query
-    assert "m.namespace = $2" in query
-    assert "tm.team = $3" in query
+    assert "($2::text IS NULL OR m.namespace = $2)" in query
+    assert "($3::text IS NULL OR tm.team = $3)" in query
     assert args[0] == "viewer search"
     assert args[1] == "project://olinkb"
     assert args[2] == "rz-develop"
     assert args[6] == 3
+    assert args[7] == ["viewer", "search"]
+
+
+@pytest.mark.asyncio
+async def test_search_viewer_memories_without_filters_includes_all_non_personal_scopes() -> None:
+    storage = PostgresStorage("postgresql://unused")
+    pool = ViewerQueryPool()
+    storage._pool = pool
+
+    await storage.search_viewer_memories(
+        query="",
+        limit=2,
+        cursor=None,
+        team=None,
+        project=None,
+    )
+
+    query, args = pool.fetch_calls[0]
+    assert "($2::text IS NULL OR m.namespace = $2)" in query
+    assert "($3::text IS NULL OR tm.team = $3)" in query
+    assert args[0] == ""
+    assert args[1] is None
+    assert args[2] is None
+    assert args[6] == 3
+
+
+@pytest.mark.asyncio
+async def test_count_viewer_memories_without_filters_uses_global_non_personal_scope() -> None:
+    storage = PostgresStorage("postgresql://unused")
+    pool = ViewerQueryPool()
+    storage._pool = pool
+
+    result = await storage.count_viewer_memories(query="", team=None, project=None)
+
+    query, args = pool.fetchval_calls[0]
+    assert result == 7
+    assert "($2::text IS NULL OR m.namespace = $2)" in query
+    assert "($3::text IS NULL OR tm.team = $3)" in query
+    assert args[0] == ""
+    assert args[1] is None
+    assert args[2] is None

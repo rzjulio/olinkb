@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 import re
 from typing import Any
+import unicodedata
 from uuid import UUID
 
 import asyncpg
@@ -44,6 +45,63 @@ PREVIEW_METADATA_KEYS = (
     "accomplished",
     "next_steps",
 )
+SEARCH_TOKEN_PATTERN = re.compile(r"[a-z0-9]+(?:[-_:][a-z0-9]+)*")
+SEARCH_STOP_WORDS = {
+    "a",
+    "about",
+    "al",
+    "and",
+    "are",
+    "con",
+    "cual",
+    "cuentame",
+    "de",
+    "del",
+    "does",
+    "donde",
+    "el",
+    "en",
+    "esta",
+    "este",
+    "exists",
+    "existe",
+    "for",
+    "hay",
+    "how",
+    "is",
+    "la",
+    "las",
+    "los",
+    "me",
+    "of",
+    "por",
+    "que",
+    "show",
+    "si",
+    "sobre",
+    "tell",
+    "the",
+    "there",
+    "tiene",
+    "un",
+    "una",
+    "what",
+}
+SEARCH_TERM_EXPANSIONS = {
+    "doc": ("documentation", "documentacion", "docs"),
+    "docs": ("documentation", "documentacion", "doc"),
+    "documentacion": ("documentation", "docs"),
+    "documentation": ("documentacion", "docs"),
+    "tecnica": ("technical", "technical-documentation"),
+    "tecnico": ("technical", "technical-documentation"),
+    "technical": ("tecnica", "technical-documentation"),
+    "negocio": ("business", "business-documentation", "documentacion-negocio"),
+    "negocios": ("business", "business-documentation", "documentacion-negocio"),
+    "business": ("negocio", "business-documentation", "documentacion-negocio"),
+    "global": ("global-documentation", "documentacion-global"),
+    "repo": ("repository-documentation", "documentacion-repo"),
+    "repositorio": ("repo", "repository-documentation", "documentacion-repo"),
+}
 
 
 class PostgresStorage:
@@ -561,6 +619,7 @@ class PostgresStorage:
 
         scope_filters = scope_filters_for_query(scope)
         project_namespace = f"project://{project}" if project else None
+        search_terms = self._build_search_terms(query)
         rows = await self._pool.fetch(
             """
             SELECT m.id, m.uri, m.title, m.content, m.memory_type, m.scope, m.namespace,
@@ -568,7 +627,23 @@ class PostgresStorage:
                    GREATEST(
                        similarity(m.title, $1),
                        similarity(m.content, $1),
-                       similarity(m.uri, $1)
+                       similarity(m.uri, $1),
+                       COALESCE(
+                           (
+                               SELECT MAX(
+                                   GREATEST(
+                                       similarity(m.title, term),
+                                       similarity(m.content, term),
+                                       similarity(m.uri, term),
+                                       similarity(m.memory_type, term),
+                                       similarity(COALESCE(array_to_string(m.tags, ' '), ''), term),
+                                       similarity(COALESCE(m.metadata::text, ''), term)
+                                   )
+                               )
+                               FROM unnest($7::text[]) AS term
+                           ),
+                           0::double precision
+                       )
                    ) AS relevance
             FROM memories AS m
             LEFT JOIN team_members AS tm ON tm.id = m.author_id
@@ -587,6 +662,20 @@ class PostgresStorage:
                  OR m.uri % $1
                  OR m.title ILIKE '%' || $1 || '%'
                  OR m.content ILIKE '%' || $1 || '%'
+                     OR EXISTS (
+                         SELECT 1
+                         FROM unnest($7::text[]) AS term
+                         WHERE m.title ILIKE '%' || term || '%'
+                          OR m.content ILIKE '%' || term || '%'
+                          OR m.uri ILIKE '%' || term || '%'
+                          OR m.memory_type ILIKE '%' || term || '%'
+                          OR COALESCE(m.metadata::text, '') ILIKE '%' || term || '%'
+                          OR EXISTS (
+                              SELECT 1
+                              FROM unnest(COALESCE(m.tags, ARRAY[]::text[])) AS tag
+                              WHERE tag ILIKE '%' || term || '%'
+                          )
+                     )
               )
             ORDER BY relevance DESC, m.retrieval_count DESC, m.updated_at DESC
             LIMIT $3
@@ -597,6 +686,7 @@ class PostgresStorage:
             username,
             project_namespace,
             team,
+            search_terms,
         )
         return [self._serialize_memory(row, include_content=include_content) for row in rows]
 
@@ -655,6 +745,7 @@ class PostgresStorage:
         normalized_query = query.strip()
         fetch_limit = max(1, limit) + 1
         project_namespace = f"project://{project}" if project else None
+        search_terms = self._build_search_terms(normalized_query)
         cursor_relevance = None if cursor is None else float(cursor["relevance"])
         cursor_updated_at = None if cursor is None else cursor["updated_at"]
         cursor_id = None if cursor is None else cursor["id"]
@@ -667,7 +758,25 @@ class PostgresStorage:
                        m.last_accessed, m.deleted_at, m.created_at, m.updated_at,
                        CASE
                            WHEN $1::text = '' THEN 0::double precision
-                           ELSE GREATEST(similarity(m.title, $1), similarity(m.content, $1))
+                           ELSE GREATEST(
+                               similarity(m.title, $1),
+                               similarity(m.content, $1),
+                               COALESCE(
+                                   (
+                                       SELECT MAX(
+                                           GREATEST(
+                                               similarity(m.title, term),
+                                               similarity(m.content, term),
+                                               similarity(m.memory_type, term),
+                                               similarity(COALESCE(array_to_string(m.tags, ' '), ''), term),
+                                               similarity(COALESCE(m.metadata::text, ''), term)
+                                           )
+                                       )
+                                       FROM unnest($8::text[]) AS term
+                                   ),
+                                   0::double precision
+                               )
+                           )
                        END AS relevance
                 FROM memories AS m
                 LEFT JOIN team_members AS tm ON tm.id = m.author_id
@@ -675,8 +784,8 @@ class PostgresStorage:
                   AND (
                         m.scope = 'system'
                      OR m.scope = 'org'
-                     OR (m.scope = 'project' AND $2::text IS NOT NULL AND m.namespace = $2)
-                     OR (m.scope = 'team' AND $3::text IS NOT NULL AND tm.team = $3)
+                            OR (m.scope = 'project' AND ($2::text IS NULL OR m.namespace = $2))
+                            OR (m.scope = 'team' AND ($3::text IS NULL OR tm.team = $3))
                   )
                   AND (
                         $1::text = ''
@@ -684,6 +793,19 @@ class PostgresStorage:
                      OR m.content % $1
                      OR m.title ILIKE '%' || $1 || '%'
                      OR m.content ILIKE '%' || $1 || '%'
+                       OR EXISTS (
+                           SELECT 1
+                           FROM unnest($8::text[]) AS term
+                           WHERE m.title ILIKE '%' || term || '%'
+                            OR m.content ILIKE '%' || term || '%'
+                            OR m.memory_type ILIKE '%' || term || '%'
+                            OR COALESCE(m.metadata::text, '') ILIKE '%' || term || '%'
+                            OR EXISTS (
+                                SELECT 1
+                                FROM unnest(COALESCE(m.tags, ARRAY[]::text[])) AS tag
+                                WHERE tag ILIKE '%' || term || '%'
+                            )
+                       )
                   )
             )
             SELECT id, uri, title, content, memory_type, scope, namespace, author_username,
@@ -702,6 +824,7 @@ class PostgresStorage:
             cursor_updated_at,
             cursor_id,
             fetch_limit,
+            search_terms,
         )
 
         has_next = len(rows) > limit
@@ -724,6 +847,60 @@ class PostgresStorage:
                 "query": normalized_query,
             },
         }
+
+    async def count_viewer_memories(
+        self,
+        *,
+        query: str,
+        team: str | None = None,
+        project: str | None = None,
+    ) -> int:
+        await self.connect()
+        assert self._pool is not None
+
+        normalized_query = query.strip()
+        project_namespace = f"project://{project}" if project else None
+        search_terms = self._build_search_terms(normalized_query)
+
+        count = await self._pool.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM memories AS m
+            LEFT JOIN team_members AS tm ON tm.id = m.author_id
+            WHERE m.scope <> 'personal'
+              AND (
+                    m.scope = 'system'
+                 OR m.scope = 'org'
+                 OR (m.scope = 'project' AND ($2::text IS NULL OR m.namespace = $2))
+                 OR (m.scope = 'team' AND ($3::text IS NULL OR tm.team = $3))
+              )
+              AND (
+                    $1::text = ''
+                 OR m.title % $1
+                 OR m.content % $1
+                 OR m.title ILIKE '%' || $1 || '%'
+                 OR m.content ILIKE '%' || $1 || '%'
+                     OR EXISTS (
+                         SELECT 1
+                         FROM unnest($4::text[]) AS term
+                         WHERE m.title ILIKE '%' || term || '%'
+                          OR m.content ILIKE '%' || term || '%'
+                          OR m.memory_type ILIKE '%' || term || '%'
+                          OR COALESCE(m.metadata::text, '') ILIKE '%' || term || '%'
+                          OR EXISTS (
+                              SELECT 1
+                              FROM unnest(COALESCE(m.tags, ARRAY[]::text[])) AS tag
+                              WHERE tag ILIKE '%' || term || '%'
+                          )
+                     )
+              )
+            """,
+            normalized_query,
+            project_namespace,
+            team,
+                search_terms,
+        )
+        return int(count or 0)
 
     async def load_team_members(self, usernames: list[str]) -> list[dict[str, Any]]:
         await self.connect()
@@ -1210,6 +1387,30 @@ class PostgresStorage:
             key = "next_steps" if label == "next steps" else label
             metadata[key] = value
         return metadata
+
+    @staticmethod
+    def _build_search_terms(query: str) -> list[str]:
+        normalized = PostgresStorage._normalize_search_text(query)
+        terms: list[str] = []
+        seen: set[str] = set()
+
+        def add(term: str) -> None:
+            if len(term) < 3 or term in SEARCH_STOP_WORDS or term in seen:
+                return
+            seen.add(term)
+            terms.append(term)
+
+        for token in SEARCH_TOKEN_PATTERN.findall(normalized):
+            add(token)
+            for expanded in SEARCH_TERM_EXPANSIONS.get(token, ()): 
+                add(expanded)
+        return terms
+
+    @staticmethod
+    def _normalize_search_text(value: str) -> str:
+        normalized = unicodedata.normalize("NFKD", value)
+        ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+        return ascii_value.lower()
 
     def _serialize_record(self, row: asyncpg.Record) -> dict[str, Any]:
         serialized = dict(row)

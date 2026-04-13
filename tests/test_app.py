@@ -296,6 +296,99 @@ async def test_save_memory_passes_explicit_metadata_to_storage() -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_memory_blocks_business_documentation_for_non_admin() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "lead"
+    app.storage = storage
+
+    with pytest.raises(PermissionError, match="Only admins can save business documentation"):
+        await app.save_memory(
+            uri="org://shared/notes/quarterly-roadmap",
+            title="Quarterly roadmap",
+            content="# Q2 roadmap",
+            memory_type="business_documentation",
+            scope="org",
+        )
+
+
+@pytest.mark.asyncio
+async def test_save_memory_enriches_technical_documentation_tags() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "lead"
+    app.storage = storage
+
+    await app.save_memory(
+        uri="org://shared/notes/platform-handbook",
+        title="Platform handbook",
+        content="# Platform handbook",
+        memory_type="documentation",
+        scope="org",
+        metadata={"documentation_scope": "global", "applicable_projects": []},
+    )
+
+    tags = storage.save_memory_calls[0]["tags"]
+    assert "documentation" in tags
+    assert "technical-documentation" in tags
+    assert "documentacion" in tags
+    assert "documentacion-tecnica" in tags
+    assert "global" in tags
+    assert "documentacion-global" in tags
+
+
+@pytest.mark.asyncio
+async def test_save_memory_enriches_business_documentation_tags() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "admin"
+    app.storage = storage
+
+    await app.save_memory(
+        uri="org://shared/notes/quarterly-roadmap",
+        title="Quarterly roadmap",
+        content="# Q2 roadmap",
+        memory_type="business_documentation",
+        scope="org",
+        metadata={"documentation_scope": "repo", "applicable_projects": ["olinkb"]},
+    )
+
+    tags = storage.save_memory_calls[0]["tags"]
+    assert "business-documentation" in tags
+    assert "documentacion-negocio" in tags
+    assert "repo" in tags
+    assert "documentacion-repo" in tags
+    assert "olinkb" in tags
+
+
+@pytest.mark.asyncio
 async def test_propose_memory_promotion_uses_project_scope_and_returns_pending() -> None:
     settings = Settings(
         pg_url="postgresql://unused",

@@ -111,7 +111,9 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
     assert graph_nodes["m1"]["stateKey"] == "active"
     assert graph_nodes["m3"]["projectLabel"] == "team/conventions"
     assert graph_nodes["project:olinkb"]["kind"] == "project"
+    assert graph_nodes["project:olinkb"]["showLabel"] is True
     assert graph_nodes["type:decision"]["kind"] == "memory_type"
+    assert graph_nodes["type:decision"]["showLabel"] is False
     edge_types = {(edge["source"], edge["target"], edge["type"]) for edge in payload["graph"]["edges"]}
     assert ("m1", "m2", "reference") in edge_types
     assert ("m1", "project:olinkb", "belongs_project") in edge_types
@@ -330,12 +332,44 @@ def test_render_viewer_html_supports_live_api_mode() -> None:
     assert 'const liveApiPath = "/api/viewer";' in html
     assert 'window.setInterval(loadLiveData, 10000);' in html
     assert 'const requestUrl = new URL(liveApiPath, window.location.origin);' in html
+    assert 'const isDefaultLandingView = !state.search && !state.live.cursor && state.live.limit === 50;' in html
     assert 'requestUrl.searchParams.set("q", state.search);' in html
     assert 'requestUrl.searchParams.set("cursor", state.live.cursor);' in html
-    assert 'requestUrl.searchParams.set("limit", String(state.live.limit));' in html
+    assert 'if (!isDefaultLandingView) requestUrl.searchParams.set("limit", String(state.live.limit));' in html
     assert 'fetch(requestUrl, { cache: "no-store" })' in html
     assert 'data.pageInfo' in html
     assert 'search-pagination' in html
+    assert 'id="open-auth"' in html
+    assert 'id="auth-username-label"' in html
+    assert 'id="auth-backdrop"' in html
+    assert 'id="auth-form"' in html
+    assert 'fetch("/api/auth/session"' in html
+    assert 'fetch("/api/auth/login"' in html
+    assert 'fetch("/api/auth/logout"' in html
+    assert 'id="documentation-actions"' in html
+    assert 'id="open-composer"' in html
+    assert 'class="vault-header-actions"' in html
+    assert 'id="composer-backdrop"' in html
+    assert 'id="composer-form"' in html
+    assert 'fetch("/api/memories"' in html
+    assert 'Add documentation' in html
+    assert 'Sign in' in html
+    assert 'id="composer-target-scope"' in html
+    assert 'id="composer-project-list"' in html
+    assert 'id="composer-file"' in html
+    assert 'id="composer-preview"' in html
+    assert 'Technical documentation' in html
+    assert 'Business documentation' in html
+    assert 'Rendered in the viewer before save.' in html
+    assert 'Searching PostgreSQL...' not in html
+    assert 'data-live-page="next"' not in html
+    assert 'data-live-page="prev"' not in html
+    assert 'scope_key is required for' not in html
+    assert 'composer-scope-key' not in html
+    assert 'name="tags"' not in html
+    assert 'textarea id="composer-content"' not in html
+    assert '<option value="development_standard">' not in html
+    assert 'Upload a Markdown' not in html
 
 
 def test_render_viewer_html_supports_persistent_theme_switching_in_static_and_live_modes() -> None:
@@ -349,7 +383,12 @@ def test_render_viewer_html_supports_persistent_theme_switching_in_static_and_li
         assert 'color-scheme: dark;' in html
         assert 'color-scheme: light;' in html
         assert 'id="theme-toggle"' in html
-        assert 'Appearance' in html
+        assert 'class="vault-header-row"' in html
+        assert 'vault-header-actions' in html
+        assert 'theme-toggle-icon-sun' in html
+        assert 'theme-toggle-icon-moon' in html
+        assert 'theme-toggle-value' not in html
+        assert 'Appearance' not in html
         assert 'const THEME_STORAGE_KEY = "olinkb.viewer.theme";' in html
         assert 'window.localStorage.getItem(THEME_STORAGE_KEY)' in html
         assert 'window.localStorage.setItem(THEME_STORAGE_KEY, theme);' in html
@@ -378,14 +417,15 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'class="note-pane"' in html
     assert 'class="graph-pane"' in html
     assert 'class="vault-title"' in html
-    assert 'class="note-markdown"' in html
+    assert 'note-markdown' in html
     assert 'id="graph-resizer"' in html
     assert 'id="approval-queue"' in html
     assert 'class="explorer-folder"' in html
     assert 'tree-note' in html
     assert 'Directly connected notes' in html
     assert 'Metadata' in html
-    assert 'All notes' in html
+    assert 'Documentation' not in html
+    assert 'All notes' not in html
     assert 'Project' in html
     assert 'buildExplorerTree' in html
     assert 'filter-tree' not in html
@@ -404,6 +444,12 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'drawLayoutGuides' in html
     assert 'Active' in html
     assert 'Forgotten' in html
+    assert 'getBreathingTransform' in html
+    assert 'node.showLabel !== false' in html
+    assert 'if (hovered && node.showLabel !== false)' in html
+    assert 'function getNodeRadius(node)' in html
+    assert 'canvas.addEventListener("pointerleave", onPointerLeave);' in html
+    assert "canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';" in html
     assert 'node.kind === "project"' in html
     assert 'node.kind === "memory_type"' in html
     assert 'filter((edge) => edge.type === "reference"' in html
@@ -422,6 +468,15 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'Pending approvals' in html
     assert 'toggle-pending-view' in html
     assert 'state.viewMode === "pending"' in html
-    assert 'pageInfo?.has_next' in html
-    assert 'data-live-page="next"' in html
-    assert 'data-live-page="prev"' in html
+    assert 'pageInfo?.has_next' not in html
+    assert 'data-live-page="next"' not in html
+    assert 'data-live-page="prev"' not in html
+    assert 'composer-launch' in html
+    assert 'documentation-action' in html
+    assert 'composer-modal' in html
+    assert 'composer-project-list' in html
+    assert 'composer-preview' in html
+    assert 'renderMarkdownMarkup' in html
+
+    live_html = render_viewer_html(payload, live_api_path="/api/viewer")
+    assert 'Save memory' in live_html

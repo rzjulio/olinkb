@@ -65,12 +65,18 @@ olinkb migrate
 olinkb add-member --username rzjulio --role lead
 olinkb --init
 olinkb mcp
+olinkb viewer
+olinkb viewer build
 olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team mi-equipo
 olinkb template instructions
 olinkb serve
 ```
 
 `olinkb mcp` is an alias for the stdio MCP server entrypoint.
+
+`olinkb viewer` starts the live HTTP viewer backed by PostgreSQL.
+
+`olinkb viewer build` exports a static snapshot to `olinkb-viewer/index.html`.
 
 ## Install for developers
 
@@ -159,8 +165,55 @@ When the user chooses `global`, OlinKB writes the server into the VS Code user-l
 - `boot_session`
 - `remember`
 - `save_memory`
+- `create_managed_memory`
+- `update_managed_memory`
+- `list_managed_memories`
+- `archive_managed_memory`
+- `propose_memory_promotion`
+- `list_pending_approvals`
+- `review_memory_proposal`
 - `end_session`
 - `forget`
+
+## Managed memory flow
+
+Managed memories are curated Markdown records that share the same canonical `memories` table as standard OlinKB entries, plus explicit applicability targets in `managed_memory_targets`.
+
+The three managed types are:
+
+- `documentation`: engineering documentation that remains searchable through the viewer and `remember`
+- `business_documentation`: business-facing documentation, searchable but restricted to admins for management operations
+- `development_standard`: approved engineering standards that are searchable and also eligible for boot loading
+
+The live viewer is the primary authoring surface:
+
+1. Run `olinkb viewer`.
+2. Upload or edit a Markdown document through the managed-memory flow.
+3. Select a managed type.
+4. Assign applicability targets as `global` or one or more explicit `project` values.
+5. Save or archive the managed record.
+
+Role rules are enforced below the UI layer:
+
+- admins and leads can create, edit, list, and archive managed engineering content
+- only admins can manage `business_documentation`
+- project-targeted operations require active membership and lead/admin authority in every targeted project
+
+## Boot and retrieval behavior
+
+Managed memories affect retrieval in two distinct ways.
+
+`boot_session` remains intentionally narrow. It only auto-loads approved `development_standard` memories whose applicability matches the active project. `documentation` and `business_documentation` never enter the boot payload.
+
+`remember` stays query-driven. It can return applicable managed memories together with regular memories when PostgreSQL ranking finds them relevant. At a high level, this means technical documentation and approved standards can show up during recall without bloating startup context.
+
+For managed-memory administration, use the dedicated surfaces instead of overloading `remember`:
+
+- MCP tools: `create_managed_memory`, `update_managed_memory`, `list_managed_memories`, `archive_managed_memory`
+- live viewer HTTP routes: `GET/POST/PUT/DELETE /api/managed-memories`
+- proposal workflow: `propose_memory_promotion` and `review_memory_proposal` now normalize approved project proposals into `development_standard`
+
+When documenting or reviewing boot behavior, keep the rule explicit: approved, applicable `development_standard` memories are the only managed entries eligible for automatic startup loading.
 
 ## Notes
 

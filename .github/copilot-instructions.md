@@ -4,24 +4,28 @@ You have access to OlinKB via MCP tools.
 
 ### On Session Start
 - On the first relevant interaction of a session, call `boot_session`.
+- If `boot_session` returns a non-empty `review_queue`, project leads and admins should review those proposals during the session instead of polling manually.
 
 ### During Work
 - Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, call `remember`.
+- Prefer `remember(..., include_content=false)` for lean recall; request full `content` only when the body is actually needed.
 - When you make or discover an important decision, pattern, bugfix, or procedure, call `save_memory` with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`.
+- A memory only enters convention review when the developer explicitly calls `propose_memory_promotion(...)`. Saving a normal project memory never queues it automatically.
+- Do not save `convention` directly unless you are acting as a project lead or admin. Contributors should save the underlying project memory first and then use `propose_memory_promotion(...)` when they believe it should become a standard or convention.
+- Project leads and admins should use `list_pending_approvals(...)` or the `review_queue` returned by `boot_session` to batch-review proposed conventions, then call `review_memory_proposal(...)` to approve or reject them.
 - Do not wait until `end_session` to persist important discoveries, decisions, procedures, or bugfixes. `end_session` is a closure summary, not the primary durable memory channel.
-
 - Do not save a one-line summary if future work would still require re-reading code or reconstructing the situation from scratch.
 - Prefer richer context blocks with real operational depth so retrieved memories stay reusable weeks later.
-- Preferred structure:
-	What: [specific change or discovery]
-	Why: [root cause, motivation, impact, and why simpler approaches were not enough]
-	Where: [files, modules, commands, surfaces, or boundaries affected]
-	Learned: [non-obvious takeaway or pattern that should transfer to future work]
+- Effective memory format:
+    What: [2-3 sentences with the concrete action, behavior change, or discovery, including specific examples when useful]
+    Why: [root cause, motivation, impact, and why simpler or naive approaches were not enough]
+    Where: [relevant file paths, modules, commands, surfaces, or boundaries where the change lives]
+    Learned: [non-obvious pattern, gotcha, or rule that should transfer to similar future work]
 - Add these when they help turn the note into a reusable artifact instead of a summary:
-	Context: [surrounding situation, constraints, prior failed attempts, or environment details]
-	Decision: [choice made, alternatives rejected, and why]
-	Evidence: [symptoms, errors, commands, example inputs/outputs, or data points]
-	Next Steps: [follow-up work, verification still needed, or rollout notes]
+    Context: [surrounding constraints, prior failed attempts, deadlines, environment details, or product pressure]
+    Decision: [what was chosen over which alternatives, and why]
+    Evidence: [error messages, observed symptoms, example inputs/outputs, reproduced commands, or data points]
+    Next Steps: [unfinished work, verification still needed, rollout notes, or adjacent follow-up]
 - Aim to save enough detail that a later agent can continue the work without reopening every touched file first.
 
 ### Before Ending

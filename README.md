@@ -105,6 +105,33 @@ olinkb viewer build
 
 That command writes `olinkb-viewer/index.html` with embedded data, so the file can be opened locally in a browser or hosted as a static page without any running backend. It is a snapshot/export path, not the primary path for massive datasets.
 
+## Managed Memories
+
+The live viewer now includes a managed-memory flow for curated Markdown knowledge.
+
+Use it when an admin or lead needs to publish durable guidance that should stay searchable and reviewable across projects without creating ad hoc memory blobs.
+
+Managed memories currently use three internal types:
+
+- `documentation`: engineering reference material that stays searchable
+- `business_documentation`: business-facing reference material, restricted to admins
+- `development_standard`: approved engineering standards that stay searchable and can also influence startup context
+
+The high-level viewer flow is:
+
+1. Open `olinkb viewer`.
+2. Create or update a managed Markdown document.
+3. Choose the managed type and applicability targets (`global` or one or more `project` targets).
+4. Save it as an approved managed memory.
+
+Applicability matters at retrieval time:
+
+- `boot_session` stays lean and only auto-loads approved `development_standard` memories that apply to the active project.
+- `documentation` and `business_documentation` are excluded from boot loading.
+- `remember` can still return applicable managed memories alongside regular memories when they are relevant to the query.
+
+For curated administration flows, OlinKB exposes `create_managed_memory`, `update_managed_memory`, `list_managed_memories`, and `archive_managed_memory` through the MCP server, plus the matching live viewer HTTP endpoints.
+
 ## Current scope
 
 This repository implements the foundation slice, not the full long-term platform. It currently focuses on shared storage, MCP exposure, and operational setup. It does not yet include RLS, semantic retrieval, LISTEN/NOTIFY invalidation, or the forgetting engine.

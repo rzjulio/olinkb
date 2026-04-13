@@ -211,6 +211,117 @@ def render_viewer_html(
     serialized_payload = "null" if live_api_path else json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     serialized_live_api_path = json.dumps(live_api_path)
     escaped_title = _escape_html(title)
+    live_header_auth_controls_html = ""
+    live_auth_controls_html = ""
+    live_composer_launcher_html = ""
+    live_modals_html = ""
+    if live_api_path:
+        live_header_auth_controls_html = """
+        <div class=\"auth-actions\">
+          <button id=\"open-auth\" class=\"section-action\" type=\"button\">
+            <span>Sign in</span>
+          </button>
+          <span id=\"auth-username-label\" class=\"auth-user\" hidden></span>
+          <button id=\"auth-logout\" class=\"section-action\" type=\"button\" hidden>
+            <span>Sign out</span>
+          </button>
+        </div>
+        """
+        live_auth_controls_html = """
+        <div id=\"auth-summary\" class=\"auth-summary\">Public read access is enabled. Sign in to add documentation.</div>
+        """
+        live_composer_launcher_html = """
+        <div id=\"documentation-actions\" class=\"documentation-actions\">
+          <button id=\"open-composer\" class=\"section-action documentation-action composer-launch\" type=\"button\" hidden>
+            <span>Add documentation</span>
+          </button>
+        </div>
+        """
+        live_modals_html = """
+    <div id=\"auth-backdrop\" class=\"composer-backdrop\" aria-hidden=\"true\">
+      <div class=\"composer-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\">
+        <div class=\"composer-header\">
+          <div>
+            <h2 id=\"auth-title\" class=\"composer-title\">Sign in</h2>
+          </div>
+          <button id=\"auth-close\" class=\"section-action composer-close\" type=\"button\" aria-label=\"Close sign-in dialog\">
+            <span>Close</span>
+          </button>
+        </div>
+        <form id=\"auth-form\" class=\"composer-form\">
+          <label class=\"composer-field\">
+            <span>Username</span>
+            <input id=\"auth-username\" name=\"username\" type=\"text\" value=\"admin\" autocomplete=\"username\" required>
+          </label>
+          <label class=\"composer-field\">
+            <span>Password</span>
+            <input id=\"auth-password\" name=\"password\" type=\"password\" placeholder=\"admin\" autocomplete=\"current-password\" required>
+          </label>
+          <div id=\"auth-status\" class=\"composer-status\"></div>
+          <div class=\"composer-actions\">
+            <button id=\"auth-cancel\" class=\"section-action\" type=\"button\"><span>Cancel</span></button>
+            <button id=\"auth-submit\" class=\"section-action\" type=\"submit\"><span>Sign in</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id=\"composer-backdrop\" class=\"composer-backdrop\" aria-hidden=\"true\">
+      <div class=\"composer-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"composer-title\">
+        <div class=\"composer-header\">
+          <div>
+            <h2 id=\"composer-title\" class=\"composer-title\">Add documentation</h2>
+          </div>
+          <button id=\"composer-close\" class=\"section-action composer-close\" type=\"button\" aria-label=\"Close dialog\">
+            <span>Close</span>
+          </button>
+        </div>
+        <form id=\"composer-form\" class=\"composer-form\">
+          <div class=\"composer-grid\">
+            <label class=\"composer-field\">
+              <span>Title</span>
+              <input id=\"composer-title-input\" name=\"title\" type=\"text\" placeholder=\"Architecture guide\" required>
+            </label>
+            <label class=\"composer-field\">
+              <span>Scope</span>
+              <select id=\"composer-target-scope\" name=\"target_scope\">
+                <option value=\"global\">Global</option>
+                <option value=\"repo\">By repo</option>
+              </select>
+            </label>
+            <label class=\"composer-field\">
+              <span>Documentation type</span>
+              <select id=\"composer-type\" name=\"memory_type\">
+                <option value=\"documentation\">Technical documentation</option>
+                <option value=\"business_documentation\">Business documentation</option>
+              </select>
+            </label>
+          </div>
+          <div id=\"composer-project-targets\" class=\"composer-field\" hidden>
+            <span>Applies to repos</span>
+            <div id=\"composer-project-list\" class=\"composer-checklist\"></div>
+          </div>
+          <label class=\"composer-field\">
+            <span>Markdown file</span>
+            <input id=\"composer-file\" name=\"markdown_file\" type=\"file\" accept=\".md,text/markdown,text/plain\" required>
+            <span id=\"composer-file-meta\" class=\"composer-hint\">Upload a .md file to use as the memory content.</span>
+          </label>
+          <section class=\"composer-preview-shell\">
+            <div class=\"composer-preview-header\">
+              <span>Preview</span>
+              <span class=\"composer-preview-caption\">Rendered in the viewer before save.</span>
+            </div>
+            <div id=\"composer-preview\" class=\"composer-preview empty\">Upload a .md file to preview it here.</div>
+          </section>
+          <div id=\"composer-status\" class=\"composer-status\"></div>
+          <div class=\"composer-actions\">
+            <button id=\"composer-cancel\" class=\"section-action\" type=\"button\"><span>Cancel</span></button>
+            <button id=\"composer-save\" class=\"section-action\" type=\"submit\"><span>Save memory</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+        """
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -341,6 +452,7 @@ def render_viewer_html(
       height: 0;
       display: none;
     }}
+    [hidden] {{ display: none !important; }}
     body.resizing {{ cursor: col-resize; user-select: none; }}
     .app-shell {{
       --sidebar-width: clamp(260px, 20vw, 420px);
@@ -424,6 +536,13 @@ def render_viewer_html(
       justify-content: space-between;
       gap: 12px;
     }}
+    .vault-header-actions {{
+      display: grid;
+      justify-items: end;
+      align-content: start;
+      gap: 10px;
+      flex: none;
+    }}
     .vault-subtitle, .graph-subtitle, .note-subtitle {{
       color: var(--muted);
       font-size: 0.84rem;
@@ -482,29 +601,33 @@ def render_viewer_html(
       color: var(--text);
       font: inherit;
       border-radius: 999px;
-      padding: 8px 12px;
+      width: 38px;
+      height: 38px;
+      padding: 0;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
       cursor: pointer;
       transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
-    }}
-    .theme-toggle::before {{
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, #a3b7ff 0%, #586894 100%);
-      box-shadow: 0 0 0 1px var(--accent-border);
       flex: none;
-    }}
-    .theme-toggle[data-theme="light"]::before {{
-      background: linear-gradient(180deg, #fff6d8 0%, #c79347 100%);
     }}
     .theme-toggle:hover {{ transform: translateY(-1px); border-color: var(--accent); }}
     .theme-toggle:focus-visible {{ outline: 2px solid var(--accent); outline-offset: 2px; }}
-    .theme-toggle-value {{ color: var(--text-strong); font-size: 0.82rem; font-weight: 700; }}
+    .theme-toggle-icon {{ display: none; font-size: 1rem; line-height: 1; color: var(--text-strong); }}
+    .theme-toggle[data-theme="dark"] .theme-toggle-icon-sun {{ display: inline-block; }}
+    .theme-toggle[data-theme="light"] .theme-toggle-icon-moon {{ display: inline-block; }}
+    .theme-toggle-label {{
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }}
     .search {{
       width: 100%;
       padding: 10px 12px;
@@ -521,6 +644,8 @@ def render_viewer_html(
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }}
+    .documentation-actions {{ display: flex; justify-content: flex-end; }}
+    .documentation-actions:empty {{ display: none; }}
     .approval-queue {{ display: grid; gap: 10px; }}
     .approval-card {{
       display: grid;
@@ -729,17 +854,6 @@ def render_viewer_html(
       align-items: start;
     }}
     .note-main {{ min-width: 0; display: grid; gap: 18px; }}
-    .note-markdown {{
-      padding: 24px 26px;
-      border-radius: 16px;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      white-space: pre-wrap;
-      line-height: 1.75;
-      color: var(--text);
-      font-size: 0.98rem;
-    }}
     .note-structured-content {{
       display: grid;
       gap: 16px;
@@ -816,6 +930,167 @@ def render_viewer_html(
       border: 1px solid var(--accent-border);
     }}
     .note-alert strong {{ color: var(--text-strong); }}
+    .documentation-action {{
+      border: 1px solid var(--line-soft);
+      background: var(--surface);
+      color: var(--text-soft);
+      padding: 8px 12px;
+      border-radius: 10px;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }}
+    .documentation-action:hover {{
+      color: var(--text-strong);
+      border-color: var(--accent-border);
+      background: var(--panel-hover);
+      transform: translateY(-1px);
+    }}
+    .composer-launch {{ justify-content: center; }}
+    .composer-backdrop {{
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 14, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 40;
+      backdrop-filter: blur(10px);
+    }}
+    .composer-backdrop.open {{ display: flex; }}
+    .composer-modal {{
+      width: min(760px, 100%);
+      max-height: min(88vh, 920px);
+      overflow: auto;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--surface), var(--bg-elevated));
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+    }}
+    .composer-header {{ display: flex; justify-content: space-between; gap: 16px; align-items: start; }}
+    .composer-title {{ margin: 0; font-size: 1.15rem; color: var(--text-strong); }}
+    .composer-subtitle {{ margin: 6px 0 0; color: var(--muted); font-size: 0.84rem; line-height: 1.5; }}
+    .composer-close {{ min-width: 42px; }}
+    .composer-form {{ display: grid; gap: 14px; }}
+    .composer-grid {{ display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }}
+    .composer-field {{ display: grid; gap: 6px; color: var(--muted); font-size: 0.8rem; }}
+    .composer-field input,
+    .composer-field select,
+    .composer-field textarea {{
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel-overlay);
+      color: var(--text);
+      font: inherit;
+      padding: 11px 12px;
+    }}
+    .composer-field input[type="file"] {{ padding: 10px 12px; cursor: pointer; }}
+    .composer-hint {{ color: var(--muted); font-size: 0.76rem; line-height: 1.45; }}
+    .composer-checklist {{
+      display: grid;
+      gap: 8px;
+      max-height: 180px;
+      overflow: auto;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--panel-overlay);
+    }}
+    .composer-check-item {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-soft);
+      font-size: 0.86rem;
+    }}
+    .composer-check-item input {{ accent-color: var(--accent); }}
+    .composer-preview-shell {{ display: grid; gap: 10px; }}
+    .composer-preview-header {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }}
+    .composer-preview-caption {{ color: var(--muted); font-size: 0.76rem; }}
+    .note-markdown,
+    .composer-preview {{
+      padding: 24px 26px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      line-height: 1.75;
+      color: var(--text);
+      font-size: 0.98rem;
+    }}
+    .note-markdown.raw-markdown {{ white-space: pre-wrap; }}
+    .composer-preview.empty {{ color: var(--muted); }}
+    .note-markdown h1,
+    .note-markdown h2,
+    .note-markdown h3,
+    .note-markdown h4,
+    .composer-preview h1,
+    .composer-preview h2,
+    .composer-preview h3,
+    .composer-preview h4 {{
+      margin: 0 0 0.7em;
+      color: var(--text-strong);
+      line-height: 1.2;
+    }}
+    .note-markdown p,
+    .note-markdown ul,
+    .note-markdown ol,
+    .note-markdown blockquote,
+    .note-markdown pre,
+    .composer-preview p,
+    .composer-preview ul,
+    .composer-preview ol,
+    .composer-preview blockquote,
+    .composer-preview pre {{ margin: 0 0 1em; }}
+    .note-markdown ul,
+    .note-markdown ol,
+    .composer-preview ul,
+    .composer-preview ol {{ padding-left: 1.4em; }}
+    .note-markdown blockquote,
+    .composer-preview blockquote {{
+      margin-left: 0;
+      padding-left: 1em;
+      border-left: 3px solid var(--accent-border);
+      color: var(--text-soft);
+    }}
+    .note-markdown code,
+    .composer-preview code {{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background: var(--field-bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.1em 0.35em;
+      font-size: 0.92em;
+    }}
+    .note-markdown pre,
+    .composer-preview pre {{
+      overflow: auto;
+      padding: 14px 16px;
+      background: var(--field-bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }}
+    .note-markdown pre code,
+    .composer-preview pre code {{
+      background: transparent;
+      border: none;
+      padding: 0;
+    }}
+    .composer-actions {{ display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }}
+    .composer-status {{ min-height: 1.2rem; color: var(--muted); font-size: 0.8rem; }}
+    .composer-status.error {{ color: var(--red); }}
+    .composer-status.success {{ color: var(--green); }}
+    .auth-actions {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+    .auth-user {{ color: var(--text-soft); font-size: 0.84rem; align-self: center; }}
+    .auth-summary {{ color: var(--muted); font-size: 0.8rem; line-height: 1.5; }}
+    .auth-summary strong {{ color: var(--text-strong); font-weight: 600; }}
     @media (max-width: 1280px) {{
       .app-shell {{ grid-template-columns: 300px minmax(0, 1fr); }}
       .graph-resizer {{ display: none; }}
@@ -835,19 +1110,27 @@ def render_viewer_html(
   <div id="app-shell" class="app-shell">
     <aside class="sidebar-pane">
       <div class="vault-header">
-        <div class="vault-title">OlinKB Vault</div>
-        <p class="vault-subtitle">Universal knowledge base explorer. Every memory lives in a single path.</p>
+        <div class="vault-header-row">
+          <div>
+            <div class="vault-title">OlinKB Vault</div>
+            <p class="vault-subtitle">Universal knowledge base explorer. Every memory lives in a single path.</p>
+          </div>
+          <div class="vault-header-actions">
+            {live_header_auth_controls_html}
+            <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" title="Cambiar tema">
+              <span class="theme-toggle-icon theme-toggle-icon-sun" aria-hidden="true">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-moon" aria-hidden="true">☾</span>
+              <span class="theme-toggle-label">Cambiar tema</span>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="sidebar-tools">
-        <div class="toolbar-row">
-          <span class="toolbar-label">Appearance</span>
-          <button id="theme-toggle" class="theme-toggle" type="button" aria-live="polite">
-            <span id="theme-toggle-value" class="theme-toggle-value">Dark mode</span>
-          </button>
-        </div>
+        {live_auth_controls_html}
         <input id="search" class="search" type="search" placeholder="Search notes...">
         <div class="vault-stats" id="vault-stats"></div>
         <div class="search-pagination" id="search-pagination"></div>
+        {live_composer_launcher_html}
         <div class="approval-queue" id="approval-queue"></div>
       </div>
       <div class="sidebar-list" id="memory-list"></div>
@@ -877,6 +1160,8 @@ def render_viewer_html(
     </aside>
   </div>
 
+  {live_modals_html}
+
   <script>
     window.__OLINKB_VIEWER_DATA__ = {serialized_payload};
   </script>
@@ -901,6 +1186,21 @@ def render_viewer_html(
           loading: false,
           requestToken: 0,
           searchTimer: null,
+          composerOpen: false,
+          composerStatus: "",
+          composerStatusLevel: "",
+          composerMarkdown: "",
+          composerFileName: "",
+          composerApplicableProjects: [],
+          auth: {{
+            authenticated: false,
+            username: null,
+            role: null,
+            can_manage_documentation: false,
+            loginOpen: false,
+            loginStatus: "",
+            loginStatusLevel: "",
+          }},
         }},
       }};
 
@@ -917,7 +1217,28 @@ def render_viewer_html(
         graphResizer: document.getElementById("graph-resizer"),
         appShell: document.getElementById("app-shell"),
         themeToggle: document.getElementById("theme-toggle"),
-        themeToggleValue: document.getElementById("theme-toggle-value"),
+        openAuth: document.getElementById("open-auth"),
+        authUsername: document.getElementById("auth-username-label"),
+        authLogout: document.getElementById("auth-logout"),
+        authSummary: document.getElementById("auth-summary"),
+        authBackdrop: document.getElementById("auth-backdrop"),
+        authForm: document.getElementById("auth-form"),
+        authClose: document.getElementById("auth-close"),
+        authCancel: document.getElementById("auth-cancel"),
+        authStatus: document.getElementById("auth-status"),
+        openComposer: document.getElementById("open-composer"),
+        composerBackdrop: document.getElementById("composer-backdrop"),
+        composerForm: document.getElementById("composer-form"),
+        composerClose: document.getElementById("composer-close"),
+        composerCancel: document.getElementById("composer-cancel"),
+        composerStatus: document.getElementById("composer-status"),
+        composerTargetScope: document.getElementById("composer-target-scope"),
+        composerProjectTargets: document.getElementById("composer-project-targets"),
+        composerProjectList: document.getElementById("composer-project-list"),
+        composerType: document.getElementById("composer-type"),
+        composerFile: document.getElementById("composer-file"),
+        composerFileMeta: document.getElementById("composer-file-meta"),
+        composerPreview: document.getElementById("composer-preview"),
       }};
 
       const graphController = createGraphController(document.getElementById("graph-canvas"), (nodeId) => {{
@@ -944,8 +1265,11 @@ def render_viewer_html(
       }});
 
       setupGraphResizer();
+      setupAuth();
+      setupComposer();
       if (liveApiPath) {{
         render();
+        loadAuthSession();
         loadLiveData();
         window.setInterval(loadLiveData, 10000);
       }} else {{
@@ -971,7 +1295,8 @@ def render_viewer_html(
         if (!liveApiPath) return;
         const requestToken = ++state.live.requestToken;
         const requestUrl = new URL(liveApiPath, window.location.origin);
-        requestUrl.searchParams.set("limit", String(state.live.limit));
+        const isDefaultLandingView = !state.search && !state.live.cursor && state.live.limit === 50;
+        if (!isDefaultLandingView) requestUrl.searchParams.set("limit", String(state.live.limit));
         if (state.search) requestUrl.searchParams.set("q", state.search);
         if (state.live.cursor) requestUrl.searchParams.set("cursor", state.live.cursor);
         state.live.loading = true;
@@ -1008,7 +1333,7 @@ def render_viewer_html(
         elements.themeToggle.dataset.theme = theme;
         elements.themeToggle.setAttribute("aria-pressed", String(theme === "light"));
         elements.themeToggle.setAttribute("aria-label", theme === "light" ? "Switch to dark mode" : "Switch to light mode");
-        elements.themeToggleValue.textContent = theme === "light" ? "Light mode" : "Dark mode";
+        elements.themeToggle.title = theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro";
         try {{
           window.localStorage.setItem(THEME_STORAGE_KEY, theme);
         }} catch (_error) {{
@@ -1026,6 +1351,8 @@ def render_viewer_html(
         renderSearchPagination(memories);
         renderExplorer(memories);
         renderNote(memories, graph);
+        renderAuth();
+        renderComposer();
         const memoryNodes = graph.nodes.filter((node) => node.kind === "memory");
         const projectCount = graph.nodes.filter((node) => node.kind === "project").length;
         const typeCount = graph.nodes.filter((node) => node.kind === "memory_type").length;
@@ -1033,6 +1360,411 @@ def render_viewer_html(
         elements.graphSummary.textContent = `${{formatNumber(memoryNodes.length)}} notes · ${{formatNumber(projectCount)}} projects · ${{formatNumber(typeCount)}} types · ${{formatNumber(deletedCount)}} forgotten`;
         graphController.resize();
         graphController.update(graph, state.selectedId);
+      }}
+
+      function setupComposer() {{
+        if (!liveApiPath || !elements.openComposer || !elements.composerBackdrop || !elements.composerForm) return;
+        elements.openComposer.addEventListener("click", () => {{
+          if (!state.live.auth.can_manage_documentation) {{
+            openAuthModal();
+            return;
+          }}
+          resetComposerDraft();
+          elements.composerForm.reset();
+          state.live.composerOpen = true;
+          renderComposer();
+        }});
+        elements.composerClose?.addEventListener("click", closeComposer);
+        elements.composerCancel?.addEventListener("click", closeComposer);
+        elements.composerBackdrop?.addEventListener("click", (event) => {{
+          if (event.target === elements.composerBackdrop) closeComposer();
+        }});
+        elements.composerTargetScope?.addEventListener("change", () => {{
+          syncComposerApplicabilityField();
+          renderComposer();
+        }});
+        elements.composerFile?.addEventListener("change", async (event) => {{
+          await handleComposerFileSelection(event);
+        }});
+        elements.composerForm.addEventListener("submit", async (event) => {{
+          event.preventDefault();
+          await submitComposerForm();
+        }});
+        syncComposerApplicabilityField();
+      }}
+
+      function setupAuth() {{
+        if (!liveApiPath || !elements.openAuth || !elements.authBackdrop || !elements.authForm) return;
+        elements.openAuth.addEventListener("click", () => {{
+          if (state.live.auth.authenticated) return;
+          openAuthModal();
+        }});
+        elements.authClose?.addEventListener("click", closeAuthModal);
+        elements.authCancel?.addEventListener("click", closeAuthModal);
+        elements.authBackdrop?.addEventListener("click", (event) => {{
+          if (event.target === elements.authBackdrop) closeAuthModal();
+        }});
+        elements.authForm.addEventListener("submit", async (event) => {{
+          event.preventDefault();
+          await submitAuthForm();
+        }});
+        elements.authLogout?.addEventListener("click", async () => {{
+          await submitLogout();
+        }});
+      }}
+
+      function renderAuth() {{
+        if (!liveApiPath || !elements.openAuth) return;
+        const auth = state.live.auth;
+        elements.openAuth.hidden = !!auth.authenticated;
+        elements.openAuth.disabled = !!auth.authenticated;
+        if (elements.authUsername) {{
+          elements.authUsername.hidden = !auth.authenticated;
+          elements.authUsername.textContent = auth.username || "";
+        }}
+        if (elements.authLogout) elements.authLogout.hidden = !auth.authenticated;
+        if (elements.authSummary) {{
+          elements.authSummary.hidden = !!auth.authenticated;
+          elements.authSummary.innerHTML = auth.authenticated
+            ? ""
+            : "Public read access is enabled. Sign in to add documentation.";
+        }}
+        if (elements.authStatus) {{
+          elements.authStatus.className = auth.loginStatusLevel
+            ? `composer-status ${{auth.loginStatusLevel}}`
+            : "composer-status";
+          elements.authStatus.textContent = auth.loginStatus || "";
+        }}
+        if (elements.authBackdrop) {{
+          elements.authBackdrop.classList.toggle("open", auth.loginOpen);
+          elements.authBackdrop.setAttribute("aria-hidden", auth.loginOpen ? "false" : "true");
+        }}
+        if (elements.openComposer) {{
+          elements.openComposer.hidden = !auth.can_manage_documentation;
+          elements.openComposer.disabled = !auth.can_manage_documentation;
+          elements.openComposer.title = auth.can_manage_documentation
+            ? "Add documentation"
+            : "Sign in as an admin or lead to add documentation";
+        }}
+      }}
+
+      function openAuthModal() {{
+        state.live.auth.loginOpen = true;
+        state.live.auth.loginStatus = "";
+        state.live.auth.loginStatusLevel = "";
+        renderAuth();
+      }}
+
+      function closeAuthModal() {{
+        state.live.auth.loginOpen = false;
+        state.live.auth.loginStatus = "";
+        state.live.auth.loginStatusLevel = "";
+        renderAuth();
+      }}
+
+      async function loadAuthSession() {{
+        if (!liveApiPath) return;
+        try {{
+          const response = await fetch("/api/auth/session", {{ cache: "no-store" }});
+          if (!response.ok) throw new Error("No se pudo cargar la sesión actual");
+          const authPayload = await response.json();
+          state.live.auth = {{
+            ...state.live.auth,
+            ...authPayload,
+            loginOpen: false,
+            loginStatus: "",
+            loginStatusLevel: "",
+          }};
+        }} catch (_error) {{
+          state.live.auth = {{
+            ...state.live.auth,
+            authenticated: false,
+            username: null,
+            role: null,
+            can_manage_documentation: false,
+            loginOpen: false,
+            loginStatus: "",
+            loginStatusLevel: "",
+          }};
+        }}
+        render();
+      }}
+
+      async function submitAuthForm() {{
+        if (!elements.authForm) return;
+        const formData = new FormData(elements.authForm);
+        const payload = {{
+          username: String(formData.get("username") || "").trim(),
+          password: String(formData.get("password") || "").trim(),
+        }};
+        state.live.auth.loginStatus = "Iniciando sesión...";
+        state.live.auth.loginStatusLevel = "";
+        renderAuth();
+        try {{
+          const response = await fetch("/api/auth/login", {{
+            method: "POST",
+            headers: {{ "Content-Type": "application/json" }},
+            body: JSON.stringify(payload),
+          }});
+          if (!response.ok) throw new Error(await response.text());
+          const authPayload = await response.json();
+          state.live.auth = {{
+            ...state.live.auth,
+            ...authPayload,
+            loginOpen: false,
+            loginStatus: "",
+            loginStatusLevel: "",
+          }};
+          render();
+        }} catch (error) {{
+          state.live.auth.loginStatus = extractComposerError(error);
+          state.live.auth.loginStatusLevel = "error";
+          renderAuth();
+        }}
+      }}
+
+      async function submitLogout() {{
+        try {{
+          await fetch("/api/auth/logout", {{ method: "POST" }});
+        }} catch (_error) {{
+        }}
+        state.live.auth = {{
+          ...state.live.auth,
+          authenticated: false,
+          username: null,
+          role: null,
+          can_manage_documentation: false,
+          loginOpen: false,
+          loginStatus: "",
+          loginStatusLevel: "",
+        }};
+        state.live.composerOpen = false;
+        render();
+      }}
+
+      function renderComposer() {{
+        if (!elements.composerBackdrop) return;
+        if (!state.live.auth.can_manage_documentation) {{
+          state.live.composerOpen = false;
+        }}
+        elements.composerBackdrop.classList.toggle("open", state.live.composerOpen);
+        elements.composerBackdrop.setAttribute("aria-hidden", state.live.composerOpen ? "false" : "true");
+        if (elements.composerStatus) {{
+          elements.composerStatus.className = state.live.composerStatusLevel
+            ? `composer-status ${{state.live.composerStatusLevel}}`
+            : "composer-status";
+          elements.composerStatus.textContent = state.live.composerStatus || "";
+        }}
+        syncComposerApplicabilityField();
+        syncComposerTypeField();
+        renderComposerProjectOptions();
+        renderComposerFileMeta();
+        renderComposerPreview();
+      }}
+
+      function resetComposerDraft() {{
+        state.live.composerStatus = "";
+        state.live.composerStatusLevel = "";
+        state.live.composerMarkdown = "";
+        state.live.composerFileName = "";
+        state.live.composerApplicableProjects = [];
+      }}
+
+      function syncComposerApplicabilityField() {{
+        if (!elements.composerTargetScope || !elements.composerProjectTargets) return;
+        const targetScope = String(elements.composerTargetScope.value || "global");
+        elements.composerProjectTargets.hidden = targetScope !== "repo";
+        if (targetScope !== "repo") {{
+          state.live.composerApplicableProjects = [];
+          return;
+        }}
+
+        if (!state.live.composerApplicableProjects.length) {{
+          const availableProjects = getAvailableProjects();
+          if (state.live.auth.project && availableProjects.includes(state.live.auth.project)) {{
+            state.live.composerApplicableProjects = [state.live.auth.project];
+          }} else if (availableProjects.length === 1) {{
+            state.live.composerApplicableProjects = [availableProjects[0]];
+          }}
+        }}
+      }}
+
+      function syncComposerTypeField() {{
+        if (!elements.composerType) return;
+        const businessOption = elements.composerType.querySelector('option[value="business_documentation"]');
+        const isAdmin = state.live.auth.role === "admin";
+        if (businessOption) businessOption.disabled = !isAdmin;
+        if (!isAdmin && elements.composerType.value === "business_documentation") {{
+          elements.composerType.value = "documentation";
+        }}
+      }}
+
+      function getAvailableProjects() {{
+        const projectNames = new Set();
+        (data.memories || []).forEach((memory) => {{
+          const namespace = String(memory.namespace || "");
+          if (namespace.startsWith("project://")) {{
+            const projectName = namespace.slice("project://".length).split("/")[0];
+            if (projectName) projectNames.add(projectName);
+          }}
+        }});
+        if (state.live.auth.project) projectNames.add(String(state.live.auth.project));
+        return Array.from(projectNames).sort((left, right) => left.localeCompare(right));
+      }}
+
+      function renderComposerProjectOptions() {{
+        if (!elements.composerProjectList) return;
+        const availableProjects = getAvailableProjects();
+        const availableSet = new Set(availableProjects);
+        state.live.composerApplicableProjects = state.live.composerApplicableProjects.filter((projectName) => availableSet.has(projectName));
+
+        if (!availableProjects.length) {{
+          elements.composerProjectList.innerHTML = '<div class="composer-hint">No hay repos visibles para seleccionar todavía.</div>';
+          return;
+        }}
+
+        elements.composerProjectList.innerHTML = availableProjects.map((projectName) => `
+          <label class="composer-check-item">
+            <input type="checkbox" value="${{escapeHtml(projectName)}}" ${{state.live.composerApplicableProjects.includes(projectName) ? "checked" : ""}}>
+            <span>${{escapeHtml(projectName)}}</span>
+          </label>
+        `).join("");
+
+        elements.composerProjectList.querySelectorAll('input[type="checkbox"]').forEach((input) => {{
+          input.addEventListener("change", () => {{
+            const checkedProjects = Array.from(elements.composerProjectList.querySelectorAll('input[type="checkbox"]:checked'))
+              .map((checkbox) => String(checkbox.value || "").trim())
+              .filter(Boolean);
+            state.live.composerApplicableProjects = checkedProjects;
+          }});
+        }});
+      }}
+
+      function renderComposerFileMeta() {{
+        if (!elements.composerFileMeta) return;
+        elements.composerFileMeta.textContent = state.live.composerFileName
+          ? `${{state.live.composerFileName}} loaded and ready to save.`
+          : "Upload a .md file to use as the memory content.";
+      }}
+
+      function renderComposerPreview() {{
+        if (!elements.composerPreview) return;
+        const markdown = String(state.live.composerMarkdown || "").trim();
+        if (!markdown) {{
+          elements.composerPreview.classList.add("empty");
+          elements.composerPreview.innerHTML = "Upload a .md file to preview it here.";
+          return;
+        }}
+        elements.composerPreview.classList.remove("empty");
+        elements.composerPreview.innerHTML = renderMarkdownMarkup(markdown);
+      }}
+
+      async function handleComposerFileSelection(event) {{
+        const input = event.target;
+        const file = input?.files?.[0];
+        if (!file) {{
+          state.live.composerMarkdown = "";
+          state.live.composerFileName = "";
+          renderComposer();
+          return;
+        }}
+        if (!/\\.md$/i.test(file.name)) {{
+          state.live.composerMarkdown = "";
+          state.live.composerFileName = "";
+          state.live.composerStatus = "Upload a file with a .md extension";
+          state.live.composerStatusLevel = "error";
+          if (input) input.value = "";
+          renderComposer();
+          return;
+        }}
+        try {{
+          const markdown = await file.text();
+          if (!String(markdown || "").trim()) {{
+            throw new Error("The Markdown file is empty");
+          }}
+          state.live.composerMarkdown = markdown;
+          state.live.composerFileName = file.name;
+          state.live.composerStatus = "";
+          state.live.composerStatusLevel = "";
+        }} catch (error) {{
+          state.live.composerMarkdown = "";
+          state.live.composerFileName = "";
+          state.live.composerStatus = extractComposerError(error);
+          state.live.composerStatusLevel = "error";
+          if (input) input.value = "";
+        }}
+        renderComposer();
+      }}
+
+      function closeComposer() {{
+        state.live.composerOpen = false;
+        if (elements.composerForm) elements.composerForm.reset();
+        resetComposerDraft();
+        renderComposer();
+      }}
+
+      async function submitComposerForm() {{
+        if (!liveApiPath || !elements.composerForm) return;
+        if (!state.live.auth.can_manage_documentation) {{
+          openAuthModal();
+          return;
+        }}
+        const formData = new FormData(elements.composerForm);
+        const targetScope = String(formData.get("target_scope") || "global").trim();
+        const payload = {{
+          title: String(formData.get("title") || "").trim(),
+          memory_type: String(formData.get("memory_type") || "documentation").trim(),
+          target_scope: targetScope,
+          applicable_projects: targetScope === "repo" ? [...state.live.composerApplicableProjects] : [],
+          file_name: state.live.composerFileName,
+          content: state.live.composerMarkdown,
+        }};
+
+        if (!payload.content.trim()) {{
+          state.live.composerStatus = "Upload a .md file before saving";
+          state.live.composerStatusLevel = "error";
+          renderComposer();
+          return;
+        }}
+        if (payload.target_scope === "repo" && !payload.applicable_projects.length) {{
+          state.live.composerStatus = "Select at least one repo";
+          state.live.composerStatusLevel = "error";
+          renderComposer();
+          return;
+        }}
+
+        state.live.composerStatus = "Saving memory...";
+        state.live.composerStatusLevel = "";
+        renderComposer();
+
+        try {{
+          const response = await fetch("/api/memories", {{
+            method: "POST",
+            headers: {{ "Content-Type": "application/json" }},
+            body: JSON.stringify(payload),
+          }});
+          if (!response.ok) throw new Error(await response.text());
+          const result = await response.json();
+          state.selectedId = result.id || state.selectedId;
+          state.live.composerStatus = "Memory created.";
+          state.live.composerStatusLevel = "success";
+          elements.composerForm.reset();
+          state.live.composerMarkdown = "";
+          state.live.composerFileName = "";
+          state.live.composerApplicableProjects = [];
+          resetLivePagination();
+          await loadLiveData();
+          window.setTimeout(() => closeComposer(), 180);
+        }} catch (error) {{
+          state.live.composerStatus = extractComposerError(error);
+          state.live.composerStatusLevel = "error";
+          renderComposer();
+        }}
+      }}
+
+      function extractComposerError(error) {{
+        const message = error instanceof Error ? error.message : String(error || "No se pudo crear la memoria");
+        return message.replace(/^Error:\\s*/, "") || "No se pudo crear la memoria";
       }}
 
       function renderVaultStats(memories, graph) {{
@@ -1054,46 +1786,17 @@ def render_viewer_html(
       }}
 
       function renderSearchPagination(memories) {{
-        if (state.viewMode === "pending") {{
-          const totalPending = data.pendingApprovals?.total_count ?? 0;
-          const metaText = totalPending
-            ? `${{formatNumber(memories.length)}} pending proposals visible · ${{formatNumber(totalPending)}} total in queue`
-            : "No pending approvals right now";
-          elements.searchPagination.innerHTML = `<div class="search-pagination-meta">${{escapeHtml(metaText)}}</div>`;
-          return;
-        }}
-        if (!liveApiPath) {{
+        if (!liveApiPath || state.viewMode === "pending") {{
           elements.searchPagination.innerHTML = "";
           return;
         }}
 
-        const pageInfo = data.pageInfo || {{}};
-        const summaryText = state.search
-          ? `Searching title and content for “${{state.search}}”`
-          : "Recent notes";
-        const metaText = state.live.loading
-          ? "Searching PostgreSQL..."
-          : `${{summaryText}} · ${{formatNumber(pageInfo.returned_count ?? memories.length)}} notes on this page`;
+        if (state.live.connectionError) {{
+          elements.searchPagination.innerHTML = `<div class="search-pagination-meta">${{escapeHtml(state.live.connectionError)}}</div>`;
+          return;
+        }}
 
-        elements.searchPagination.innerHTML = `
-          <div class="search-pagination-meta">${{escapeHtml(metaText)}}</div>
-          <div class="search-pagination-actions">
-            <button class="search-pagination-button" type="button" data-live-page="prev" ${{state.live.cursorHistory.length ? "" : "disabled"}}>Previous</button>
-            <button class="search-pagination-button" type="button" data-live-page="next" ${{pageInfo?.has_next ? "" : "disabled"}}>Next</button>
-          </div>
-        `;
-
-        elements.searchPagination.querySelector('[data-live-page="prev"]')?.addEventListener("click", () => {{
-          if (!state.live.cursorHistory.length) return;
-          state.live.cursor = state.live.cursorHistory.pop() ?? null;
-          loadLiveData();
-        }});
-        elements.searchPagination.querySelector('[data-live-page="next"]')?.addEventListener("click", () => {{
-          if (!data.pageInfo?.has_next || !state.live.nextCursor) return;
-          state.live.cursorHistory.push(state.live.cursor);
-          state.live.cursor = state.live.nextCursor;
-          loadLiveData();
-        }});
+        elements.searchPagination.innerHTML = "";
       }}
 
       function renderApprovalQueue() {{
@@ -1118,7 +1821,7 @@ def render_viewer_html(
                 <div class="approval-card-meta">${{escapeHtml(summaryText)}}</div>
               </div>
               <button id="toggle-pending-view" class="section-action" type="button" ${{pendingApprovals.total_count ? "" : "disabled"}}>
-                <span>${{isPendingView ? "Back to all notes" : "View pending"}}</span>
+                <span>${{isPendingView ? "Back to notes" : "View pending"}}</span>
               </button>
             </div>
             ${{pendingApprovals.total_count ? `
@@ -1172,7 +1875,6 @@ def render_viewer_html(
           <div class="explorer-shell">
             ${{searchActive ? "" : `
               <div class="explorer-toolbar">
-                <span class="toolbar-label">All notes</span>
                 <button id="collapse-explorer" class="section-action" type="button" data-direction="${{actionDirection}}" aria-label="${{actionLabel}} notes tree">
                   <span class="section-action-icon" aria-hidden="true"></span>
                   <span>${{actionLabel}}</span>
@@ -1431,6 +2133,8 @@ def render_viewer_html(
           .join("");
         const remainingContent = (noteSections.remaining || "").trim();
         const fallbackContent = selected.content || selected.preview || "No content available.";
+        const isMarkdownContent = ["documentation", "business_documentation", "development_standard"].includes(selected.memory_type)
+          || selected.metadata?.content_format === "markdown";
         const noteBody = sectionBlocks || remainingContent
           ? `
             <div class="note-structured-content">
@@ -1443,7 +2147,9 @@ def render_viewer_html(
               ` : ""}}
             </div>
           `
-          : `<div class="note-markdown">${{highlightSearchText(fallbackContent)}}</div>`;
+          : isMarkdownContent
+            ? `<div class="note-markdown markdown-rendered">${{renderMarkdownMarkup(fallbackContent)}}</div>`
+            : `<div class="note-markdown raw-markdown">${{highlightSearchText(fallbackContent)}}</div>`;
 
         const approvalSection = selected.approval_status === "pending" || selected.proposed_memory_type
           ? `
@@ -1472,8 +2178,8 @@ def render_viewer_html(
               ${{related.length ? related.map((item) => `
                 <article class="related-item" data-memory-id="${{item.relatedMemory.id}}">
                   <div class="related-item-title">${{escapeHtml(item.relatedMemory.title)}}</div>
-                  <div class="related-item-meta">${{escapeHtml(item.edge.typeLabel || item.edge.type)}} · ${{escapeHtml(item.relatedMemory.author_username)}}</div>
-                  <div class="related-item-text">${{escapeHtml(excerpt(item.relatedMemory.content, 120))}}</div>
+                  <div class="related-item-meta">${{escapeHtml(item.edge.type)}} · ${{escapeHtml(item.relatedMemory.memory_type)}}</div>
+                  <div class="related-item-text">${{highlightSearchText(excerpt(item.relatedMemory.preview || item.relatedMemory.content || "No preview available.", 140))}}</div>
                 </article>
               `).join("") : '<div class="empty-state">No direct relationships are visible for this note.</div>'}}
             </div>
@@ -1657,6 +2363,104 @@ def render_viewer_html(
         return output;
       }}
 
+      function formatInlineMarkdown(value) {{
+        let html = escapeHtml(value);
+        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>");
+        html = html.replace(/(^|[^*])\\*([^*]+)\\*(?!\\*)/g, "$1<em>$2</em>");
+        html = html.replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^\\s)]+)\\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+        return html;
+      }}
+
+      function renderMarkdownMarkup(markdown) {{
+        const lines = String(markdown || "").replace(/\\r\\n?/g, "\\n").split("\\n");
+        const blocks = [];
+        let index = 0;
+
+        const isBlank = (line) => !String(line || "").trim();
+        const isFence = (line) => String(line || "").trim().startsWith("```");
+        const isBullet = (line) => /^\\s*[-*]\\s+/.test(line);
+        const isOrdered = (line) => /^\\s*\\d+\\.\\s+/.test(line);
+        const isQuote = (line) => /^\\s*>\\s?/.test(line);
+        const isHeading = (line) => /^\\s{0,3}#{1,6}\\s+/.test(line);
+
+        while (index < lines.length) {{
+          const line = lines[index];
+          if (isBlank(line)) {{
+            index += 1;
+            continue;
+          }}
+
+          if (isFence(line)) {{
+            index += 1;
+            const codeLines = [];
+            while (index < lines.length && !isFence(lines[index])) {{
+              codeLines.push(lines[index]);
+              index += 1;
+            }}
+            if (index < lines.length) index += 1;
+            blocks.push(`<pre><code>${{escapeHtml(codeLines.join("\\n"))}}</code></pre>`);
+            continue;
+          }}
+
+          if (isHeading(line)) {{
+            const match = line.match(/^\\s{0,3}(#{1,6})\\s+(.*)$/);
+            const level = Math.min(4, match?.[1]?.length || 1);
+            const headingText = match?.[2] || line;
+            blocks.push(`<h${{level}}>${{formatInlineMarkdown(headingText)}}</h${{level}}>`);
+            index += 1;
+            continue;
+          }}
+
+          if (isBullet(line)) {{
+            const items = [];
+            while (index < lines.length && isBullet(lines[index])) {{
+              items.push(lines[index].replace(/^\\s*[-*]\\s+/, ""));
+              index += 1;
+            }}
+            blocks.push(`<ul>${{items.map((item) => `<li>${{formatInlineMarkdown(item)}}</li>`).join("")}}</ul>`);
+            continue;
+          }}
+
+          if (isOrdered(line)) {{
+            const items = [];
+            while (index < lines.length && isOrdered(lines[index])) {{
+              items.push(lines[index].replace(/^\\s*\\d+\\.\\s+/, ""));
+              index += 1;
+            }}
+            blocks.push(`<ol>${{items.map((item) => `<li>${{formatInlineMarkdown(item)}}</li>`).join("")}}</ol>`);
+            continue;
+          }}
+
+          if (isQuote(line)) {{
+            const quotedLines = [];
+            while (index < lines.length && isQuote(lines[index])) {{
+              quotedLines.push(lines[index].replace(/^\\s*>\\s?/, ""));
+              index += 1;
+            }}
+            blocks.push(`<blockquote>${{formatInlineMarkdown(quotedLines.join("\\n")).replace(/\\n/g, "<br>")}}</blockquote>`);
+            continue;
+          }}
+
+          const paragraph = [];
+          while (
+            index < lines.length
+            && !isBlank(lines[index])
+            && !isFence(lines[index])
+            && !isHeading(lines[index])
+            && !isBullet(lines[index])
+            && !isOrdered(lines[index])
+            && !isQuote(lines[index])
+          ) {{
+            paragraph.push(lines[index]);
+            index += 1;
+          }}
+          blocks.push(`<p>${{formatInlineMarkdown(paragraph.join("\\n")).replace(/\\n/g, "<br>")}}</p>`);
+        }}
+
+        return blocks.join("") || `<p>${{escapeHtml(markdown)}}</p>`;
+      }}
+
       function escapeHtml(value) {{
         return String(value ?? "")
           .replaceAll("&", "&amp;")
@@ -1698,10 +2502,32 @@ def render_viewer_html(
           return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
         }}
 
+        function getBreathingTransform() {{
+          if (runtime.draggedId || runtime.isPanning) {{
+            return {{ offsetX: 0, offsetY: 0, scale: 1 }};
+          }}
+          const phase = performance.now() * 0.00105;
+          return {{
+            offsetX: Math.sin(phase * 0.82 + 0.3) * 10,
+            offsetY: Math.cos(phase * 0.94) * 7,
+            scale: 1 + (Math.sin(phase) * 0.014) + (Math.sin(phase * 0.47 + 0.8) * 0.005),
+          }};
+        }}
+
+        function getViewportTransform() {{
+          const breathing = getBreathingTransform();
+          return {{
+            offsetX: runtime.offsetX + breathing.offsetX,
+            offsetY: runtime.offsetY + breathing.offsetY,
+            scale: runtime.scale * breathing.scale,
+          }};
+        }}
+
         resize();
         scheduleResize();
         window.addEventListener("resize", scheduleResize);
         canvas.addEventListener("pointermove", onPointerMove);
+        canvas.addEventListener("pointerleave", onPointerLeave);
         canvas.addEventListener("pointerdown", onPointerDown);
         window.addEventListener("pointerup", onPointerUp);
         canvas.addEventListener("click", onClick);
@@ -1933,10 +2759,11 @@ def render_viewer_html(
         }}
 
         function draw() {{
+          const viewport = getViewportTransform();
           context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
           context.save();
-          context.translate(runtime.offsetX, runtime.offsetY);
-          context.scale(runtime.scale, runtime.scale);
+          context.translate(viewport.offsetX, viewport.offsetY);
+          context.scale(viewport.scale, viewport.scale);
           context.strokeStyle = cssVar('--grid-line', 'rgba(255,255,255,0.03)');
           const topLeft = screenToWorld({{ x: 0, y: 0 }});
           const bottomRight = screenToWorld({{ x: canvas.clientWidth, y: canvas.clientHeight }});
@@ -1957,7 +2784,7 @@ def render_viewer_html(
             context.stroke();
           }}
 
-          drawLayoutGuides();
+          drawLayoutGuides(viewport.scale);
           const edgeColors = {{
             same_namespace: cssVar('--edge-namespace', 'rgba(139, 169, 255, 0.44)'),
             shared_tag: cssVar('--edge-tag', 'rgba(196, 147, 86, 0.32)'),
@@ -1979,34 +2806,33 @@ def render_viewer_html(
 
           runtime.nodes.forEach((node) => {{
             const selected = node.id === runtime.selectedId;
-            const radius = Math.max(6, node.size || 10);
+            const hovered = node.id === runtime.hoverId;
+            const radius = getNodeRadius(node);
             context.beginPath();
             context.fillStyle = node.isDeleted ? 'rgba(242, 139, 130, 0.4)' : node.color;
-            context.shadowColor = selected ? cssVar('--accent-strong', 'rgba(139, 169, 255, 0.45)') : 'transparent';
-            context.shadowBlur = selected ? 18 : 0;
-            context.arc(node.x, node.y, selected ? radius + 2 : radius, 0, Math.PI * 2);
+            context.shadowColor = (selected || hovered) ? cssVar('--accent-strong', 'rgba(139, 169, 255, 0.45)') : 'transparent';
+            context.shadowBlur = hovered ? 24 : (selected ? 18 : 0);
+            context.arc(node.x, node.y, radius, 0, Math.PI * 2);
             context.fill();
             context.shadowBlur = 0;
-            context.lineWidth = selected ? 2.2 : 1;
+            context.lineWidth = hovered ? 2.6 : (selected ? 2.2 : 1);
             context.strokeStyle = selected ? cssVar('--text-strong', 'rgba(255,255,255,0.9)') : cssVar('--node-ring', 'rgba(255,255,255,0.08)');
             context.stroke();
-            if (selected || node.prominent || node.kind !== "memory") {{
+            if (hovered && node.showLabel !== false) {{
               context.fillStyle = cssVar('--text', 'rgba(220, 221, 222, 0.92)');
-              context.font = `${{11 / runtime.scale}}px Avenir Next, sans-serif`;
+              context.font = `${{11 / viewport.scale}}px Avenir Next, sans-serif`;
               context.fillText(node.label, node.x + radius + 8, node.y + 4);
             }}
           }});
           context.restore();
         }}
 
-        function drawLayoutGuides() {{
+        function drawLayoutGuides(viewportScale) {{
           if (!runtime.layout || !runtime.layout.projectColumns?.length) return;
           const {{ projectColumns, stateRows, bounds }} = runtime.layout;
           context.save();
-          context.lineWidth = 1 / runtime.scale;
+          context.lineWidth = 1 / viewportScale;
           context.strokeStyle = cssVar('--guide-line', 'rgba(255,255,255,0.06)');
-          context.fillStyle = cssVar('--text-soft', 'rgba(220, 221, 222, 0.76)');
-          context.font = `${{12 / runtime.scale}}px Avenir Next, sans-serif`;
           context.textAlign = 'center';
           context.textBaseline = 'bottom';
           projectColumns.forEach((project) => {{
@@ -2023,13 +2849,6 @@ def render_viewer_html(
             context.moveTo(bounds.left, state.y);
             context.lineTo(bounds.right, state.y);
             context.stroke();
-            context.fillText(state.label, bounds.left + (12 / runtime.scale), state.y - (16 / runtime.scale));
-          }});
-
-          context.textAlign = 'center';
-          context.textBaseline = 'top';
-          (runtime.layout.typeColumns || []).forEach((type) => {{
-            context.fillText(type.label, type.x, type.y + (18 / runtime.scale));
           }});
           context.restore();
         }}
@@ -2040,16 +2859,24 @@ def render_viewer_html(
           runtime.nodes.forEach((node) => {{
             const dx = worldPointer.x - node.x;
             const dy = worldPointer.y - node.y;
-            const radius = Math.max(10, node.size || 12);
+            const radius = Math.max(10, getNodeRadius(node));
             if (dx * dx + dy * dy <= radius * radius) closest = node;
           }});
           return closest;
         }}
 
+        function getNodeRadius(node) {{
+          const baseRadius = Math.max(6, node.size || 10);
+          if (node.id === runtime.hoverId) return baseRadius + 5;
+          if (node.id === runtime.selectedId) return baseRadius + 2;
+          return baseRadius;
+        }}
+
         function screenToWorld(pointer) {{
+          const viewport = getViewportTransform();
           return {{
-            x: (pointer.x - runtime.offsetX) / runtime.scale,
-            y: (pointer.y - runtime.offsetY) / runtime.scale,
+            x: (pointer.x - viewport.offsetX) / viewport.scale,
+            y: (pointer.y - viewport.offsetY) / viewport.scale,
           }};
         }}
 
@@ -2060,6 +2887,13 @@ def render_viewer_html(
 
         function onPointerMove(event) {{
           runtime.lastPointer = getPointer(event);
+          if (!runtime.draggedId && !runtime.isPanning) {{
+            const hoveredNode = findNode(runtime.lastPointer);
+            runtime.hoverId = hoveredNode?.id || null;
+            if (!runtime.dragStarted) canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+          }} else {{
+            runtime.hoverId = null;
+          }}
           if (runtime.pointerDown && !runtime.dragStarted) {{
             const moveX = runtime.lastPointer.x - runtime.pointerDown.x;
             const moveY = runtime.lastPointer.y - runtime.pointerDown.y;
@@ -2086,12 +2920,18 @@ def render_viewer_html(
           runtime.offsetY = runtime.panStart.offsetY + (runtime.lastPointer.y - runtime.panStart.y);
         }}
 
+        function onPointerLeave() {{
+          runtime.hoverId = null;
+          if (!runtime.dragStarted) canvas.style.cursor = 'grab';
+        }}
+
         function onPointerDown(event) {{
           const pointer = getPointer(event);
           runtime.lastPointer = pointer;
           runtime.pointerDown = pointer;
           runtime.dragStarted = false;
           const node = findNode(pointer);
+          runtime.hoverId = node?.id || null;
           runtime.suppressClick = false;
           if (node) {{
             const worldPointer = screenToWorld(pointer);
@@ -2122,7 +2962,11 @@ def render_viewer_html(
           runtime.panStart = null;
           runtime.pointerDown = null;
           runtime.dragStarted = false;
+          if (runtime.lastPointer) {{
+            runtime.hoverId = findNode(runtime.lastPointer)?.id || null;
+          }}
           canvas.classList.remove('dragging');
+          canvas.style.cursor = runtime.hoverId ? 'pointer' : 'grab';
         }}
 
         function onClick(event) {{
@@ -2301,6 +3145,7 @@ def _build_graph(memories: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
         "size": 18,
         "color": "rgba(80, 157, 146, 0.9)",
         "prominent": True,
+        "showLabel": True,
         "isDeleted": False,
       },
     )
@@ -2316,6 +3161,7 @@ def _build_graph(memories: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
         "size": 16,
         "color": "rgba(199, 150, 77, 0.92)",
         "prominent": True,
+        "showLabel": False,
         "isDeleted": False,
       },
     )

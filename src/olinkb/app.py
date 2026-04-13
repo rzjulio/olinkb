@@ -5,6 +5,7 @@ from typing import Any
 from olinkb.config import Settings, get_settings
 from olinkb.domain import (
     APPROVER_MEMBER_ROLES,
+    enrich_memory_tags,
     extract_scope_key,
     infer_scope_from_uri,
     parse_tags,
@@ -170,13 +171,14 @@ class OlinKBApp:
         member = await self.storage.ensure_member(username=username, team=self.settings.team)
         project_member = await self._project_member_for_uri(uri=uri, member=member, username=username)
         self._authorize_memory_write(scope=scope, memory_type=memory_type, username=username, uri=uri, member=member, project_member=project_member)
+        resolved_tags = enrich_memory_tags(memory_type, parse_tags(tags), metadata)
         result = await self.storage.save_memory(
             uri=uri,
             title=title,
             content=content,
             memory_type=memory_type,
             scope=scope,
-            tags=parse_tags(tags),
+            tags=resolved_tags,
             metadata=metadata,
             author_id=member["id"],
             author_username=username,
@@ -521,6 +523,8 @@ class OlinKBApp:
             project_role = (project_member or {}).get("role", role)
             if project_role not in WRITER_MEMBER_ROLES:
                 raise PermissionError(f"Only project contributors can save memories for {extract_scope_key(uri)}")
+            if memory_type == "business_documentation" and project_role != "admin":
+                raise PermissionError("Only admins can save business documentation")
             if memory_type == "convention" and project_role not in APPROVER_MEMBER_ROLES:
                 raise PermissionError(
                     "Only project leads or admins can save conventions directly. Save the memory first and then explicitly call propose_memory_promotion(...) if it should be reviewed as a convention."
@@ -532,6 +536,8 @@ class OlinKBApp:
                 raise PermissionError("You can only write your own personal memories")
             return
 
+        if memory_type == "business_documentation" and role != "admin":
+            raise PermissionError("Only admins can save business documentation")
         if role not in APPROVER_MEMBER_ROLES:
             raise PermissionError(f"Only leads or admins can write {scope}-scope memories")
 
