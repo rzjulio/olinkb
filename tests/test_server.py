@@ -1,4 +1,9 @@
+import json
+import os
+from pathlib import Path
+import subprocess
 import pytest
+import mcp.types as types
 
 from olinkb import server
 
@@ -26,6 +31,29 @@ class FakeApp:
     async def review_memory_proposal(self, **kwargs):
         self.calls.append(kwargs)
         return {"status": kwargs["action"], "uri": kwargs["uri"]}
+
+
+def test_importing_server_does_not_eagerly_import_mcp() -> None:
+    src_path = Path(__file__).resolve().parents[1] / "src"
+    env = dict(os.environ)
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        f"{src_path}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else str(src_path)
+    )
+
+    result = subprocess.run(
+        [
+            os.environ.get("PYTHON", "python3"),
+            "-c",
+            "import json, sys; import olinkb.server; print(json.dumps({'mcp': 'mcp' in sys.modules}))",
+        ],
+        capture_output=True,
+        check=True,
+        env=env,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == {"mcp": False}
 
 
 @pytest.mark.asyncio
@@ -96,3 +124,39 @@ async def test_server_review_memory_proposal_passes_action(monkeypatch) -> None:
 
     assert result["status"] == "approve"
     assert app.calls[0]["action"] == "approve"
+
+
+def test_tool_definitions_expose_expected_names_and_remember_schema() -> None:
+    tools = {tool.name: tool for tool in server._tool_definitions()}
+
+    assert set(tools) == {
+        "boot_session",
+        "remember",
+        "save_memory",
+        "propose_memory_promotion",
+        "list_pending_approvals",
+        "review_memory_proposal",
+        "end_session",
+        "forget",
+    }
+    assert tools["remember"].inputSchema["required"] == ["query"]
+    assert "include_content" in tools["remember"].inputSchema["properties"]
+
+
+@pytest.mark.asyncio
+async def test_dispatch_tool_call_wraps_list_results_for_low_level_server(monkeypatch) -> None:
+    async def fake_remember(**kwargs):
+        assert kwargs == {"query": "alpha"}
+        return [{"uri": "project://olinkb/facts/alpha"}]
+
+    monkeypatch.setattr(server, "remember", fake_remember)
+
+    unstructured, structured = await server._dispatch_tool_call("remember", {"query": "alpha"})
+
+    assert structured == {"result": [{"uri": "project://olinkb/facts/alpha"}]}
+    assert unstructured == [
+        types.TextContent(
+            type="text",
+            text='[\n  {\n    "uri": "project://olinkb/facts/alpha"\n  }\n]',
+        )
+    ]

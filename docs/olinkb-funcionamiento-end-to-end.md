@@ -38,7 +38,7 @@ En términos prácticos, el sistema está compuesto por cinco piezas:
 flowchart LR
     dev[Desarrollador]
     ide[VS Code + agente MCP]
-    mcp[OlinKB MCP Server\nPython + FastMCP]
+    mcp[OlinKB MCP Server\nPython + MCP Python SDK]
     viewer[OlinKB Viewer HTTP\nexploración + autoría guiada]
     pg[(PostgreSQL)]
 
@@ -79,7 +79,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    tools[FastMCP tools\nboot_session\nremember\nsave_memory\npropose_memory_promotion\nlist_pending_approvals\nreview_memory_proposal\nend_session\nforget]
+    tools[MCP tools\nboot_session\nremember\nsave_memory\npropose_memory_promotion\nlist_pending_approvals\nreview_memory_proposal\nend_session\nforget]
     app[OlinKBApp]
     perms[Permission + scope checks]
     domain[Normalización de URIs\ny tags de dominio]
@@ -199,7 +199,7 @@ Los más importantes para entender el sistema son:
 
 Cuando VS Code detecta el servidor en `mcp.json`, no habla con PostgreSQL directamente. Lo que hace es lanzar el comando `olinkb mcp` como subproceso local.
 
-Ese proceso carga [src/olinkb/server.py](../src/olinkb/server.py), registra las herramientas FastMCP y delega el comportamiento real a una instancia de `OlinKBApp`.
+Ese proceso carga [src/olinkb/server.py](../src/olinkb/server.py), registra las tools del SDK oficial de MCP y delega el comportamiento real a una instancia de `OlinKBApp`.
 
 ### 6.1 Herramientas MCP expuestas hoy
 
@@ -222,7 +222,7 @@ Es importante remarcar algo: hoy no existen herramientas MCP específicas llamad
 sequenceDiagram
     participant VSCode as VS Code
     participant CLI as olinkb mcp
-    participant MCP as FastMCP server
+    participant MCP as MCP low-level server
     participant App as OlinKBApp
     participant PG as PostgreSQL
 

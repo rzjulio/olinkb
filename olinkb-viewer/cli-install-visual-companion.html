@@ -687,7 +687,7 @@
                     </p>
                     <div class="pill-list">
                         <span class="pill">Python package</span>
-                        <span class="pill">FastMCP server</span>
+                        <span class="pill">Official MCP server</span>
                         <span class="pill">PostgreSQL backend</span>
                         <span class="pill">VS Code MCP registry</span>
                         <span class="pill">Repo instructions</span>
@@ -699,7 +699,7 @@
                         <div class="stat"><strong>1</strong><span>comando principal: <span
                                     class="mono">olinkb</span></span></div>
                         <div class="stat"><strong>2</strong><span>dependencias Python clave: <span
-                                    class="mono">fastmcp</span> y <span class="mono">asyncpg</span></span></div>
+                                    class="mono">mcp</span> y <span class="mono">asyncpg</span></span></div>
                         <div class="stat"><strong>5</strong><span>tools MCP visibles: boot, remember, save, end,
                                 forget</span></div>
                         <div class="stat"><strong>0</strong><span>daemons residentes creados por OlinKB</span></div>
@@ -733,7 +733,7 @@
                             class="mono">olinkb</span>.</p>
                     <ul>
                         <li>Script entrypoint: <span class="mono">olinkb = olinkb.cli:main</span></li>
-                        <li>Dependencias: <span class="mono">fastmcp</span>, <span class="mono">asyncpg</span></li>
+                        <li>Dependencias: <span class="mono">mcp</span>, <span class="mono">asyncpg</span></li>
                         <li>No toca todavía VS Code ni PostgreSQL</li>
                     </ul>
                 </article>
@@ -807,7 +807,7 @@
                         olinkb-0.1.0.dist-info/</div>
                     <ul>
                         <li>Sí, hay archivos <span class="mono">.py</span> reales instalados en tu máquina.</li>
-                        <li>También quedan las dependencias <span class="mono">fastmcp</span> y <span
+                        <li>También quedan las dependencias <span class="mono">mcp</span> y <span
                                 class="mono">asyncpg</span> en ese mismo entorno.</li>
                         <li>El código no vive en tu Python global, sino en el entorno aislado que maneja pipx.</li>
                     </ul>
@@ -916,7 +916,7 @@
                     <ul>
                         <li>Wheel de OlinKB</li>
                         <li>Launcher <span class="mono">olinkb</span></li>
-                        <li><span class="mono">fastmcp</span> y <span class="mono">asyncpg</span></li>
+                        <li><span class="mono">mcp</span> y <span class="mono">asyncpg</span></li>
                     </ul>
                 </article>
                 <article class="lane-card">
@@ -935,7 +935,7 @@
                     <p>Vive mientras la conversación necesita el servidor MCP. Después desaparece.</p>
                     <ul>
                         <li>Transport: stdin/stdout</li>
-                        <li>FastMCP router</li>
+                        <li>Official MCP low-level router</li>
                         <li>ReadCache + SessionManager en RAM</li>
                     </ul>
                 </article>
@@ -1055,7 +1055,7 @@
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-2"
                             id="tab-2">2. Settings</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-3"
-                            id="tab-3">3. FastMCP</button>
+                            id="tab-3">3. MCP SDK</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-4"
                             id="tab-4">4. Tool call</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-5"
@@ -1102,8 +1102,8 @@
                         </article>
 
                         <article class="runtime-stage" id="stage-3" role="tabpanel" aria-labelledby="tab-3">
-                            <h3>FastMCP publica las tools</h3>
-                            <p>El objeto <span class="mono">FastMCP("OlinKB")</span> registra funciones como <span
+                            <h3>El SDK MCP publica las tools</h3>
+                            <p>El servidor low-level del SDK oficial registra funciones como <span
                                     class="mono">boot_session</span>, <span class="mono">remember</span>, <span
                                     class="mono">save_memory</span>, <span class="mono">end_session</span> y <span
                                     class="mono">forget</span>.</p>
@@ -1232,7 +1232,7 @@
                     </div>
                     <div class="check-row"><span class="badge yes">+</span>
                         <div><strong>Dependencias Python</strong>
-                            <p><span class="mono">fastmcp</span> para protocolo MCP y <span class="mono">asyncpg</span>
+                            <p><span class="mono">mcp</span> para protocolo MCP y <span class="mono">asyncpg</span>
                                 para hablar con PostgreSQL.</p>
                         </div>
                     </div>

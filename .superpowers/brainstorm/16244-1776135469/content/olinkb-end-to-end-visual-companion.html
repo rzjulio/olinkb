@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -113,12 +114,16 @@
       align-items: start;
     }
 
-    h1, h2, h3, h4 {
+    h1,
+    h2,
+    h3,
+    h4 {
       margin: 0;
       letter-spacing: -0.03em;
     }
 
-    h1, h2 {
+    h1,
+    h2 {
       font-family: var(--serif);
     }
 
@@ -318,10 +323,21 @@
       color: #fff;
     }
 
-    .map-node.cli .icon { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); }
-    .map-node.mcp .icon { background: linear-gradient(135deg, var(--teal), #0b5551); }
-    .map-node.pg .icon { background: linear-gradient(135deg, var(--gold), #986f19); }
-    .map-node.viewer .icon { background: linear-gradient(135deg, var(--violet), #404578); }
+    .map-node.cli .icon {
+      background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    }
+
+    .map-node.mcp .icon {
+      background: linear-gradient(135deg, var(--teal), #0b5551);
+    }
+
+    .map-node.pg .icon {
+      background: linear-gradient(135deg, var(--gold), #986f19);
+    }
+
+    .map-node.viewer .icon {
+      background: linear-gradient(135deg, var(--violet), #404578);
+    }
 
     .map-node h4 {
       font-size: 1rem;
@@ -481,13 +497,40 @@
       white-space: nowrap;
     }
 
-    .badge.accent { background: rgba(182, 84, 64, 0.12); color: var(--accent-deep); }
-    .badge.teal { background: rgba(15, 110, 106, 0.12); color: #09514d; }
-    .badge.gold { background: rgba(185, 135, 28, 0.14); color: #7e5811; }
-    .badge.violet { background: rgba(91, 95, 147, 0.13); color: #44487c; }
-    .badge.ok { background: rgba(47, 127, 91, 0.12); color: #245842; }
-    .badge.warn { background: rgba(159, 101, 34, 0.14); color: #7b4f16; }
-    .badge.danger { background: rgba(158, 71, 57, 0.14); color: #7a3127; }
+    .badge.accent {
+      background: rgba(182, 84, 64, 0.12);
+      color: var(--accent-deep);
+    }
+
+    .badge.teal {
+      background: rgba(15, 110, 106, 0.12);
+      color: #09514d;
+    }
+
+    .badge.gold {
+      background: rgba(185, 135, 28, 0.14);
+      color: #7e5811;
+    }
+
+    .badge.violet {
+      background: rgba(91, 95, 147, 0.13);
+      color: #44487c;
+    }
+
+    .badge.ok {
+      background: rgba(47, 127, 91, 0.12);
+      color: #245842;
+    }
+
+    .badge.warn {
+      background: rgba(159, 101, 34, 0.14);
+      color: #7b4f16;
+    }
+
+    .badge.danger {
+      background: rgba(158, 71, 57, 0.14);
+      color: #7a3127;
+    }
 
     .artifact-list,
     .plain-list,
@@ -793,7 +836,8 @@
       min-width: 760px;
     }
 
-    th, td {
+    th,
+    td {
       padding: 16px 14px;
       text-align: left;
       border-bottom: 1px solid rgba(97, 77, 57, 0.10);
@@ -827,9 +871,20 @@
       letter-spacing: 0.03em;
     }
 
-    .yes { background: var(--ok-soft); color: #28513d; }
-    .no { background: var(--danger-soft); color: #6d2d24; }
-    .note { background: rgba(91, 95, 147, 0.12); color: #45497d; }
+    .yes {
+      background: var(--ok-soft);
+      color: #28513d;
+    }
+
+    .no {
+      background: var(--danger-soft);
+      color: #6d2d24;
+    }
+
+    .note {
+      background: rgba(91, 95, 147, 0.12);
+      color: #45497d;
+    }
 
     .layer-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -904,6 +959,7 @@
     }
 
     @media (max-width: 1180px) {
+
       .hero-grid,
       .machine-map,
       .composer-shell,
@@ -966,6 +1022,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="page-shell">
     <header class="hero" id="top">
@@ -974,7 +1031,9 @@
         <div>
           <h1>Cómo funciona OlinKB de punta a punta</h1>
           <p class="hero-copy">
-            Esta página traduce el sistema completo a una narrativa visual: desde <strong>instalación, migraciones y bootstrap</strong>, hasta el momento en que VS Code arranca el MCP, el usuario recibe memorias, actualiza conocimiento, propone una promoción o publica documentación técnica y de negocio desde el viewer.
+            Esta página traduce el sistema completo a una narrativa visual: desde <strong>instalación, migraciones y
+              bootstrap</strong>, hasta el momento en que VS Code arranca el MCP, el usuario recibe memorias, actualiza
+            conocimiento, propone una promoción o publica documentación técnica y de negocio desde el viewer.
           </p>
           <div class="pill-list">
             <div class="pill"><strong>CLI</strong> instala, configura y arranca superficies</div>
@@ -985,7 +1044,8 @@
         </div>
         <div class="hero-card">
           <h3>Panorama operativo</h3>
-          <p>OlinKB no es un producto web principal. Es infraestructura local para memoria compartida dentro del flujo real de desarrollo con agentes.</p>
+          <p>OlinKB no es un producto web principal. Es infraestructura local para memoria compartida dentro del flujo
+            real de desarrollo con agentes.</p>
           <div class="stats-grid">
             <div class="stat">
               <strong>8</strong>
@@ -1007,11 +1067,13 @@
           <div class="mini-grid">
             <div class="mini-card">
               <strong>Del wheel al workspace</strong>
-              <span>Primero se instala un comando local y luego se cablea VS Code. El editor no descubre OlinKB solo.</span>
+              <span>Primero se instala un comando local y luego se cablea VS Code. El editor no descubre OlinKB
+                solo.</span>
             </div>
             <div class="mini-card">
               <strong>Buscar no es guardar</strong>
-              <span><span class="mono">remember</span> recupera contexto. <span class="mono">save_memory</span> persiste hallazgos.</span>
+              <span><span class="mono">remember</span> recupera contexto. <span class="mono">save_memory</span> persiste
+                hallazgos.</span>
             </div>
           </div>
         </div>
@@ -1065,7 +1127,8 @@
       <div class="section-head">
         <div>
           <h2>1. Del wheel al workspace</h2>
-          <p>El sistema empieza fuera del editor. Primero se instala el comando local, luego se prepara PostgreSQL, después se registran miembros y al final se escribe la configuración MCP que VS Code podrá lanzar.</p>
+          <p>El sistema empieza fuera del editor. Primero se instala el comando local, luego se prepara PostgreSQL,
+            después se registran miembros y al final se escribe la configuración MCP que VS Code podrá lanzar.</p>
         </div>
         <div class="badge accent">Instala un comando, no un daemon</div>
       </div>
@@ -1074,14 +1137,17 @@
         <article class="step" data-step="1">
           <div class="step-label">Instalación</div>
           <h3>Instala el CLI</h3>
-          <p>El entrypoint publicado es <span class="mono">olinkb</span>. Puede llegar por release con <span class="mono">pipx</span> o por editable install desde el repo.</p>
-          <div class="command">pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl</div>
+          <p>El entrypoint publicado es <span class="mono">olinkb</span>. Puede llegar por release con <span
+              class="mono">pipx</span> o por editable install desde el repo.</p>
+          <div class="command">pipx install
+            https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl</div>
         </article>
 
         <article class="step" data-step="2">
           <div class="step-label">Infraestructura</div>
           <h3>Levanta PostgreSQL</h3>
-          <p>La base no es opcional. OlinKB usa PostgreSQL como fuente de verdad y requiere URL de conexión para operar.</p>
+          <p>La base no es opcional. OlinKB usa PostgreSQL como fuente de verdad y requiere URL de conexión para operar.
+          </p>
           <div class="command">docker compose -f docker/docker-compose.yml up -d</div>
           <div class="command-tags">
             <div class="command-tag">OLINKB_PG_URL</div>
@@ -1093,21 +1159,24 @@
         <article class="step" data-step="3">
           <div class="step-label">Esquema</div>
           <h3>Aplica migraciones</h3>
-          <p>Antes de cualquier sesión, el esquema debe existir: memorias, sesiones, auditoría, membresías y tablas auxiliares.</p>
+          <p>Antes de cualquier sesión, el esquema debe existir: memorias, sesiones, auditoría, membresías y tablas
+            auxiliares.</p>
           <div class="command">olinkb migrate</div>
         </article>
 
         <article class="step" data-step="4">
           <div class="step-label">Identidad</div>
           <h3>Registra miembros</h3>
-          <p>El sistema necesita saber quién eres y con qué rol trabajas. El rol gobierna qué puedes guardar, revisar o publicar.</p>
+          <p>El sistema necesita saber quién eres y con qué rol trabajas. El rol gobierna qué puedes guardar, revisar o
+            publicar.</p>
           <div class="command">olinkb add-member --username rzjulio --role admin</div>
         </article>
 
         <article class="step" data-step="5">
           <div class="step-label">Editor</div>
           <h3>Bootstrap del workspace</h3>
-          <p><span class="mono">olinkb --init</span> escribe la configuración MCP y deja preparado <span class="mono">olinkb-viewer/</span> para la experiencia visual.</p>
+          <p><span class="mono">olinkb --init</span> escribe la configuración MCP y deja preparado <span
+              class="mono">olinkb-viewer/</span> para la experiencia visual.</p>
           <div class="command">olinkb --init</div>
         </article>
       </div>
@@ -1117,7 +1186,8 @@
       <div class="section-head">
         <div>
           <h2>2. Qué hace realmente el bootstrap</h2>
-          <p>El bootstrap no inicia el servidor todavía. Su trabajo es cablear el workspace y escribir los artefactos que luego permitirán a VS Code lanzar el MCP correctamente.</p>
+          <p>El bootstrap no inicia el servidor todavía. Su trabajo es cablear el workspace y escribir los artefactos
+            que luego permitirán a VS Code lanzar el MCP correctamente.</p>
         </div>
         <div class="badge teal">Lo visible y lo invisible</div>
       </div>
@@ -1127,12 +1197,14 @@
           <header>
             <div>
               <h3>Lo que sí escribe</h3>
-              <p>Dependiendo de si eliges configuración global o por repositorio, OlinKB deja el workspace listo para que el editor conozca el servidor.</p>
+              <p>Dependiendo de si eliges configuración global o por repositorio, OlinKB deja el workspace listo para
+                que el editor conozca el servidor.</p>
             </div>
             <span class="badge ok">Artefactos concretos</span>
           </header>
           <ul class="artifact-list">
-            <li><strong>.vscode/mcp.json</strong> con el comando <span class="mono">olinkb mcp</span> y variables de entorno.</li>
+            <li><strong>.vscode/mcp.json</strong> con el comando <span class="mono">olinkb mcp</span> y variables de
+              entorno.</li>
             <li><strong>.github/copilot-instructions.md</strong> cuando el bootstrap es por repositorio.</li>
             <li><strong>olinkb-viewer/</strong> con scaffold inicial para la experiencia visual.</li>
             <li>Configuración global de VS Code si se eligió modo global.</li>
@@ -1148,7 +1220,8 @@
           <header>
             <div>
               <h3>Lo que todavía no hace</h3>
-              <p>Bootstrap no valida que todo el runtime funcione extremo a extremo; solo deja listos los puntos de entrada.</p>
+              <p>Bootstrap no valida que todo el runtime funcione extremo a extremo; solo deja listos los puntos de
+                entrada.</p>
             </div>
             <span class="badge warn">No confundir</span>
           </header>
@@ -1158,7 +1231,8 @@
             <li>No crea sesiones de trabajo todavía.</li>
             <li>No precarga memoria por sí mismo.</li>
           </ul>
-          <div class="command">Resultado mental correcto: bootstrap_workspace() prepara el camino; el trabajo real empieza cuando VS Code o el navegador lanzan una superficie.</div>
+          <div class="command">Resultado mental correcto: bootstrap_workspace() prepara el camino; el trabajo real
+            empieza cuando VS Code o el navegador lanzan una superficie.</div>
         </article>
       </div>
 
@@ -1170,11 +1244,13 @@
             <div class="stack-grid" style="margin-top: 16px;">
               <div class="stack-card">
                 <strong>Antes</strong>
-                <p>El repo solo tiene código, docs, tests y un viewer estático. VS Code no sabe que existe un servidor MCP llamado OlinKB.</p>
+                <p>El repo solo tiene código, docs, tests y un viewer estático. VS Code no sabe que existe un servidor
+                  MCP llamado OlinKB.</p>
               </div>
               <div class="stack-card">
                 <strong>Después</strong>
-                <p>El editor ya conoce un servidor local ejecutable, con entorno, equipo y proyecto listos para empezar a intercambiar memoria.</p>
+                <p>El editor ya conoce un servidor local ejecutable, con entorno, equipo y proyecto listos para empezar
+                  a intercambiar memoria.</p>
               </div>
             </div>
           </div>
@@ -1200,7 +1276,9 @@
       <div class="section-head">
         <div>
           <h2>3. Cómo empieza a trabajar el MCP</h2>
-          <p>Cuando VS Code necesita memoria, no llama a una API remota. Lanza un proceso local con <span class="mono">olinkb mcp</span>, registra tools FastMCP y delega toda la lógica real a <span class="mono">OlinKBApp</span>.</p>
+          <p>Cuando VS Code necesita memoria, no llama a una API remota. Lanza un proceso local con <span
+              class="mono">olinkb mcp</span>, registra tools del SDK oficial de MCP y delega toda la lógica real a <span
+              class="mono">OlinKBApp</span>.</p>
         </div>
         <div class="badge gold">De stdio a PostgreSQL</div>
       </div>
@@ -1209,7 +1287,8 @@
         <article class="phase-card">
           <div class="number">1</div>
           <h3>VS Code detecta el server</h3>
-          <p>El editor lee el <span class="mono">mcp.json</span> y entiende que hay un comando local listo para ser invocado.</p>
+          <p>El editor lee el <span class="mono">mcp.json</span> y entiende que hay un comando local listo para ser
+            invocado.</p>
         </article>
         <article class="phase-card">
           <div class="number">2</div>
@@ -1218,13 +1297,14 @@
         </article>
         <article class="phase-card">
           <div class="number">3</div>
-          <h3>FastMCP registra tools</h3>
+          <h3>El SDK MCP registra tools</h3>
           <p>El servidor expone hoy 8 tools públicas: boot, recall, save, proposal, review, end y forget.</p>
         </article>
         <article class="phase-card">
           <div class="number">4</div>
           <h3>App resuelve el trabajo</h3>
-          <p><span class="mono">OlinKBApp</span> valida permisos, usa caché, toca sesiones y delega SQL a <span class="mono">PostgresStorage</span>.</p>
+          <p><span class="mono">OlinKBApp</span> valida permisos, usa caché, toca sesiones y delega SQL a <span
+              class="mono">PostgresStorage</span>.</p>
         </article>
         <article class="phase-card">
           <div class="number">5</div>
@@ -1241,7 +1321,7 @@
         </div>
         <div class="flow-node">
           <div class="flow-label">MCP</div>
-          <h4>FastMCP</h4>
+          <h4>MCP Python SDK</h4>
           <p>Define las signatures públicas que verá el cliente.</p>
         </div>
         <div class="flow-node">
@@ -1266,7 +1346,8 @@
       <div class="section-head">
         <div>
           <h2>4. Boot Session: de infraestructura a contexto útil</h2>
-          <p><span class="mono">boot_session</span> es el puente entre el runtime y la experiencia real del usuario. Aquí se abre la sesión activa, se resuelve membresía y se carga la primera porción de memoria relevante.</p>
+          <p><span class="mono">boot_session</span> es el puente entre el runtime y la experiencia real del usuario.
+            Aquí se abre la sesión activa, se resuelve membresía y se carga la primera porción de memoria relevante.</p>
         </div>
         <div class="badge violet">El boot no adivina: carga por prioridad</div>
       </div>
@@ -1276,7 +1357,8 @@
           <header>
             <div>
               <h3>Prioridad de carga real</h3>
-              <p>El SQL actual prioriza por prefijo URI y recencia. No filtra por <span class="mono">memory_type</span> antes de ordenar.</p>
+              <p>El SQL actual prioriza por prefijo URI y recencia. No filtra por <span class="mono">memory_type</span>
+                antes de ordenar.</p>
             </div>
             <span class="badge teal">load_boot_memories()</span>
           </header>
@@ -1316,7 +1398,8 @@
           <header>
             <div>
               <h3>Qué hace el flujo completo</h3>
-              <p>La sesión no solo devuelve memorias. También deja identidad, membresía y contadores listos para el resto de la conversación.</p>
+              <p>La sesión no solo devuelve memorias. También deja identidad, membresía y contadores listos para el
+                resto de la conversación.</p>
             </div>
             <span class="badge accent">boot_session()</span>
           </header>
@@ -1346,7 +1429,9 @@
       </div>
 
       <div class="ribbon">
-        Reality check: aunque parte de la documentación previa hablaba de una carga inicial más selectiva para <span class="mono">development_standard</span>, el comportamiento actual del código sigue estando gobernado por prefijos URI y recencia. Ese detalle cambia cómo debes explicar el arranque al usuario.
+        Reality check: aunque parte de la documentación previa hablaba de una carga inicial más selectiva para <span
+          class="mono">development_standard</span>, el comportamiento actual del código sigue estando gobernado por
+        prefijos URI y recencia. Ese detalle cambia cómo debes explicar el arranque al usuario.
       </div>
     </section>
 
@@ -1354,7 +1439,8 @@
       <div class="section-head">
         <div>
           <h2>5. Buscar contexto y persistir conocimiento</h2>
-          <p>La operación diaria se mueve entre dos verbos distintos: <span class="mono">remember</span> para recuperar y <span class="mono">save_memory</span> para consolidar conocimiento durable.</p>
+          <p>La operación diaria se mueve entre dos verbos distintos: <span class="mono">remember</span> para recuperar
+            y <span class="mono">save_memory</span> para consolidar conocimiento durable.</p>
         </div>
         <div class="badge accent">Buscar no es guardar</div>
       </div>
@@ -1372,7 +1458,8 @@
             <li>Resuelve contexto desde <span class="mono">session_id</span> o defaults.</li>
             <li>Construye cache key por query, scope, usuario y proyecto.</li>
             <li>Consulta caché local.</li>
-            <li>Si falla, usa <span class="mono">pg_trgm</span> sobre título, contenido, URI, tags, tipo y metadata.</li>
+            <li>Si falla, usa <span class="mono">pg_trgm</span> sobre título, contenido, URI, tags, tipo y metadata.
+            </li>
             <li>Mezcla memorias con resúmenes de sesión y toca <span class="mono">retrieval_count</span>.</li>
           </ul>
           <div class="tag-list">
@@ -1441,13 +1528,16 @@
       <div class="section-head">
         <div>
           <h2>6. Promoción y documentación gestionada no son el mismo flujo</h2>
-          <p>Este es el punto que más fácilmente se malinterpreta. Una memoria propuesta para revisión no equivale a una memoria de documentación técnica o de negocio.</p>
+          <p>Este es el punto que más fácilmente se malinterpreta. Una memoria propuesta para revisión no equivale a una
+            memoria de documentación técnica o de negocio.</p>
         </div>
         <div class="badge warn">Separación crucial</div>
       </div>
 
       <div class="ribbon">
-        <strong>Regla mental correcta:</strong> <span class="mono">propose_memory_promotion</span> sirve para enviar una memoria existente de proyecto a revisión hacia convención. La documentación técnica o de negocio se crea hoy con <span class="mono">save_memory</span> usando tipos especiales o desde el viewer HTTP autenticado.
+        <strong>Regla mental correcta:</strong> <span class="mono">propose_memory_promotion</span> sirve para enviar una
+        memoria existente de proyecto a revisión hacia convención. La documentación técnica o de negocio se crea hoy con
+        <span class="mono">save_memory</span> usando tipos especiales o desde el viewer HTTP autenticado.
       </div>
 
       <div class="swimlanes">
@@ -1462,19 +1552,23 @@
           <div class="lane-steps">
             <div class="lane-step-card">
               <div class="num">1</div>
-              <div><strong>Guardar memoria base</strong><br><span class="muted">La memoria ya existe en scope project.</span></div>
+              <div><strong>Guardar memoria base</strong><br><span class="muted">La memoria ya existe en scope
+                  project.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">2</div>
-              <div><strong>Proponer promoción</strong><br><span class="muted">Se marca como pendiente con rationale.</span></div>
+              <div><strong>Proponer promoción</strong><br><span class="muted">Se marca como pendiente con
+                  rationale.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">3</div>
-              <div><strong>Lead/Admin revisa</strong><br><span class="muted">La cola llega por review queue y tools de aprobación.</span></div>
+              <div><strong>Lead/Admin revisa</strong><br><span class="muted">La cola llega por review queue y tools de
+                  aprobación.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">4</div>
-              <div><strong>Resultado</strong><br><span class="muted">Si se aprueba, hoy converge en convention.</span></div>
+              <div><strong>Resultado</strong><br><span class="muted">Si se aprueba, hoy converge en convention.</span>
+              </div>
             </div>
           </div>
         </article>
@@ -1490,19 +1584,23 @@
           <div class="lane-steps">
             <div class="lane-step-card">
               <div class="num">1</div>
-              <div><strong>Elegir tipo especial</strong><br><span class="muted">documentation, business_documentation o development_standard.</span></div>
+              <div><strong>Elegir tipo especial</strong><br><span class="muted">documentation, business_documentation o
+                  development_standard.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">2</div>
-              <div><strong>Adjuntar metadata útil</strong><br><span class="muted">documentation_scope, applicable_projects, authoring_surface, file_name.</span></div>
+              <div><strong>Adjuntar metadata útil</strong><br><span class="muted">documentation_scope,
+                  applicable_projects, authoring_surface, file_name.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">3</div>
-              <div><strong>Guardar con save_memory</strong><br><span class="muted">Directamente desde MCP o a través del viewer.</span></div>
+              <div><strong>Guardar con save_memory</strong><br><span class="muted">Directamente desde MCP o a través del
+                  viewer.</span></div>
             </div>
             <div class="lane-step-card">
               <div class="num">4</div>
-              <div><strong>Recuperación posterior</strong><br><span class="muted">Se descubre por tags enriquecidos, metadata y búsqueda natural.</span></div>
+              <div><strong>Recuperación posterior</strong><br><span class="muted">Se descubre por tags enriquecidos,
+                  metadata y búsqueda natural.</span></div>
             </div>
           </div>
         </article>
@@ -1513,7 +1611,8 @@
       <div class="section-head">
         <div>
           <h2>7. Viewer: lectura pública, autoría restringida</h2>
-          <p>El viewer HTTP existe para hacer visible el sistema y para ofrecer una superficie de publicación mucho más guiada. No reemplaza al MCP; lo complementa.</p>
+          <p>El viewer HTTP existe para hacer visible el sistema y para ofrecer una superficie de publicación mucho más
+            guiada. No reemplaza al MCP; lo complementa.</p>
         </div>
         <div class="badge teal">Login para autoría, lectura para todos</div>
       </div>
@@ -1523,7 +1622,8 @@
           <header>
             <div>
               <h3>Cómo se ve el composer</h3>
-              <p>El formulario visual actual está pensado para documentación técnica o de negocio basada en Markdown.</p>
+              <p>El formulario visual actual está pensado para documentación técnica o de negocio basada en Markdown.
+              </p>
             </div>
             <span class="badge accent">UI real del viewer</span>
           </header>
@@ -1546,7 +1646,8 @@
             </div>
             <div class="field">
               <label>Preview</label>
-              <div class="preview">Rendered in the viewer before save. El backend convertirá el payload a metadata gestionada y generará un URI consistente con el target elegido.</div>
+              <div class="preview">Rendered in the viewer before save. El backend convertirá el payload a metadata
+                gestionada y generará un URI consistente con el target elegido.</div>
             </div>
           </div>
         </article>
@@ -1555,16 +1656,22 @@
           <header>
             <div>
               <h3>Secuencia operativa del viewer</h3>
-              <p>El backend HTTP hace más que recibir un POST. También autentica, normaliza y decide el scope real a persistir.</p>
+              <p>El backend HTTP hace más que recibir un POST. También autentica, normaliza y decide el scope real a
+                persistir.</p>
             </div>
             <span class="badge violet">Browser → Viewer → App → PG</span>
           </header>
           <div class="auth-flow">
-            <div class="auth-step"><strong>1. GET público</strong><br><span class="muted">Cualquiera puede abrir el viewer y explorar la memoria disponible.</span></div>
-            <div class="auth-step"><strong>2. POST /api/auth/login</strong><br><span class="muted">Se crea una sesión del viewer y se habilita el composer si el rol es lead o admin.</span></div>
-            <div class="auth-step"><strong>3. POST /api/memories</strong><br><span class="muted">Se valida tipo, scope objetivo, archivo Markdown y permisos.</span></div>
-            <div class="auth-step"><strong>4. Normalización</strong><br><span class="muted">global → scope org/shared, repo → scope project cuando aplica o metadata multi-repo.</span></div>
-            <div class="auth-step"><strong>5. save_memory</strong><br><span class="muted">La creación real sigue pasando por OlinKBApp y PostgreSQL.</span></div>
+            <div class="auth-step"><strong>1. GET público</strong><br><span class="muted">Cualquiera puede abrir el
+                viewer y explorar la memoria disponible.</span></div>
+            <div class="auth-step"><strong>2. POST /api/auth/login</strong><br><span class="muted">Se crea una sesión
+                del viewer y se habilita el composer si el rol es lead o admin.</span></div>
+            <div class="auth-step"><strong>3. POST /api/memories</strong><br><span class="muted">Se valida tipo, scope
+                objetivo, archivo Markdown y permisos.</span></div>
+            <div class="auth-step"><strong>4. Normalización</strong><br><span class="muted">global → scope org/shared,
+                repo → scope project cuando aplica o metadata multi-repo.</span></div>
+            <div class="auth-step"><strong>5. save_memory</strong><br><span class="muted">La creación real sigue pasando
+                por OlinKBApp y PostgreSQL.</span></div>
           </div>
         </article>
       </div>
@@ -1574,7 +1681,8 @@
           <header>
             <div>
               <h3>Tipos que el viewer sí expone hoy</h3>
-              <p>La UI visual actual está pensada para docs curadas y no muestra todos los tipos posibles del dominio.</p>
+              <p>La UI visual actual está pensada para docs curadas y no muestra todos los tipos posibles del dominio.
+              </p>
             </div>
             <span class="badge ok">Permitidos</span>
           </header>
@@ -1588,12 +1696,14 @@
           <header>
             <div>
               <h3>Tipo que no tiene UI dedicada</h3>
-              <p>Existe en el dominio, pero la experiencia visual actual no lo crea explícitamente desde el composer.</p>
+              <p>Existe en el dominio, pero la experiencia visual actual no lo crea explícitamente desde el composer.
+              </p>
             </div>
             <span class="badge warn">No expuesto en UI</span>
           </header>
           <ul class="lane-list">
-            <li><strong>development_standard</strong>: válido en el sistema, pero sin formulario visual propio en el viewer actual.</li>
+            <li><strong>development_standard</strong>: válido en el sistema, pero sin formulario visual propio en el
+              viewer actual.</li>
           </ul>
         </article>
       </div>
@@ -1603,7 +1713,8 @@
       <div class="section-head">
         <div>
           <h2>8. Quién puede hacer qué</h2>
-          <p>La autorización vive en la capa de aplicación y cambia según scope, tipo de memoria y superficie usada. La matriz visual evita mezclar reglas del MCP con reglas del viewer.</p>
+          <p>La autorización vive en la capa de aplicación y cambia según scope, tipo de memoria y superficie usada. La
+            matriz visual evita mezclar reglas del MCP con reglas del viewer.</p>
         </div>
         <div class="badge accent">Developer · Lead · Admin · Viewer</div>
       </div>
@@ -1692,11 +1803,14 @@
           <header>
             <div>
               <h3>Matiz importante</h3>
-              <p>Las reglas del viewer son más curadas que las del MCP genérico. El viewer está pensado como superficie de autoría aprobadora.</p>
+              <p>Las reglas del viewer son más curadas que las del MCP genérico. El viewer está pensado como superficie
+                de autoría aprobadora.</p>
             </div>
             <span class="badge warn">No son idénticas</span>
           </header>
-          <p>Un developer puede guardar <span class="mono">documentation</span> de proyecto por MCP si tiene permisos de escritura de proyecto. Ese mismo developer no puede abrir el composer del viewer para publicar desde la UI visual actual.</p>
+          <p>Un developer puede guardar <span class="mono">documentation</span> de proyecto por MCP si tiene permisos de
+            escritura de proyecto. Ese mismo developer no puede abrir el composer del viewer para publicar desde la UI
+            visual actual.</p>
         </article>
 
         <article class="lane-card">
@@ -1707,7 +1821,8 @@
             </div>
             <span class="badge danger">Admin only</span>
           </header>
-          <p>Tanto en la aplicación como en el viewer, <span class="mono">business_documentation</span> solo puede ser guardada por un admin.</p>
+          <p>Tanto en la aplicación como en el viewer, <span class="mono">business_documentation</span> solo puede ser
+            guardada por un admin.</p>
         </article>
       </div>
     </section>
@@ -1716,7 +1831,8 @@
       <div class="section-head">
         <div>
           <h2>9. Capas del sistema y gaps reales</h2>
-          <p>La mejor forma de cerrar el mapa mental es ver dónde vive cada responsabilidad y qué partes todavía están más adelantadas en documentación que en implementación pública.</p>
+          <p>La mejor forma de cerrar el mapa mental es ver dónde vive cada responsabilidad y qué partes todavía están
+            más adelantadas en documentación que en implementación pública.</p>
         </div>
         <div class="badge gold">Estado actual, no visión idealizada</div>
       </div>
@@ -1792,7 +1908,9 @@
             </div>
             <span class="badge warn">Gap</span>
           </header>
-          <p>No existen hoy <span class="mono">create_managed_memory</span>, <span class="mono">update_managed_memory</span>, <span class="mono">list_managed_memories</span> ni <span class="mono">archive_managed_memory</span> como tools MCP expuestas.</p>
+          <p>No existen hoy <span class="mono">create_managed_memory</span>, <span
+              class="mono">update_managed_memory</span>, <span class="mono">list_managed_memories</span> ni <span
+              class="mono">archive_managed_memory</span> como tools MCP expuestas.</p>
         </article>
 
         <article class="gap-card">
@@ -1803,7 +1921,8 @@
             </div>
             <span class="badge warn">Gap</span>
           </header>
-          <p>La historia visible hoy sigue girando alrededor de <span class="mono">memory_type</span>, metadata y tags enriquecidos como mecanismo práctico de descubrimiento.</p>
+          <p>La historia visible hoy sigue girando alrededor de <span class="mono">memory_type</span>, metadata y tags
+            enriquecidos como mecanismo práctico de descubrimiento.</p>
         </article>
 
         <article class="gap-card">
@@ -1814,7 +1933,8 @@
             </div>
             <span class="badge warn">Gap</span>
           </header>
-          <p>La carga inicial sigue siendo por prefijos URI y recencia, no por una política fuerte de tipos como development standards prioritarios.</p>
+          <p>La carga inicial sigue siendo por prefijos URI y recencia, no por una política fuerte de tipos como
+            development standards prioritarios.</p>
         </article>
 
         <article class="gap-card">
@@ -1825,7 +1945,8 @@
             </div>
             <span class="badge danger">Future work</span>
           </header>
-          <p>No hay embeddings ni deduplicación semántica. La búsqueda actual combina trigram, tags y metadata textual.</p>
+          <p>No hay embeddings ni deduplicación semántica. La búsqueda actual combina trigram, tags y metadata textual.
+          </p>
         </article>
       </div>
     </section>
@@ -1834,7 +1955,8 @@
       <div class="section-head">
         <div>
           <h2>10. Ruta correcta de uso hoy</h2>
-          <p>Si el usuario quiere entender rápidamente cómo debe usar OlinKB en el estado actual, esta es la secuencia mental y operativa más fiel al código.</p>
+          <p>Si el usuario quiere entender rápidamente cómo debe usar OlinKB en el estado actual, esta es la secuencia
+            mental y operativa más fiel al código.</p>
         </div>
         <div class="badge accent">Mapa final</div>
       </div>
@@ -1922,9 +2044,16 @@
       </div>
 
       <div class="footer-note">
-        <strong class="accent">Resumen final.</strong> OlinKB ya funciona como un sistema operativo de memoria para agentes: instala un comando local, prepara el workspace, arranca un servidor MCP bajo demanda, crea contexto inicial con <span class="mono">boot_session</span>, recupera conocimiento con <span class="mono">remember</span>, persiste memoria durable con <span class="mono">save_memory</span> y, cuando hace falta una experiencia más guiada, abre un viewer visual para publicar documentación técnica o de negocio. La clave para entenderlo bien es no mezclar superficies, no mezclar promoción con documentación y no describir como “implementado” lo que hoy sigue siendo una capacidad parcial o futura.
+        <strong class="accent">Resumen final.</strong> OlinKB ya funciona como un sistema operativo de memoria para
+        agentes: instala un comando local, prepara el workspace, arranca un servidor MCP bajo demanda, crea contexto
+        inicial con <span class="mono">boot_session</span>, recupera conocimiento con <span
+          class="mono">remember</span>, persiste memoria durable con <span class="mono">save_memory</span> y, cuando
+        hace falta una experiencia más guiada, abre un viewer visual para publicar documentación técnica o de negocio.
+        La clave para entenderlo bien es no mezclar superficies, no mezclar promoción con documentación y no describir
+        como “implementado” lo que hoy sigue siendo una capacidad parcial o futura.
       </div>
     </section>
   </div>
 </body>
+
 </html>

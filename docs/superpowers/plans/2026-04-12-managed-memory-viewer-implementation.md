@@ -6,7 +6,7 @@
 
 **Architecture:** Reuse `memories` as the canonical content store, add a `managed_memory_targets` table for applicability, normalize approved MCP proposals into `development_standard`, and extend the live viewer plus MCP surface to create, list, update, and archive managed memories. `boot_session` remains lean by filtering to approved `development_standard` rows that apply to the active context.
 
-**Tech Stack:** Python 3.11, asyncpg, FastMCP, ThreadingHTTPServer, PostgreSQL migrations, pytest
+**Tech Stack:** Python 3.11, asyncpg, MCP Python SDK, ThreadingHTTPServer, PostgreSQL migrations, pytest
 
 ---
 

@@ -76,7 +76,7 @@ C4Container
     Person(dev, "Desarrollador", "Usa el asistente desde VS Code")
     System_Ext(client, "VS Code + Copilot/Claude/Cursor", "Cliente MCP")
     System_Boundary(dev_machine, "Máquina del desarrollador") {
-        Container(mcp, "OlinKB MCP Server", "Python + FastMCP", "Expone tools MCP y coordina sesiones, permisos y retrieval")
+        Container(mcp, "OlinKB MCP Server", "Python + MCP Python SDK", "Expone tools MCP y coordina sesiones, permisos y retrieval")
         Container(cache, "Read Cache", "In-memory LRU/TTL", "Cache local de lecturas frecuentes e invalidación por eventos")
         Container(session, "Working Memory", "Estado en proceso", "Contexto activo de la sesión actual")
     }
@@ -106,7 +106,7 @@ Fuera de la máquina del desarrollador vive PostgreSQL, que centraliza identidad
 C4Component
     title OlinKB - Nivel 3 - Componentes del MCP Server Local
     Container_Boundary(mcp_boundary, "OlinKB MCP Server Local") {
-        Component(api, "MCP Tools API", "FastMCP", "Expone boot_session, remember, save_memory y demás tools")
+        Component(api, "MCP Tools API", "MCP Python SDK", "Expone boot_session, remember, save_memory y demás tools")
         Component(session_state, "Session Manager", "Python", "Mantiene working memory y ciclo de vida de la sesión")
         Component(cache_mgr, "Cache Manager", "Python", "LRU/TTL, precarga e invalidación")
         Component(intent, "Intent Classifier", "Python", "Clasifica consultas en factual, exploratory, temporal o causal")

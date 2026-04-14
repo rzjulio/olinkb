@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 Initial public release of the OlinKB foundation slice.
 
-- Added the FastMCP-based OlinKB server with `boot_session`, `remember`, `save_memory`, `end_session`, and `forget`
+- Added the OlinKB MCP server with `boot_session`, `remember`, `save_memory`, `end_session`, and `forget`
 - Added PostgreSQL-backed storage, migration runner, local session state, and read cache
 - Added the interactive `--init` flow with repository/global installation scope selection
 - Added GitHub Release automation for downloadable wheel and source assets

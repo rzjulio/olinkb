@@ -10,7 +10,7 @@ This repository now contains the first implementation slice for the current Post
 - PostgreSQL migration runner
 - Local working-memory session manager
 - In-memory read cache with TTL and prefix invalidation
-- FastMCP server with the core tools
+- Official MCP Python SDK server with the core tools
 - CLI commands to migrate the database, add members, and run the server
 - Docker Compose for local PostgreSQL using the official PostgreSQL image
 

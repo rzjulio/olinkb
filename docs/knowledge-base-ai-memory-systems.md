@@ -205,7 +205,7 @@ Síntesis de los mejores patrones de nocturne_memory (FastAPI + SQLite), LycheeM
                        │ MCP Protocol (stdio/SSE)
                        ▼
 ┌─────────────────────────────────────────────────┐
-│          FastAPI / FastMCP Backend                │
+│            FastAPI / MCP Backend                  │
 │  ┌──────────┐  ┌───────────┐  ┌──────────────┐ │
 │  │Write Guard│→ │Write Lane │→ │  SQLite DB   │ │
 │  └──────────┘  │(serialized)│  │  + FTS5      │ │

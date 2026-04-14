@@ -921,7 +921,7 @@ olinkb/
 ├── src/
 │   └── olinkb/
 │       ├── __init__.py
-│       ├── server.py              # FastMCP server (entry point)
+│       ├── server.py              # MCP server (entry point)
 │       ├── cli.py                 # CLI: init, add-member, migrate, serve
 │       ├── config.py              # Config from env vars
 │       │
@@ -1056,7 +1056,7 @@ olinkb/
 | **Latencia lectura** | <1ms (SQLite) | <1ms (cache hit) / ~10ms (cache miss) | Empate en práctica |
 | **Latencia escritura** | <1ms (SQLite) | ~5-20ms (red + PostgreSQL) | v1: más rápido |
 | **Setup** | `pip install` + file | PostgreSQL + pip install + config | v1: más simple |
-| **Dependencias** | 3 (fastmcp, aiosqlite, pydantic) | 4 (fastmcp, asyncpg, pydantic, pgvector) | v1: más ligero |
+| **Dependencias** | 3 (mcp, aiosqlite, pydantic) | 4 (mcp, asyncpg, pydantic, pgvector) | v1: más ligero |
 | **Olvidación** | vitality_score (sin impl.) | Forgetting engine completo | Actual: implementación real |
 | **Grafo de relaciones** | No | `memory_links` table + link_type | Actual: memorias conectadas |
 | **Audit trail** | Snapshots | `audit_log` inmutable + temporal | Actual: auditoría completa |

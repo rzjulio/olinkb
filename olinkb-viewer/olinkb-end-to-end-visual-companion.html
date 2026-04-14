@@ -1283,8 +1283,8 @@
                 <div>
                     <h2>3. Cómo empieza a trabajar el MCP</h2>
                     <p>Cuando VS Code necesita memoria, no llama a una API remota. Lanza un proceso local con <span
-                            class="mono">olinkb mcp</span>, registra tools FastMCP y delega toda la lógica real a <span
-                            class="mono">OlinKBApp</span>.</p>
+                            class="mono">olinkb mcp</span>, registra tools del SDK oficial de MCP y delega toda la
+                        lógica real a <span class="mono">OlinKBApp</span>.</p>
                 </div>
                 <div class="badge gold">De stdio a PostgreSQL</div>
             </div>
@@ -1303,14 +1303,15 @@
                 </article>
                 <article class="phase-card">
                     <div class="number">3</div>
-                    <h3>FastMCP registra tools</h3>
+                    <h3>El SDK MCP registra tools</h3>
                     <p>El servidor expone hoy 8 tools públicas: boot, recall, save, proposal, review, end y forget.</p>
                 </article>
                 <article class="phase-card">
                     <div class="number">4</div>
                     <h3>App resuelve el trabajo</h3>
                     <p><span class="mono">OlinKBApp</span> valida permisos, usa caché, toca sesiones y delega SQL a
-                        <span class="mono">PostgresStorage</span>.</p>
+                        <span class="mono">PostgresStorage</span>.
+                    </p>
                 </article>
                 <article class="phase-card">
                     <div class="number">5</div>
@@ -1328,7 +1329,7 @@
                 </div>
                 <div class="flow-node">
                     <div class="flow-label">MCP</div>
-                    <h4>FastMCP</h4>
+                    <h4>MCP Python SDK</h4>
                     <p>Define las signatures públicas que verá el cliente.</p>
                 </div>
                 <div class="flow-node">

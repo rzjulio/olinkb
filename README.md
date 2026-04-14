@@ -16,7 +16,7 @@ OlinKB provides a small set of tools for team memory inside development agents:
 
 The current implementation focuses on the operational foundation:
 
-- FastMCP server over `stdio`
+- Official MCP Python SDK server over `stdio`
 - PostgreSQL-backed storage
 - local session state
 - in-memory read cache
@@ -74,6 +74,80 @@ The developer needs:
 - access to the external PostgreSQL connection string
 - the team name
 - optionally, the default project name
+
+## Complete uninstall
+
+OlinKB does not currently provide an `uninstall` command.
+
+To remove it completely, clean up the CLI package, the VS Code MCP registration, any generated workspace files, and optionally the PostgreSQL data.
+
+### 1. Remove the CLI package
+
+If you installed OlinKB with `pipx`:
+
+```bash
+pipx uninstall olinkb
+```
+
+If you installed it with `pip` instead:
+
+```bash
+python -m pip uninstall olinkb
+```
+
+### 2. Remove the MCP registration from VS Code
+
+If you used repository installation (`olinkb --init` and chose `repository`):
+
+- remove the `olinkb` server entry from `.vscode/mcp.json`
+- if `.vscode/mcp.json` only contains OlinKB, you can delete the file instead
+- remove the generated OlinKB protocol block from `.github/copilot-instructions.md` if you no longer want repository-level agent instructions
+
+Example cleanup:
+
+```bash
+rm -f .vscode/mcp.json
+```
+
+If you used global installation (`olinkb --init` and chose `global`), remove the `olinkb` entry from the VS Code user-level MCP file, or delete the file if OlinKB is the only configured server:
+
+- macOS: `~/Library/Application Support/Code/User/mcp.json`
+- Linux: `~/.config/Code/User/mcp.json`
+- Windows: `%APPDATA%\\Code\\User\\mcp.json`
+
+### 3. Remove generated workspace artifacts
+
+If you created the viewer scaffold or a static viewer build, remove the generated directory:
+
+```bash
+rm -rf olinkb-viewer
+```
+
+### 4. Optionally remove PostgreSQL data
+
+OlinKB stores memories, sessions, review state, and audit data in PostgreSQL.
+
+That data is not removed automatically when you uninstall the CLI or delete the MCP configuration.
+
+If you want a full local teardown, drop the OlinKB database objects manually. Only do this if the database is disposable or you have coordinated it with your team.
+
+Example:
+
+```sql
+DROP TABLE IF EXISTS managed_memory_targets CASCADE;
+DROP TABLE IF EXISTS project_members CASCADE;
+DROP TABLE IF EXISTS audit_log CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS memories CASCADE;
+DROP TABLE IF EXISTS team_members CASCADE;
+```
+
+If you are using the local Docker Compose setup for development, you can also stop and remove that environment:
+
+```bash
+cd docker
+docker compose down -v
+```
 
 ## Repository structure
 
