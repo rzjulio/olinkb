@@ -137,7 +137,12 @@ def merge_mcp_document(
     destination = Path(mcp_path)
     document: dict[str, Any] = {}
     if destination.exists():
-        document = json.loads(destination.read_text(encoding="utf-8"))
+        content = destination.read_text(encoding="utf-8").strip()
+        if content:
+            try:
+                document = json.loads(content)
+            except json.JSONDecodeError:
+                document = {}
 
     servers = document.setdefault("servers", {})
     olinkb_document = json.loads(
