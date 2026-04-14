@@ -23,15 +23,14 @@ PROTOCOL_BLOCK_PATTERN = re.compile(
     r"(?ms)^## OlinKB Memory Protocol\n.*?(?=^##\s|\Z)"
 )
 
+INSTRUCTIONS_FILENAME = "olinkb-memory.instructions.md"
 
 def detect_project_name(workspace_path: str | Path) -> str | None:
     workspace_root = Path(workspace_path).resolve()
     return workspace_root.name or None
 
-
 def _native_path(value: str | Path) -> Path:
     return _NATIVE_PATH_CLASS(value)
-
 
 def _get_windows_roaming_path() -> Path:
     appdata = (os.environ.get("APPDATA") or "").strip()
@@ -50,7 +49,6 @@ def _get_windows_roaming_path() -> Path:
             "Set APPDATA or USERPROFILE explicitly."
         ) from exc
 
-
 def get_global_mcp_config_path() -> Path:
     if sys.platform == "darwin":
         home = _NATIVE_PATH_CLASS.home()
@@ -60,14 +58,11 @@ def get_global_mcp_config_path() -> Path:
     home = _NATIVE_PATH_CLASS.home()
     return home / ".config" / "Code" / "User" / "mcp.json"
 
-
 def get_global_instructions_path() -> Path:
-    return _NATIVE_PATH_CLASS.home() / ".copilot" / "instructions.md"
-
+    return _NATIVE_PATH_CLASS.home() / ".copilot" / "instructions" / INSTRUCTIONS_FILENAME
 
 def get_global_skill_path() -> Path:
     return _NATIVE_PATH_CLASS.home() / ".copilot" / "skills" / MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
-
 
 def bootstrap_workspace(
     *,
@@ -125,7 +120,6 @@ def bootstrap_workspace(
         "skill_status": skill_status,
     }
 
-
 def merge_mcp_document(
     *,
     mcp_path: str | Path,
@@ -156,13 +150,11 @@ def merge_mcp_document(
     servers["olinkb"] = olinkb_document["servers"]["olinkb"]
     return document
 
-
 def merge_instructions_document(instructions_path: str | Path) -> tuple[str, str]:
     destination = Path(instructions_path)
     protocol_block = render_instructions_template().strip()
     if not destination.exists():
         return protocol_block + "\n", "created"
-
     existing = destination.read_text(encoding="utf-8")
     if PROTOCOL_HEADER in existing:
         updated = PROTOCOL_BLOCK_PATTERN.sub(protocol_block, existing, count=1)
@@ -173,17 +165,14 @@ def merge_instructions_document(instructions_path: str | Path) -> tuple[str, str
         if updated.endswith("\n"):
             return updated, "updated"
         return updated + "\n", "updated"
-
     separator = "\n\n" if existing.strip() else ""
     return existing.rstrip() + separator + protocol_block + "\n", "updated"
-
 
 def merge_skill_document(skill_path: str | Path) -> tuple[str, str]:
     destination = Path(skill_path)
     skill_text = render_memory_relevance_skill_template().rstrip() + "\n"
     if not destination.exists():
         return skill_text, "created"
-
     existing = destination.read_text(encoding="utf-8")
     if existing == skill_text:
         return skill_text, "unchanged"
