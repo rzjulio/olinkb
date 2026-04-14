@@ -52,6 +52,14 @@ pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0
 olinkb --init
 ```
 
+On Windows, installation can look idle for a while because the wheel still needs to install runtime dependencies. If you want visible progress and the best chance of staying on binary wheels, use:
+
+```bash
+pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+```
+
+If `asyncpg` has no compatible wheel for that Python build, `pip` may compile it from source and that is usually the slowest step.
+
 `--init` asks only for the PostgreSQL URL and team, then detects the project name from the current workspace directory automatically.
 
 It also lets the user choose between:
@@ -139,6 +147,8 @@ This repository implements the foundation slice, not the full long-term platform
 ## Documentation
 
 - Detailed developer setup and commands: [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md)
+- End-to-end technical architecture and runtime guide: [docs/olinkb-funcionamiento-end-to-end.md](docs/olinkb-funcionamiento-end-to-end.md)
+- Visual HTML companion for the end-to-end guide: [olinkb-viewer/olinkb-end-to-end-visual-companion.html](olinkb-viewer/olinkb-end-to-end-visual-companion.html)
 - Release checklist: [docs/releases/RELEASING.md](docs/releases/RELEASING.md)
 - Release template: [docs/releases/TEMPLATE.md](docs/releases/TEMPLATE.md)
 - Initial release notes: [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)

@@ -33,7 +33,7 @@ This starts PostgreSQL on `localhost:5432` with:
 - database: `olinkb`
 - user: `olinkb`
 - password: `olinkb`
-- extensions pre-enabled: `uuid-ossp`, `pgcrypto`, `pg_trgm`
+- extensions pre-enabled: `uuid-ossp`, `pg_trgm`
 
 Connection string:
 

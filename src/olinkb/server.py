@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from fastmcp import FastMCP
+from typing import TYPE_CHECKING
 
-from olinkb.app import OlinKBApp
+from fastmcp.server.server import FastMCP
+
+if TYPE_CHECKING:
+    from olinkb.app import OlinKBApp
 
 
 mcp = FastMCP("OlinKB")
@@ -12,7 +15,9 @@ _app: OlinKBApp | None = None
 def get_app() -> OlinKBApp:
     global _app
     if _app is None:
-        _app = OlinKBApp()
+        from olinkb.app import OlinKBApp as OlinKBAppImpl
+
+        _app = OlinKBAppImpl()
     return _app
 
 

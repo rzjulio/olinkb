@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from olinkb.config import Settings, get_settings
 from olinkb.domain import (
@@ -287,25 +288,28 @@ class OlinKBApp:
         return result
 
     async def end_session(self, session_id: str, summary: str) -> dict[str, Any]:
-        active_session = self.sessions.get(session_id)
+        normalized_session_id, is_valid_session_id = self._normalize_session_id(session_id)
+        lookup_session_id = normalized_session_id or session_id.strip()
+
+        active_session = self.sessions.get(lookup_session_id)
         if active_session is not None:
             summary_saved = await self._persist_session_summary_memory(
-                session_id=session_id,
+                session_id=lookup_session_id,
                 summary=summary,
                 author=active_session.author,
                 project=active_session.project,
             )
             if summary_saved:
-                self.sessions.bump_writes(session_id)
-            session = self.sessions.end(session_id)
+                self.sessions.bump_writes(lookup_session_id)
+            session = self.sessions.end(lookup_session_id)
             await self.storage.end_session(
-                session_id=session_id,
+                session_id=lookup_session_id,
                 summary=summary,
                 memories_read=session.memories_read,
                 memories_written=session.memories_written,
             )
             return {
-                "session_id": session_id,
+                "session_id": lookup_session_id,
                 "author": session.author,
                 "project": session.project,
                 "memories_read": session.memories_read,
@@ -313,26 +317,29 @@ class OlinKBApp:
                 "summary": summary,
             }
 
-        stored_session = await self.storage.get_session(session_id)
+        if not is_valid_session_id:
+            raise ValueError(self._invalid_session_id_message(session_id))
+
+        stored_session = await self.storage.get_session(lookup_session_id)
         if stored_session is None:
-            raise ValueError(f"Unknown session_id: {session_id}")
+            raise ValueError(self._unknown_session_id_message(lookup_session_id))
 
         if stored_session["ended_at"] is None:
             summary_saved = await self._persist_session_summary_memory(
-                session_id=session_id,
+                session_id=lookup_session_id,
                 summary=summary,
                 author=stored_session["author_username"],
                 project=stored_session["project"],
             )
             memories_written = stored_session["memories_written"] + (1 if summary_saved else 0)
             await self.storage.end_session(
-                session_id=session_id,
+                session_id=lookup_session_id,
                 summary=summary,
                 memories_read=stored_session["memories_read"],
                 memories_written=memories_written,
             )
             return {
-                "session_id": session_id,
+                "session_id": lookup_session_id,
                 "author": stored_session["author_username"],
                 "project": stored_session["project"],
                 "memories_read": stored_session["memories_read"],
@@ -342,7 +349,7 @@ class OlinKBApp:
             }
 
         return {
-            "session_id": session_id,
+            "session_id": lookup_session_id,
             "author": stored_session["author_username"],
             "project": stored_session["project"],
             "memories_read": stored_session["memories_read"],
@@ -563,3 +570,46 @@ class OlinKBApp:
             return
         if member.get("role") not in APPROVER_MEMBER_ROLES:
             raise PermissionError(f"Only leads or admins can forget {scope}-scope memories")
+
+    @staticmethod
+    def _normalize_session_id(session_id: str) -> tuple[str | None, bool]:
+        candidate = session_id.strip()
+        if not candidate:
+            return None, False
+        try:
+            return str(UUID(candidate)), True
+        except (ValueError, AttributeError, TypeError):
+            return candidate, False
+
+    def _invalid_session_id_message(self, session_id: str) -> str:
+        message = (
+            f"Invalid session_id format: {session_id}. "
+            "Use the exact UUID returned by boot_session()."
+        )
+        active_session_ids = self.sessions.active_session_ids()
+        if len(active_session_ids) == 1:
+            message += (
+                f" A different active session_id is currently open in this process: {active_session_ids[0]}."
+            )
+        elif active_session_ids:
+            preview = ", ".join(active_session_ids[:3])
+            suffix = "..." if len(active_session_ids) > 3 else ""
+            message += f" Active session_ids currently open in this process: {preview}{suffix}."
+        return message
+
+    def _unknown_session_id_message(self, session_id: str) -> str:
+        message = (
+            f"Unknown session_id: {session_id}. "
+            "The session is not active in this process and no persisted session row was found; "
+            "it may be stale, already cleaned up, or from a different OlinKB environment."
+        )
+        active_session_ids = self.sessions.active_session_ids()
+        if len(active_session_ids) == 1:
+            message += (
+                f" A different active session_id is currently open in this process: {active_session_ids[0]}."
+            )
+        elif active_session_ids:
+            preview = ", ".join(active_session_ids[:3])
+            suffix = "..." if len(active_session_ids) > 3 else ""
+            message += f" Active session_ids currently open in this process: {preview}{suffix}."
+        return message

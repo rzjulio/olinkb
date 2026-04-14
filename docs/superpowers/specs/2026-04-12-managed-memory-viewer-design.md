@@ -119,7 +119,7 @@ Suggested shape:
 
 ```sql
 CREATE TABLE managed_memory_targets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
     target_type TEXT NOT NULL CHECK (target_type IN ('global', 'project')),
     target_value TEXT NOT NULL,

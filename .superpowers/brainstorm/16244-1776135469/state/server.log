@@ -1,0 +1,3 @@
+{"type":"server-started","port":54749,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:54749","screen_dir":"/Volumes/Datos/Repos/olinkb/.superpowers/brainstorm/16244-1776135469/content","state_dir":"/Volumes/Datos/Repos/olinkb/.superpowers/brainstorm/16244-1776135469/state"}
+{"type":"screen-added","file":"/Volumes/Datos/Repos/olinkb/.superpowers/brainstorm/16244-1776135469/content/olinkb-end-to-end-visual-companion.html"}
+{"type":"server-stopped","reason":"idle timeout"}

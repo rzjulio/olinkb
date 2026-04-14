@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OlinKB End-to-End Visual Companion</title>
+    <style>
+        :root {
+            --paper: #f6f1e8;
+            --paper-strong: #ede3d2;
+            --paper-soft: rgba(255, 251, 245, 0.82);
+            --ink: #1f1b16;
+            --ink-soft: #43392f;
+            --muted: #6f655b;
+            --line: #cfbfaa;
+            --line-soft: rgba(97, 77, 57, 0.16);
+            --accent: #b65440;
+            --accent-deep: #8d3628;
+            --accent-soft: #f2cdc4;
+            --teal: #0f6e6a;
+            --teal-soft: #c9ebe7;
+            --gold: #b9871c;
+            --gold-soft: #f7e7bc;
+            --violet: #5b5f93;
+            --violet-soft: #dcdcf5;
+            --ok: #2f7f5b;
+            --ok-soft: #d4efdf;
+            --warn: #9f6522;
+            --warn-soft: #f5e0c6;
+            --danger: #9e4739;
+            --danger-soft: #f4d0cb;
+            --shadow: 0 18px 48px rgba(31, 27, 22, 0.10);
+            --radius-xl: 34px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 14px;
+            --max-width: 1440px;
+            --mono: "SFMono-Regular", "Consolas", "Monaco", monospace;
+            --sans: "Avenir Next", "Avenir", "Helvetica Neue", sans-serif;
+            --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            font-family: var(--sans);
+            background:
+                radial-gradient(circle at 12% 0%, rgba(182, 84, 64, 0.18), transparent 24%),
+                radial-gradient(circle at 85% 10%, rgba(15, 110, 106, 0.14), transparent 22%),
+                linear-gradient(180deg, #fcf8f2 0%, var(--paper) 100%);
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .page-shell {
+            width: min(calc(100% - 36px), var(--max-width));
+            margin: 0 auto;
+            padding: 24px 0 72px;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(97, 77, 57, 0.18);
+            border-radius: 36px;
+            background: linear-gradient(140deg, rgba(255, 251, 245, 0.95), rgba(246, 241, 232, 0.92));
+            box-shadow: var(--shadow);
+            padding: 36px;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            right: -90px;
+            bottom: -100px;
+            width: 320px;
+            height: 320px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(15, 110, 106, 0.17), rgba(15, 110, 106, 0));
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(182, 84, 64, 0.12);
+            border: 1px solid rgba(182, 84, 64, 0.16);
+            color: var(--accent-deep);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.3fr 0.95fr;
+            gap: 24px;
+            margin-top: 22px;
+            align-items: start;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            margin: 0;
+            letter-spacing: -0.03em;
+        }
+
+        h1,
+        h2 {
+            font-family: var(--serif);
+        }
+
+        h1 {
+            font-size: clamp(2.7rem, 7vw, 5.5rem);
+            line-height: 0.94;
+            max-width: 11ch;
+            margin-top: 16px;
+        }
+
+        .hero-copy {
+            max-width: 66ch;
+            margin-top: 18px;
+            color: var(--ink-soft);
+            font-size: 1.03rem;
+            line-height: 1.7;
+        }
+
+        .hero-card,
+        .panel,
+        .step,
+        .matrix-card,
+        .lane-card,
+        .artifact-card,
+        .gap-card,
+        .layer-card,
+        .mini-card,
+        .summary-card,
+        .phase-card,
+        .stack-card,
+        .composer-card,
+        .compare-card,
+        .file-card {
+            border: 1px solid rgba(97, 77, 57, 0.18);
+            border-radius: var(--radius-lg);
+            background: var(--paper-soft);
+            box-shadow: var(--shadow);
+        }
+
+        .hero-card {
+            padding: 22px;
+        }
+
+        .hero-card h3,
+        .section-head h2 {
+            font-size: clamp(1.7rem, 2.8vw, 2.5rem);
+            line-height: 1.02;
+        }
+
+        .hero-card h4,
+        .panel h3,
+        .step h3,
+        .compare-card h3,
+        .composer-card h3,
+        .lane-card h3,
+        .layer-card h3,
+        .gap-card h3,
+        .summary-card h3,
+        .file-card h3,
+        .matrix-card h3 {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-card p,
+        .panel p,
+        .step p,
+        .compare-card p,
+        .composer-card p,
+        .lane-card p,
+        .layer-card p,
+        .gap-card p,
+        .summary-card p,
+        .file-card p,
+        .matrix-card p,
+        .section-head p,
+        li {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .pill-list,
+        .tag-list,
+        .legend,
+        .command-tags,
+        .status-row,
+        .artifact-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pill,
+        .tag,
+        .legend-item,
+        .command-tag,
+        .artifact-tag,
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 13px;
+            border-radius: 999px;
+            border: 1px solid rgba(97, 77, 57, 0.14);
+            background: rgba(239, 227, 210, 0.72);
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+
+        .pill strong,
+        .tag strong,
+        .legend-item strong,
+        .status-chip strong {
+            color: var(--ink);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .stat {
+            padding: 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(182, 84, 64, 0.15);
+            background: linear-gradient(180deg, rgba(242, 205, 196, 0.38), rgba(255, 255, 255, 0.78));
+        }
+
+        .stat strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 1.95rem;
+            line-height: 1;
+            color: var(--accent-deep);
+        }
+
+        .stat span {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .mini-card {
+            padding: 14px;
+            border-radius: 18px;
+        }
+
+        .mini-card strong {
+            display: block;
+            color: var(--ink);
+            margin-bottom: 5px;
+            font-size: 0.92rem;
+        }
+
+        .mini-card span {
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .system-map {
+            display: grid;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .map-node {
+            display: grid;
+            grid-template-columns: 56px 1fr;
+            gap: 14px;
+            align-items: center;
+            padding: 14px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+        }
+
+        .map-node .icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .map-node.cli .icon {
+            background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+        }
+
+        .map-node.mcp .icon {
+            background: linear-gradient(135deg, var(--teal), #0b5551);
+        }
+
+        .map-node.pg .icon {
+            background: linear-gradient(135deg, var(--gold), #986f19);
+        }
+
+        .map-node.viewer .icon {
+            background: linear-gradient(135deg, var(--violet), #404578);
+        }
+
+        .map-node h4 {
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        nav.toc {
+            position: sticky;
+            top: 14px;
+            z-index: 20;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 12px;
+            margin: 18px 0 28px;
+            border-radius: 18px;
+            border: 1px solid rgba(97, 77, 57, 0.12);
+            background: rgba(255, 251, 245, 0.86);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 14px 30px rgba(31, 27, 22, 0.08);
+        }
+
+        nav.toc a {
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--ink-soft);
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(237, 227, 210, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.10);
+        }
+
+        section {
+            margin-top: 28px;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        .section-head p {
+            max-width: 66ch;
+            margin: 0;
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .step {
+            position: relative;
+            overflow: hidden;
+            padding: 18px;
+            min-height: 278px;
+        }
+
+        .step::before {
+            content: attr(data-step);
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 3.2rem;
+            line-height: 1;
+            font-weight: 800;
+            color: rgba(182, 84, 64, 0.14);
+        }
+
+        .step-label,
+        .kicker,
+        .flow-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(182, 84, 64, 0.10);
+            color: var(--accent-deep);
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.10em;
+            text-transform: uppercase;
+        }
+
+        .step h3 {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            padding-right: 48px;
+        }
+
+        .command {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #1d1a17;
+            color: #f5eee5;
+            font-family: var(--mono);
+            font-size: 0.84rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .artifact-grid,
+        .compare-grid,
+        .lane-grid,
+        .layer-grid,
+        .file-grid,
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .artifact-card,
+        .compare-card,
+        .lane-card,
+        .layer-card,
+        .file-card,
+        .summary-card {
+            padding: 20px;
+        }
+
+        .artifact-card header,
+        .compare-card header,
+        .lane-card header,
+        .layer-card header,
+        .gap-card header,
+        .matrix-card header,
+        .file-card header,
+        .summary-card header,
+        .composer-card header {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge.accent {
+            background: rgba(182, 84, 64, 0.12);
+            color: var(--accent-deep);
+        }
+
+        .badge.teal {
+            background: rgba(15, 110, 106, 0.12);
+            color: #09514d;
+        }
+
+        .badge.gold {
+            background: rgba(185, 135, 28, 0.14);
+            color: #7e5811;
+        }
+
+        .badge.violet {
+            background: rgba(91, 95, 147, 0.13);
+            color: #44487c;
+        }
+
+        .badge.ok {
+            background: rgba(47, 127, 91, 0.12);
+            color: #245842;
+        }
+
+        .badge.warn {
+            background: rgba(159, 101, 34, 0.14);
+            color: #7b4f16;
+        }
+
+        .badge.danger {
+            background: rgba(158, 71, 57, 0.14);
+            color: #7a3127;
+        }
+
+        .artifact-list,
+        .plain-list,
+        .flow-list,
+        .lane-list,
+        .gap-list,
+        .route-list,
+        .summary-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .machine-map,
+        .runtime-strip,
+        .sequence-strip,
+        .ladder,
+        .role-strip,
+        .gaps-strip {
+            display: grid;
+            gap: 14px;
+        }
+
+        .machine-map {
+            grid-template-columns: 1.15fr 0.85fr;
+        }
+
+        .runtime-strip {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .phase-card {
+            position: relative;
+            padding: 18px;
+            border-radius: 22px;
+            background: rgba(255, 251, 245, 0.80);
+            border: 1px solid rgba(97, 77, 57, 0.16);
+            box-shadow: var(--shadow);
+            min-height: 225px;
+        }
+
+        .phase-card .number {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: rgba(182, 84, 64, 0.12);
+            color: var(--accent-deep);
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .phase-card strong,
+        .stack-card strong,
+        .layer-card strong,
+        .gap-card strong,
+        .summary-card strong,
+        .matrix-card strong,
+        .file-card strong,
+        .composer-card strong {
+            color: var(--ink);
+        }
+
+        .flow-row {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            align-items: center;
+            margin-top: 14px;
+        }
+
+        .flow-node {
+            position: relative;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.14);
+            min-height: 120px;
+        }
+
+        .flow-node::after {
+            content: "→";
+            position: absolute;
+            top: 50%;
+            right: -17px;
+            transform: translateY(-50%);
+            font-size: 1.4rem;
+            color: rgba(111, 101, 91, 0.70);
+            font-weight: 800;
+        }
+
+        .flow-node:last-child::after {
+            display: none;
+        }
+
+        .flow-node h4 {
+            margin-bottom: 6px;
+            font-size: 0.98rem;
+        }
+
+        .stack-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .stack-card {
+            padding: 15px 18px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+        }
+
+        .stack-card p {
+            margin: 6px 0 0;
+            font-size: 0.92rem;
+        }
+
+        .priority-ladder {
+            display: grid;
+            gap: 12px;
+        }
+
+        .priority-item {
+            display: grid;
+            grid-template-columns: 54px 1fr;
+            gap: 14px;
+            align-items: start;
+            padding: 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.14);
+        }
+
+        .priority-rank {
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: rgba(15, 110, 106, 0.12);
+            color: #09514d;
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+
+        .sequence-board {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .sequence-lane {
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+            display: grid;
+            gap: 10px;
+        }
+
+        .sequence-lane .lane-step {
+            padding: 11px 12px;
+            border-radius: 14px;
+            background: rgba(239, 227, 210, 0.56);
+            border: 1px solid rgba(97, 77, 57, 0.10);
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .ribbon {
+            margin: 18px 0;
+            padding: 16px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(159, 101, 34, 0.18);
+            background: linear-gradient(180deg, rgba(245, 224, 198, 0.70), rgba(255, 251, 245, 0.82));
+            color: #6d4916;
+            font-weight: 700;
+            line-height: 1.6;
+        }
+
+        .swimlanes {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .swimlane {
+            padding: 20px;
+            border-radius: 24px;
+            border: 1px solid rgba(97, 77, 57, 0.15);
+            background: rgba(255, 251, 245, 0.84);
+            box-shadow: var(--shadow);
+        }
+
+        .swimlane header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: start;
+            margin-bottom: 14px;
+        }
+
+        .lane-steps {
+            display: grid;
+            gap: 12px;
+        }
+
+        .lane-step-card {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 12px;
+            align-items: start;
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+        }
+
+        .lane-step-card .num {
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            display: grid;
+            place-items: center;
+            background: rgba(91, 95, 147, 0.12);
+            color: #45497d;
+            font-weight: 800;
+            font-size: 0.92rem;
+        }
+
+        .composer-shell {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 16px;
+        }
+
+        .composer-card {
+            padding: 20px;
+        }
+
+        .composer-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .field {
+            display: grid;
+            gap: 7px;
+        }
+
+        .field label {
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: var(--ink-soft);
+        }
+
+        .field .box,
+        .field .preview,
+        .field .choice-row {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+            color: var(--muted);
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
+        .field .preview {
+            min-height: 136px;
+            align-items: start;
+            line-height: 1.6;
+        }
+
+        .auth-flow {
+            display: grid;
+            gap: 12px;
+        }
+
+        .auth-step {
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(97, 77, 57, 0.12);
+        }
+
+        .role-matrix {
+            overflow: auto;
+            border-radius: 24px;
+            border: 1px solid rgba(97, 77, 57, 0.14);
+            background: rgba(255, 251, 245, 0.84);
+            box-shadow: var(--shadow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }
+
+        th,
+        td {
+            padding: 16px 14px;
+            text-align: left;
+            border-bottom: 1px solid rgba(97, 77, 57, 0.10);
+            vertical-align: top;
+        }
+
+        th {
+            background: rgba(239, 227, 210, 0.76);
+            color: var(--ink-soft);
+            font-size: 0.84rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        td:first-child {
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .yes,
+        .no,
+        .note {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+        }
+
+        .yes {
+            background: var(--ok-soft);
+            color: #28513d;
+        }
+
+        .no {
+            background: var(--danger-soft);
+            color: #6d2d24;
+        }
+
+        .note {
+            background: rgba(91, 95, 147, 0.12);
+            color: #45497d;
+        }
+
+        .layer-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .layer-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .layer-block {
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(97, 77, 57, 0.12);
+            background: rgba(255, 255, 255, 0.74);
+        }
+
+        .layer-block h4 {
+            margin-bottom: 6px;
+            font-size: 1rem;
+        }
+
+        .gaps-strip {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .gap-card {
+            padding: 18px;
+        }
+
+        .route-strip {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .route-card {
+            padding: 20px;
+            border-radius: 24px;
+            border: 1px solid rgba(97, 77, 57, 0.14);
+            background: rgba(255, 251, 245, 0.82);
+            box-shadow: var(--shadow);
+        }
+
+        .route-card h3 {
+            margin-bottom: 10px;
+            font-size: 1.08rem;
+        }
+
+        .footer-note {
+            margin-top: 26px;
+            padding: 18px 20px;
+            border-radius: 22px;
+            border: 1px solid rgba(97, 77, 57, 0.14);
+            background: rgba(255, 251, 245, 0.80);
+            box-shadow: var(--shadow);
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .mono {
+            font-family: var(--mono);
+            font-size: 0.88rem;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .accent {
+            color: var(--accent-deep);
+        }
+
+        @media (max-width: 1180px) {
+
+            .hero-grid,
+            .machine-map,
+            .composer-shell,
+            .artifact-grid,
+            .compare-grid,
+            .lane-grid,
+            .summary-grid,
+            .file-grid,
+            .swimlanes,
+            .route-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .runtime-strip,
+            .timeline,
+            .flow-row,
+            .sequence-board,
+            .layer-grid,
+            .gaps-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .page-shell {
+                width: min(calc(100% - 20px), var(--max-width));
+                padding-top: 12px;
+            }
+
+            .hero {
+                padding: 24px;
+            }
+
+            nav.toc {
+                position: static;
+            }
+
+            .section-head {
+                display: grid;
+                gap: 10px;
+                align-items: start;
+            }
+
+            .runtime-strip,
+            .timeline,
+            .flow-row,
+            .sequence-board,
+            .layer-grid,
+            .gaps-strip,
+            .stats-grid,
+            .mini-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .system-map,
+            .priority-ladder,
+            .stack-grid {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-shell">
+        <header class="hero" id="top">
+            <div class="eyebrow">Visual Companion · OlinKB · Estado real actual</div>
+            <div class="hero-grid">
+                <div>
+                    <h1>Cómo funciona OlinKB de punta a punta</h1>
+                    <p class="hero-copy">
+                        Esta página traduce el sistema completo a una narrativa visual: desde <strong>instalación,
+                            migraciones y bootstrap</strong>, hasta el momento en que VS Code arranca el MCP, el usuario
+                        recibe memorias, actualiza conocimiento, propone una promoción o publica documentación técnica y
+                        de negocio desde el viewer.
+                    </p>
+                    <div class="pill-list">
+                        <div class="pill"><strong>CLI</strong> instala, configura y arranca superficies</div>
+                        <div class="pill"><strong>MCP</strong> expone tools por <span class="mono">stdio</span></div>
+                        <div class="pill"><strong>App</strong> valida permisos, sesiones y caché</div>
+                        <div class="pill"><strong>Viewer</strong> habilita lectura pública y autoría curada</div>
+                    </div>
+                </div>
+                <div class="hero-card">
+                    <h3>Panorama operativo</h3>
+                    <p>OlinKB no es un producto web principal. Es infraestructura local para memoria compartida dentro
+                        del flujo real de desarrollo con agentes.</p>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <strong>8</strong>
+                            <span>tools MCP públicas expuestas hoy en <span class="mono">server.py</span></span>
+                        </div>
+                        <div class="stat">
+                            <strong>3</strong>
+                            <span>tipos gestionados: documentation, business_documentation y development_standard</span>
+                        </div>
+                        <div class="stat">
+                            <strong>2</strong>
+                            <span>superficies de escritura: MCP genérico y viewer HTTP autenticado</span>
+                        </div>
+                        <div class="stat">
+                            <strong>1</strong>
+                            <span>fuente de verdad persistente: PostgreSQL con auditoría y soft delete</span>
+                        </div>
+                    </div>
+                    <div class="mini-grid">
+                        <div class="mini-card">
+                            <strong>Del wheel al workspace</strong>
+                            <span>Primero se instala un comando local y luego se cablea VS Code. El editor no descubre
+                                OlinKB solo.</span>
+                        </div>
+                        <div class="mini-card">
+                            <strong>Buscar no es guardar</strong>
+                            <span><span class="mono">remember</span> recupera contexto. <span
+                                    class="mono">save_memory</span> persiste hallazgos.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="system-map">
+                <div class="map-node cli">
+                    <div class="icon">CLI</div>
+                    <div>
+                        <h4>CLI olinkb</h4>
+                        <p>Instala, inicializa el workspace, corre migraciones, gestiona miembros y arranca MCP o
+                            viewer.</p>
+                    </div>
+                </div>
+                <div class="map-node mcp">
+                    <div class="icon">MCP</div>
+                    <div>
+                        <h4>Servidor MCP</h4>
+                        <p>Se lanza como subproceso local cuando VS Code necesita herramientas de memoria.</p>
+                    </div>
+                </div>
+                <div class="map-node pg">
+                    <div class="icon">PG</div>
+                    <div>
+                        <h4>PostgreSQL</h4>
+                        <p>Persiste memorias, miembros, sesiones, auditoría y el esquema de soporte para managed
+                            memories.</p>
+                    </div>
+                </div>
+                <div class="map-node viewer">
+                    <div class="icon">UI</div>
+                    <div>
+                        <h4>Viewer HTTP</h4>
+                        <p>Permite exploración visual y, con login, subida guiada de documentación técnica o de negocio.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="toc">
+            <a href="#entrada">Entrada</a>
+            <a href="#bootstrap">Bootstrap</a>
+            <a href="#mcp">Arranque MCP</a>
+            <a href="#boot">Boot Session</a>
+            <a href="#recall-write">Remember y Save</a>
+            <a href="#promotion-docs">Promoción vs Docs</a>
+            <a href="#viewer">Viewer</a>
+            <a href="#roles">Roles</a>
+            <a href="#layers">Capas y Gaps</a>
+            <a href="#ruta">Ruta correcta</a>
+        </nav>
+
+        <section id="entrada">
+            <div class="section-head">
+                <div>
+                    <h2>1. Del wheel al workspace</h2>
+                    <p>El sistema empieza fuera del editor. Primero se instala el comando local, luego se prepara
+                        PostgreSQL, después se registran miembros y al final se escribe la configuración MCP que VS Code
+                        podrá lanzar.</p>
+                </div>
+                <div class="badge accent">Instala un comando, no un daemon</div>
+            </div>
+
+            <div class="timeline">
+                <article class="step" data-step="1">
+                    <div class="step-label">Instalación</div>
+                    <h3>Instala el CLI</h3>
+                    <p>El entrypoint publicado es <span class="mono">olinkb</span>. Puede llegar por release con <span
+                            class="mono">pipx</span> o por editable install desde el repo.</p>
+                    <div class="command">pipx install
+                        https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl</div>
+                </article>
+
+                <article class="step" data-step="2">
+                    <div class="step-label">Infraestructura</div>
+                    <h3>Levanta PostgreSQL</h3>
+                    <p>La base no es opcional. OlinKB usa PostgreSQL como fuente de verdad y requiere URL de conexión
+                        para operar.</p>
+                    <div class="command">docker compose -f docker/docker-compose.yml up -d</div>
+                    <div class="command-tags">
+                        <div class="command-tag">OLINKB_PG_URL</div>
+                        <div class="command-tag">OLINKB_TEAM</div>
+                        <div class="command-tag">OLINKB_USER</div>
+                    </div>
+                </article>
+
+                <article class="step" data-step="3">
+                    <div class="step-label">Esquema</div>
+                    <h3>Aplica migraciones</h3>
+                    <p>Antes de cualquier sesión, el esquema debe existir: memorias, sesiones, auditoría, membresías y
+                        tablas auxiliares.</p>
+                    <div class="command">olinkb migrate</div>
+                </article>
+
+                <article class="step" data-step="4">
+                    <div class="step-label">Identidad</div>
+                    <h3>Registra miembros</h3>
+                    <p>El sistema necesita saber quién eres y con qué rol trabajas. El rol gobierna qué puedes guardar,
+                        revisar o publicar.</p>
+                    <div class="command">olinkb add-member --username rzjulio --role admin</div>
+                </article>
+
+                <article class="step" data-step="5">
+                    <div class="step-label">Editor</div>
+                    <h3>Bootstrap del workspace</h3>
+                    <p><span class="mono">olinkb --init</span> escribe la configuración MCP y deja preparado <span
+                            class="mono">olinkb-viewer/</span> para la experiencia visual.</p>
+                    <div class="command">olinkb --init</div>
+                </article>
+            </div>
+        </section>
+
+        <section id="bootstrap">
+            <div class="section-head">
+                <div>
+                    <h2>2. Qué hace realmente el bootstrap</h2>
+                    <p>El bootstrap no inicia el servidor todavía. Su trabajo es cablear el workspace y escribir los
+                        artefactos que luego permitirán a VS Code lanzar el MCP correctamente.</p>
+                </div>
+                <div class="badge teal">Lo visible y lo invisible</div>
+            </div>
+
+            <div class="artifact-grid">
+                <article class="artifact-card">
+                    <header>
+                        <div>
+                            <h3>Lo que sí escribe</h3>
+                            <p>Dependiendo de si eliges configuración global o por repositorio, OlinKB deja el workspace
+                                listo para que el editor conozca el servidor.</p>
+                        </div>
+                        <span class="badge ok">Artefactos concretos</span>
+                    </header>
+                    <ul class="artifact-list">
+                        <li><strong>.vscode/mcp.json</strong> con el comando <span class="mono">olinkb mcp</span> y
+                            variables de entorno.</li>
+                        <li><strong>.github/copilot-instructions.md</strong> cuando el bootstrap es por repositorio.
+                        </li>
+                        <li><strong>olinkb-viewer/</strong> con scaffold inicial para la experiencia visual.</li>
+                        <li>Configuración global de VS Code si se eligió modo global.</li>
+                    </ul>
+                    <div class="artifact-tags">
+                        <div class="artifact-tag">repository scope</div>
+                        <div class="artifact-tag">global scope</div>
+                        <div class="artifact-tag">workspace auto-detect</div>
+                    </div>
+                </article>
+
+                <article class="artifact-card">
+                    <header>
+                        <div>
+                            <h3>Lo que todavía no hace</h3>
+                            <p>Bootstrap no valida que todo el runtime funcione extremo a extremo; solo deja listos los
+                                puntos de entrada.</p>
+                        </div>
+                        <span class="badge warn">No confundir</span>
+                    </header>
+                    <ul class="artifact-list">
+                        <li>No mantiene un proceso vivo en background.</li>
+                        <li>No hace login del viewer.</li>
+                        <li>No crea sesiones de trabajo todavía.</li>
+                        <li>No precarga memoria por sí mismo.</li>
+                    </ul>
+                    <div class="command">Resultado mental correcto: bootstrap_workspace() prepara el camino; el trabajo
+                        real empieza cuando VS Code o el navegador lanzan una superficie.</div>
+                </article>
+            </div>
+
+            <div class="machine-map">
+                <article class="panel">
+                    <div style="padding: 22px;">
+                        <div class="kicker">Before → After</div>
+                        <h3 style="margin-top: 12px;">Cómo cambia el workspace</h3>
+                        <div class="stack-grid" style="margin-top: 16px;">
+                            <div class="stack-card">
+                                <strong>Antes</strong>
+                                <p>El repo solo tiene código, docs, tests y un viewer estático. VS Code no sabe que
+                                    existe un servidor MCP llamado OlinKB.</p>
+                            </div>
+                            <div class="stack-card">
+                                <strong>Después</strong>
+                                <p>El editor ya conoce un servidor local ejecutable, con entorno, equipo y proyecto
+                                    listos para empezar a intercambiar memoria.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <div style="padding: 22px;">
+                        <div class="kicker">Variables efectivas</div>
+                        <h3 style="margin-top: 12px;">El runtime nace desde configuración</h3>
+                        <ul class="plain-list" style="margin-top: 14px;">
+                            <li><span class="mono">OLINKB_PG_URL</span>: conexión a PostgreSQL.</li>
+                            <li><span class="mono">OLINKB_TEAM</span>: equipo del usuario.</li>
+                            <li><span class="mono">OLINKB_USER</span>: identidad por defecto.</li>
+                            <li><span class="mono">OLINKB_PROJECT</span>: proyecto por defecto si aplica.</li>
+                            <li><span class="mono">OLINKB_PG_POOL_MAX_SIZE</span>: tamaño del pool.</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="mcp">
+            <div class="section-head">
+                <div>
+                    <h2>3. Cómo empieza a trabajar el MCP</h2>
+                    <p>Cuando VS Code necesita memoria, no llama a una API remota. Lanza un proceso local con <span
+                            class="mono">olinkb mcp</span>, registra tools FastMCP y delega toda la lógica real a <span
+                            class="mono">OlinKBApp</span>.</p>
+                </div>
+                <div class="badge gold">De stdio a PostgreSQL</div>
+            </div>
+
+            <div class="runtime-strip">
+                <article class="phase-card">
+                    <div class="number">1</div>
+                    <h3>VS Code detecta el server</h3>
+                    <p>El editor lee el <span class="mono">mcp.json</span> y entiende que hay un comando local listo
+                        para ser invocado.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">2</div>
+                    <h3>Se lanza <span class="mono">olinkb mcp</span></h3>
+                    <p>El proceso es local y efímero. No hay daemon residente que mantenga estado global.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">3</div>
+                    <h3>FastMCP registra tools</h3>
+                    <p>El servidor expone hoy 8 tools públicas: boot, recall, save, proposal, review, end y forget.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">4</div>
+                    <h3>App resuelve el trabajo</h3>
+                    <p><span class="mono">OlinKBApp</span> valida permisos, usa caché, toca sesiones y delega SQL a
+                        <span class="mono">PostgresStorage</span>.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">5</div>
+                    <h3>La respuesta vuelve al agente</h3>
+                    <p>El resultado viaja de vuelta por el protocolo MCP y se convierte en contexto utilizable en el
+                        chat.</p>
+                </article>
+            </div>
+
+            <div class="flow-row">
+                <div class="flow-node">
+                    <div class="flow-label">CLI</div>
+                    <h4>olinkb mcp</h4>
+                    <p>Entry point del proceso local expuesto al editor.</p>
+                </div>
+                <div class="flow-node">
+                    <div class="flow-label">MCP</div>
+                    <h4>FastMCP</h4>
+                    <p>Define las signatures públicas que verá el cliente.</p>
+                </div>
+                <div class="flow-node">
+                    <div class="flow-label">App</div>
+                    <h4>OlinKBApp</h4>
+                    <p>Centro de permisos, sesiones, caché e invalidación.</p>
+                </div>
+                <div class="flow-node">
+                    <div class="flow-label">Storage</div>
+                    <h4>PostgresStorage</h4>
+                    <p>Pool asyncpg, queries, auditoría y serialización.</p>
+                </div>
+                <div class="flow-node">
+                    <div class="flow-label">DB</div>
+                    <h4>PostgreSQL</h4>
+                    <p>Fuente de verdad para memorias, miembros, sesiones y audit log.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="boot">
+            <div class="section-head">
+                <div>
+                    <h2>4. Boot Session: de infraestructura a contexto útil</h2>
+                    <p><span class="mono">boot_session</span> es el puente entre el runtime y la experiencia real del
+                        usuario. Aquí se abre la sesión activa, se resuelve membresía y se carga la primera porción de
+                        memoria relevante.</p>
+                </div>
+                <div class="badge violet">El boot no adivina: carga por prioridad</div>
+            </div>
+
+            <div class="compare-grid">
+                <article class="compare-card">
+                    <header>
+                        <div>
+                            <h3>Prioridad de carga real</h3>
+                            <p>El SQL actual prioriza por prefijo URI y recencia. No filtra por <span
+                                    class="mono">memory_type</span> antes de ordenar.</p>
+                        </div>
+                        <span class="badge teal">load_boot_memories()</span>
+                    </header>
+                    <div class="priority-ladder">
+                        <div class="priority-item">
+                            <div class="priority-rank">1</div>
+                            <div>
+                                <strong>system://%</strong>
+                                <p>Memoria sistémica y de base compartida.</p>
+                            </div>
+                        </div>
+                        <div class="priority-item">
+                            <div class="priority-rank">2</div>
+                            <div>
+                                <strong>team://conventions/%</strong>
+                                <p>Convenciones del equipo que se consideran cercanas al arranque.</p>
+                            </div>
+                        </div>
+                        <div class="priority-item">
+                            <div class="priority-rank">3</div>
+                            <div>
+                                <strong>project://&lt;project&gt;/%</strong>
+                                <p>Memorias asociadas al proyecto activo, sin distinción por tipo.</p>
+                            </div>
+                        </div>
+                        <div class="priority-item">
+                            <div class="priority-rank">4</div>
+                            <div>
+                                <strong>personal://&lt;user&gt;/%</strong>
+                                <p>Contexto personal del desarrollador.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="compare-card">
+                    <header>
+                        <div>
+                            <h3>Qué hace el flujo completo</h3>
+                            <p>La sesión no solo devuelve memorias. También deja identidad, membresía y contadores
+                                listos para el resto de la conversación.</p>
+                        </div>
+                        <span class="badge accent">boot_session()</span>
+                    </header>
+                    <div class="sequence-board">
+                        <div class="sequence-lane">
+                            <strong>Identidad</strong>
+                            <div class="lane-step">ensure_member()</div>
+                            <div class="lane-step">start_session()</div>
+                        </div>
+                        <div class="sequence-lane">
+                            <strong>Contexto activo</strong>
+                            <div class="lane-step">SessionManager.start()</div>
+                            <div class="lane-step">ensure_project_member()</div>
+                        </div>
+                        <div class="sequence-lane">
+                            <strong>Preload</strong>
+                            <div class="lane-step">ReadCache lookup</div>
+                            <div class="lane-step">load_boot_memories()</div>
+                        </div>
+                        <div class="sequence-lane">
+                            <strong>Review queue</strong>
+                            <div class="lane-step">Solo lead/admin</div>
+                            <div class="lane-step">list pending proposals</div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="ribbon">
+                Reality check: aunque parte de la documentación previa hablaba de una carga inicial más selectiva para
+                <span class="mono">development_standard</span>, el comportamiento actual del código sigue estando
+                gobernado por prefijos URI y recencia. Ese detalle cambia cómo debes explicar el arranque al usuario.
+            </div>
+        </section>
+
+        <section id="recall-write">
+            <div class="section-head">
+                <div>
+                    <h2>5. Buscar contexto y persistir conocimiento</h2>
+                    <p>La operación diaria se mueve entre dos verbos distintos: <span class="mono">remember</span> para
+                        recuperar y <span class="mono">save_memory</span> para consolidar conocimiento durable.</p>
+                </div>
+                <div class="badge accent">Buscar no es guardar</div>
+            </div>
+
+            <div class="compare-grid">
+                <article class="compare-card">
+                    <header>
+                        <div>
+                            <h3>remember</h3>
+                            <p>Entrega memoria relevante bajo demanda a partir de query, scope, identidad y caché.</p>
+                        </div>
+                        <span class="badge teal">Recall</span>
+                    </header>
+                    <ul class="flow-list">
+                        <li>Resuelve contexto desde <span class="mono">session_id</span> o defaults.</li>
+                        <li>Construye cache key por query, scope, usuario y proyecto.</li>
+                        <li>Consulta caché local.</li>
+                        <li>Si falla, usa <span class="mono">pg_trgm</span> sobre título, contenido, URI, tags, tipo y
+                            metadata.</li>
+                        <li>Mezcla memorias con resúmenes de sesión y toca <span class="mono">retrieval_count</span>.
+                        </li>
+                    </ul>
+                    <div class="tag-list">
+                        <div class="tag">trigram similarity</div>
+                        <div class="tag">tags enriquecidos</div>
+                        <div class="tag">metadata::text</div>
+                        <div class="tag">session summaries</div>
+                    </div>
+                </article>
+
+                <article class="compare-card">
+                    <header>
+                        <div>
+                            <h3>save_memory</h3>
+                            <p>Es el punto único de escritura: inserta o actualiza según el URI, audita y limpia caché.
+                            </p>
+                        </div>
+                        <span class="badge gold">Persist</span>
+                    </header>
+                    <ul class="flow-list">
+                        <li>Valida scope, URI, memory_type y permisos.</li>
+                        <li>Normaliza metadata y enriquece tags.</li>
+                        <li>Calcula <span class="mono">content_hash</span> SHA256.</li>
+                        <li>Crea o actualiza en <span class="mono">memories</span>.</li>
+                        <li>Inserta registro en <span class="mono">audit_log</span>.</li>
+                        <li>Invalida cachés <span class="mono">boot:*</span> y <span class="mono">remember:*</span>.
+                        </li>
+                    </ul>
+                    <div class="tag-list">
+                        <div class="tag">create</div>
+                        <div class="tag">update</div>
+                        <div class="tag">unchanged</div>
+                        <div class="tag">audit trail</div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="runtime-strip" style="margin-top: 16px;">
+                <article class="phase-card">
+                    <div class="number">1</div>
+                    <h3>Query o hallazgo</h3>
+                    <p>El agente detecta necesidad de contexto o decide persistir una decisión, bugfix o hallazgo.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">2</div>
+                    <h3>App resuelve reglas</h3>
+                    <p>Se aplican roles, scopes, namespaces, deduplicación y metadata estructurada.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">3</div>
+                    <h3>Storage toca PostgreSQL</h3>
+                    <p>Se consulta o persiste en tablas de memoria y auditoría con serialización consistente.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">4</div>
+                    <h3>Caché se adapta</h3>
+                    <p>Los hits aceleran lectura; las escrituras limpian prefijos para evitar contexto viejo.</p>
+                </article>
+                <article class="phase-card">
+                    <div class="number">5</div>
+                    <h3>La conversación mejora</h3>
+                    <p>El agente puede responder con memoria recuperada o dejar nuevo conocimiento persistido.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="promotion-docs">
+            <div class="section-head">
+                <div>
+                    <h2>6. Promoción y documentación gestionada no son el mismo flujo</h2>
+                    <p>Este es el punto que más fácilmente se malinterpreta. Una memoria propuesta para revisión no
+                        equivale a una memoria de documentación técnica o de negocio.</p>
+                </div>
+                <div class="badge warn">Separación crucial</div>
+            </div>
+
+            <div class="ribbon">
+                <strong>Regla mental correcta:</strong> <span class="mono">propose_memory_promotion</span> sirve para
+                enviar una memoria existente de proyecto a revisión hacia convención. La documentación técnica o de
+                negocio se crea hoy con <span class="mono">save_memory</span> usando tipos especiales o desde el viewer
+                HTTP autenticado.
+            </div>
+
+            <div class="swimlanes">
+                <article class="swimlane">
+                    <header>
+                        <div>
+                            <h3>Flujo A · Promover una memoria existente</h3>
+                            <p>Sirve para revisión y aprobación, no para publicar documentación técnica.</p>
+                        </div>
+                        <span class="badge violet">Proposal → Review</span>
+                    </header>
+                    <div class="lane-steps">
+                        <div class="lane-step-card">
+                            <div class="num">1</div>
+                            <div><strong>Guardar memoria base</strong><br><span class="muted">La memoria ya existe en
+                                    scope project.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">2</div>
+                            <div><strong>Proponer promoción</strong><br><span class="muted">Se marca como pendiente con
+                                    rationale.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">3</div>
+                            <div><strong>Lead/Admin revisa</strong><br><span class="muted">La cola llega por review
+                                    queue y tools de aprobación.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">4</div>
+                            <div><strong>Resultado</strong><br><span class="muted">Si se aprueba, hoy converge en
+                                    convention.</span></div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="swimlane">
+                    <header>
+                        <div>
+                            <h3>Flujo B · Crear documentación gestionada</h3>
+                            <p>Sirve para publicar documentation, business_documentation o development_standard.</p>
+                        </div>
+                        <span class="badge gold">Managed memory</span>
+                    </header>
+                    <div class="lane-steps">
+                        <div class="lane-step-card">
+                            <div class="num">1</div>
+                            <div><strong>Elegir tipo especial</strong><br><span class="muted">documentation,
+                                    business_documentation o development_standard.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">2</div>
+                            <div><strong>Adjuntar metadata útil</strong><br><span class="muted">documentation_scope,
+                                    applicable_projects, authoring_surface, file_name.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">3</div>
+                            <div><strong>Guardar con save_memory</strong><br><span class="muted">Directamente desde MCP
+                                    o a través del viewer.</span></div>
+                        </div>
+                        <div class="lane-step-card">
+                            <div class="num">4</div>
+                            <div><strong>Recuperación posterior</strong><br><span class="muted">Se descubre por tags
+                                    enriquecidos, metadata y búsqueda natural.</span></div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="viewer">
+            <div class="section-head">
+                <div>
+                    <h2>7. Viewer: lectura pública, autoría restringida</h2>
+                    <p>El viewer HTTP existe para hacer visible el sistema y para ofrecer una superficie de publicación
+                        mucho más guiada. No reemplaza al MCP; lo complementa.</p>
+                </div>
+                <div class="badge teal">Login para autoría, lectura para todos</div>
+            </div>
+
+            <div class="composer-shell">
+                <article class="composer-card">
+                    <header>
+                        <div>
+                            <h3>Cómo se ve el composer</h3>
+                            <p>El formulario visual actual está pensado para documentación técnica o de negocio basada
+                                en Markdown.</p>
+                        </div>
+                        <span class="badge accent">UI real del viewer</span>
+                    </header>
+                    <div class="composer-form">
+                        <div class="field">
+                            <label>Title</label>
+                            <div class="box">Architecture guide</div>
+                        </div>
+                        <div class="field">
+                            <label>Scope</label>
+                            <div class="choice-row">Global · By repo</div>
+                        </div>
+                        <div class="field">
+                            <label>Documentation type</label>
+                            <div class="choice-row">Technical documentation · Business documentation</div>
+                        </div>
+                        <div class="field">
+                            <label>Markdown file</label>
+                            <div class="box">Upload a .md file to use as memory content</div>
+                        </div>
+                        <div class="field">
+                            <label>Preview</label>
+                            <div class="preview">Rendered in the viewer before save. El backend convertirá el payload a
+                                metadata gestionada y generará un URI consistente con el target elegido.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="composer-card">
+                    <header>
+                        <div>
+                            <h3>Secuencia operativa del viewer</h3>
+                            <p>El backend HTTP hace más que recibir un POST. También autentica, normaliza y decide el
+                                scope real a persistir.</p>
+                        </div>
+                        <span class="badge violet">Browser → Viewer → App → PG</span>
+                    </header>
+                    <div class="auth-flow">
+                        <div class="auth-step"><strong>1. GET público</strong><br><span class="muted">Cualquiera puede
+                                abrir el viewer y explorar la memoria disponible.</span></div>
+                        <div class="auth-step"><strong>2. POST /api/auth/login</strong><br><span class="muted">Se crea
+                                una sesión del viewer y se habilita el composer si el rol es lead o admin.</span></div>
+                        <div class="auth-step"><strong>3. POST /api/memories</strong><br><span class="muted">Se valida
+                                tipo, scope objetivo, archivo Markdown y permisos.</span></div>
+                        <div class="auth-step"><strong>4. Normalización</strong><br><span class="muted">global → scope
+                                org/shared, repo → scope project cuando aplica o metadata multi-repo.</span></div>
+                        <div class="auth-step"><strong>5. save_memory</strong><br><span class="muted">La creación real
+                                sigue pasando por OlinKBApp y PostgreSQL.</span></div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="lane-grid" style="margin-top: 16px;">
+                <article class="lane-card">
+                    <header>
+                        <div>
+                            <h3>Tipos que el viewer sí expone hoy</h3>
+                            <p>La UI visual actual está pensada para docs curadas y no muestra todos los tipos posibles
+                                del dominio.</p>
+                        </div>
+                        <span class="badge ok">Permitidos</span>
+                    </header>
+                    <ul class="lane-list">
+                        <li><strong>documentation</strong>: documentación técnica o de ingeniería.</li>
+                        <li><strong>business_documentation</strong>: documentación de negocio, solo para admins.</li>
+                    </ul>
+                </article>
+
+                <article class="lane-card">
+                    <header>
+                        <div>
+                            <h3>Tipo que no tiene UI dedicada</h3>
+                            <p>Existe en el dominio, pero la experiencia visual actual no lo crea explícitamente desde
+                                el composer.</p>
+                        </div>
+                        <span class="badge warn">No expuesto en UI</span>
+                    </header>
+                    <ul class="lane-list">
+                        <li><strong>development_standard</strong>: válido en el sistema, pero sin formulario visual
+                            propio en el viewer actual.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section id="roles">
+            <div class="section-head">
+                <div>
+                    <h2>8. Quién puede hacer qué</h2>
+                    <p>La autorización vive en la capa de aplicación y cambia según scope, tipo de memoria y superficie
+                        usada. La matriz visual evita mezclar reglas del MCP con reglas del viewer.</p>
+                </div>
+                <div class="badge accent">Developer · Lead · Admin · Viewer</div>
+            </div>
+
+            <div class="role-matrix">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Acción</th>
+                            <th>Developer</th>
+                            <th>Lead</th>
+                            <th>Admin</th>
+                            <th>Viewer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Guardar memoria personal propia</td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Guardar memoria regular de proyecto</td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Guardar documentation de proyecto por MCP</td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Guardar business_documentation</td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Usar composer del viewer para documentación técnica</td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Usar composer del viewer para documentación de negocio</td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Proponer promoción de memoria</td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Revisar propuestas pendientes</td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Olvidar memoria no personal</td>
+                            <td><span class="no">No</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="yes">Sí</span></td>
+                            <td><span class="no">No</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="lane-grid" style="margin-top: 16px;">
+                <article class="lane-card">
+                    <header>
+                        <div>
+                            <h3>Matiz importante</h3>
+                            <p>Las reglas del viewer son más curadas que las del MCP genérico. El viewer está pensado
+                                como superficie de autoría aprobadora.</p>
+                        </div>
+                        <span class="badge warn">No son idénticas</span>
+                    </header>
+                    <p>Un developer puede guardar <span class="mono">documentation</span> de proyecto por MCP si tiene
+                        permisos de escritura de proyecto. Ese mismo developer no puede abrir el composer del viewer
+                        para publicar desde la UI visual actual.</p>
+                </article>
+
+                <article class="lane-card">
+                    <header>
+                        <div>
+                            <h3>Regla más sensible</h3>
+                            <p>La documentación de negocio se mantiene más restringida que el resto del conocimiento
+                                gestionado.</p>
+                        </div>
+                        <span class="badge danger">Admin only</span>
+                    </header>
+                    <p>Tanto en la aplicación como en el viewer, <span class="mono">business_documentation</span> solo
+                        puede ser guardada por un admin.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="layers">
+            <div class="section-head">
+                <div>
+                    <h2>9. Capas del sistema y gaps reales</h2>
+                    <p>La mejor forma de cerrar el mapa mental es ver dónde vive cada responsabilidad y qué partes
+                        todavía están más adelantadas en documentación que en implementación pública.</p>
+                </div>
+                <div class="badge gold">Estado actual, no visión idealizada</div>
+            </div>
+
+            <div class="layer-grid">
+                <article class="layer-card">
+                    <header>
+                        <div>
+                            <h3>Capa de entrada</h3>
+                            <p>Comandos, bootstrap y proceso MCP.</p>
+                        </div>
+                        <span class="badge accent">CLI</span>
+                    </header>
+                    <div class="layer-stack">
+                        <div class="layer-block">
+                            <h4>olinkb cli</h4>
+                            <p>Serve, mcp, migrate, add-member, viewer y template rendering.</p>
+                        </div>
+                        <div class="layer-block">
+                            <h4>bootstrap_workspace</h4>
+                            <p>Escribe archivos de configuración y prepara el workspace.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="layer-card">
+                    <header>
+                        <div>
+                            <h3>Capa de orquestación</h3>
+                            <p>Permisos, sesiones, deduplicación y caché.</p>
+                        </div>
+                        <span class="badge teal">App</span>
+                    </header>
+                    <div class="layer-stack">
+                        <div class="layer-block">
+                            <h4>OlinKBApp</h4>
+                            <p>Centro de coordinación de flows MCP y viewer-backed writes.</p>
+                        </div>
+                        <div class="layer-block">
+                            <h4>SessionManager + ReadCache</h4>
+                            <p>Estado efímero en proceso, contadores y resultados calientes.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="layer-card">
+                    <header>
+                        <div>
+                            <h3>Capa persistente</h3>
+                            <p>Tablas, índices y trazabilidad durable.</p>
+                        </div>
+                        <span class="badge violet">PostgreSQL</span>
+                    </header>
+                    <div class="layer-stack">
+                        <div class="layer-block">
+                            <h4>memories</h4>
+                            <p>Contenido, tags, metadata, hash, timestamps y soft delete.</p>
+                        </div>
+                        <div class="layer-block">
+                            <h4>sessions, team_members, project_members, audit_log</h4>
+                            <p>Identidad, permisos, historial de trabajo y rastro de cambios.</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="gaps-strip" style="margin-top: 16px;">
+                <article class="gap-card">
+                    <header>
+                        <div>
+                            <h3>Managed memory tools MCP</h3>
+                            <p>La guía pública puede sonar más avanzada que la superficie MCP real.</p>
+                        </div>
+                        <span class="badge warn">Gap</span>
+                    </header>
+                    <p>No existen hoy <span class="mono">create_managed_memory</span>, <span
+                            class="mono">update_managed_memory</span>, <span class="mono">list_managed_memories</span>
+                        ni <span class="mono">archive_managed_memory</span> como tools MCP expuestas.</p>
+                </article>
+
+                <article class="gap-card">
+                    <header>
+                        <div>
+                            <h3>managed_memory_targets</h3>
+                            <p>El schema ya habla de targets gestionados, pero la explicación operativa debe ser
+                                prudente.</p>
+                        </div>
+                        <span class="badge warn">Gap</span>
+                    </header>
+                    <p>La historia visible hoy sigue girando alrededor de <span class="mono">memory_type</span>,
+                        metadata y tags enriquecidos como mecanismo práctico de descubrimiento.</p>
+                </article>
+
+                <article class="gap-card">
+                    <header>
+                        <div>
+                            <h3>Boot más rico</h3>
+                            <p>La intención conceptual y el SQL actual todavía no convergen del todo.</p>
+                        </div>
+                        <span class="badge warn">Gap</span>
+                    </header>
+                    <p>La carga inicial sigue siendo por prefijos URI y recencia, no por una política fuerte de tipos
+                        como development standards prioritarios.</p>
+                </article>
+
+                <article class="gap-card">
+                    <header>
+                        <div>
+                            <h3>Recuperación semántica</h3>
+                            <p>El sistema ya es útil, pero aún no es un retrieval engine semántico de siguiente nivel.
+                            </p>
+                        </div>
+                        <span class="badge danger">Future work</span>
+                    </header>
+                    <p>No hay embeddings ni deduplicación semántica. La búsqueda actual combina trigram, tags y metadata
+                        textual.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="ruta">
+            <div class="section-head">
+                <div>
+                    <h2>10. Ruta correcta de uso hoy</h2>
+                    <p>Si el usuario quiere entender rápidamente cómo debe usar OlinKB en el estado actual, esta es la
+                        secuencia mental y operativa más fiel al código.</p>
+                </div>
+                <div class="badge accent">Mapa final</div>
+            </div>
+
+            <div class="route-strip">
+                <article class="route-card">
+                    <h3>Trabajo diario con agentes</h3>
+                    <ul class="route-list">
+                        <li><strong>boot_session</strong> abre contexto inicial y sesión activa.</li>
+                        <li><strong>remember</strong> recupera contexto adicional cuando la conversación lo necesita.
+                        </li>
+                        <li><strong>save_memory</strong> fija decisiones, bugs, procedimientos y hallazgos.</li>
+                        <li><strong>end_session</strong> cierra y resume el trabajo.</li>
+                    </ul>
+                </article>
+
+                <article class="route-card">
+                    <h3>Gobierno y revisión</h3>
+                    <ul class="route-list">
+                        <li><strong>propose_memory_promotion</strong> envía una memoria a review.</li>
+                        <li><strong>list_pending_approvals</strong> muestra la cola para leads y admins.</li>
+                        <li><strong>review_memory_proposal</strong> aprueba o rechaza la propuesta.</li>
+                    </ul>
+                </article>
+
+                <article class="route-card">
+                    <h3>Documentación visual y curada</h3>
+                    <ul class="route-list">
+                        <li><strong>olinkb viewer</strong> abre la superficie visual.</li>
+                        <li><strong>login del viewer</strong> habilita autoría para lead/admin.</li>
+                        <li><strong>composer</strong> publica documentación técnica o de negocio desde Markdown.</li>
+                    </ul>
+                </article>
+            </div>
+
+            <div class="summary-grid" style="margin-top: 16px;">
+                <article class="summary-card">
+                    <header>
+                        <div>
+                            <h3>Si quieres explicar OlinKB a un usuario nuevo</h3>
+                            <p>Empieza por esta secuencia, no por las tablas.</p>
+                        </div>
+                        <span class="badge ok">Narrativa recomendada</span>
+                    </header>
+                    <ol class="summary-list">
+                        <li>Instala y configura el comando local.</li>
+                        <li>Explica que VS Code lanza el MCP por <span class="mono">stdio</span>.</li>
+                        <li>Muestra que <span class="mono">boot_session</span> abre el contexto inicial.</li>
+                        <li>Distingue recall de escritura.</li>
+                        <li>Separa promoción de documentación gestionada.</li>
+                        <li>Cierra mostrando viewer, roles y gaps reales.</li>
+                    </ol>
+                </article>
+
+                <article class="summary-card">
+                    <header>
+                        <div>
+                            <h3>Archivos que sostienen esta historia</h3>
+                            <p>La explicación visual sigue el comportamiento actual del código, no una especificación
+                                futura.</p>
+                        </div>
+                        <span class="badge teal">Source of truth</span>
+                    </header>
+                    <div class="file-grid">
+                        <div class="file-card">
+                            <h3>CLI y bootstrap</h3>
+                            <p class="mono">src/olinkb/cli.py</p>
+                            <p class="mono">src/olinkb/bootstrap.py</p>
+                        </div>
+                        <div class="file-card">
+                            <h3>MCP y orquestación</h3>
+                            <p class="mono">src/olinkb/server.py</p>
+                            <p class="mono">src/olinkb/app.py</p>
+                        </div>
+                        <div class="file-card">
+                            <h3>Dominio y SQL</h3>
+                            <p class="mono">src/olinkb/domain.py</p>
+                            <p class="mono">src/olinkb/storage/postgres.py</p>
+                        </div>
+                        <div class="file-card">
+                            <h3>Viewer y docs</h3>
+                            <p class="mono">src/olinkb/viewer.py</p>
+                            <p class="mono">src/olinkb/viewer_server.py</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="footer-note">
+                <strong class="accent">Resumen final.</strong> OlinKB ya funciona como un sistema operativo de memoria
+                para agentes: instala un comando local, prepara el workspace, arranca un servidor MCP bajo demanda, crea
+                contexto inicial con <span class="mono">boot_session</span>, recupera conocimiento con <span
+                    class="mono">remember</span>, persiste memoria durable con <span class="mono">save_memory</span> y,
+                cuando hace falta una experiencia más guiada, abre un viewer visual para publicar documentación técnica
+                o de negocio. La clave para entenderlo bien es no mezclar superficies, no mezclar promoción con
+                documentación y no describir como “implementado” lo que hoy sigue siendo una capacidad parcial o futura.
+            </div>
+        </section>
+    </div>
+</body>
+
+</html>

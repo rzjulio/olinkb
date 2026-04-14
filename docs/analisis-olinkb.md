@@ -360,7 +360,6 @@ v1 guarda todo como `memories` en la misma tabla sin distinción temporal/funcio
 ```sql
 -- Extensiones requeridas
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "vector";  -- pgvector
 CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- trigram similarity
 

@@ -1,4 +1,5 @@
 from dataclasses import replace
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -43,7 +44,17 @@ class FakeStorage:
         }
 
     async def start_session(self, author_id: str, author_username: str, project: str | None) -> str:
-        return "session-1"
+        session_id = str(uuid4())
+        self.session_rows[session_id] = {
+            "id": session_id,
+            "author_username": author_username,
+            "project": project,
+            "summary": None,
+            "memories_read": 0,
+            "memories_written": 0,
+            "ended_at": None,
+        }
+        return session_id
 
     async def load_boot_memories(
         self,
@@ -181,6 +192,25 @@ async def test_boot_session_uses_hybrid_boot_payload_limit() -> None:
     await app.boot_session(author="rzjulio", project="olinkb")
 
     assert storage.boot_memory_calls[0]["full_content_limit"] == 5
+
+
+@pytest.mark.asyncio
+async def test_boot_session_returns_uuid_session_id() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    app.storage = FakeStorage()
+
+    result = await app.boot_session(author="rzjulio", project="olinkb")
+
+    assert UUID(result["session_id"])
 
 
 @pytest.mark.asyncio
@@ -474,28 +504,24 @@ async def test_end_session_recovers_persisted_session_when_memory_state_is_missi
         cache_max_entries=100,
         server_name="OlinKB",
     )
-    app = OlinKBApp(settings=settings)
     storage = FakeStorage()
-    storage.session_rows["session-1"] = {
-        "id": "session-1",
-        "author_username": "rzjulio",
-        "project": "olinkb",
-        "summary": None,
-        "memories_read": 0,
-        "memories_written": 0,
-        "ended_at": None,
-    }
-    app.storage = storage
+    app1 = OlinKBApp(settings=settings)
+    app1.storage = storage
+    boot = await app1.boot_session(author="rzjulio", project="olinkb")
 
-    result = await app.end_session("session-1", "Recovered end")
+    app2 = OlinKBApp(settings=settings)
+    app2.storage = storage
+
+    result = await app2.end_session(boot["session_id"].upper(), "Recovered end")
 
     assert result["status"] == "recovered"
     assert result["author"] == "rzjulio"
-    assert storage.end_session_calls[0]["session_id"] == "session-1"
+    assert result["session_id"] == boot["session_id"]
+    assert storage.end_session_calls[0]["session_id"] == boot["session_id"]
 
 
 @pytest.mark.asyncio
-async def test_end_session_raises_clear_error_for_unknown_session() -> None:
+async def test_end_session_rejects_invalid_session_id_format() -> None:
     settings = Settings(
         pg_url="postgresql://unused",
         user="rzjulio",
@@ -508,8 +534,46 @@ async def test_end_session_raises_clear_error_for_unknown_session() -> None:
     app = OlinKBApp(settings=settings)
     app.storage = FakeStorage()
 
-    with pytest.raises(ValueError, match="Unknown session_id"):
+    with pytest.raises(ValueError, match="Invalid session_id format"):
         await app.end_session("missing-session", "Nope")
+
+
+@pytest.mark.asyncio
+async def test_end_session_marks_unknown_uuid_as_stale_or_missing() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    app.storage = FakeStorage()
+
+    with pytest.raises(ValueError, match="stale, already cleaned up, or from a different OlinKB environment"):
+        await app.end_session(str(uuid4()), "Nope")
+
+
+@pytest.mark.asyncio
+async def test_end_session_reports_when_current_process_tracks_different_active_session() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    app.storage = storage
+    boot = await app.boot_session(author="rzjulio", project="olinkb")
+
+    with pytest.raises(ValueError, match="different active session_id is currently open"):
+        await app.end_session(str(uuid4()), "Nope")
 
 
 @pytest.mark.asyncio
@@ -650,7 +714,7 @@ async def test_end_session_promotes_valuable_summary_to_memory() -> None:
     app = OlinKBApp(settings=settings)
     storage = FakeStorage()
     app.storage = storage
-    await app.boot_session(author="rzjulio", project="olinkb")
+    boot = await app.boot_session(author="rzjulio", project="olinkb")
 
     summary = (
         "Goal: Improve memory usefulness\n"
@@ -659,10 +723,10 @@ async def test_end_session_promotes_valuable_summary_to_memory() -> None:
         "Next Steps: Surface session summaries more clearly in the viewer"
     )
 
-    result = await app.end_session("session-1", summary)
+    result = await app.end_session(boot["session_id"], summary)
 
     assert result["memories_written"] == 1
-    assert storage.save_memory_calls[0]["uri"] == "project://olinkb/sessions/session-1"
+    assert storage.save_memory_calls[0]["uri"] == f"project://olinkb/sessions/{boot['session_id']}"
     assert storage.save_memory_calls[0]["memory_type"] == "event"
 
 
@@ -680,9 +744,9 @@ async def test_end_session_keeps_brief_summary_as_session_only() -> None:
     app = OlinKBApp(settings=settings)
     storage = FakeStorage()
     app.storage = storage
-    await app.boot_session(author="rzjulio", project="olinkb")
+    boot = await app.boot_session(author="rzjulio", project="olinkb")
 
-    result = await app.end_session("session-1", "Closed session after quick check.")
+    result = await app.end_session(boot["session_id"], "Closed session after quick check.")
 
     assert result["memories_written"] == 0
     assert storage.save_memory_calls == []

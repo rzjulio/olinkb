@@ -3,14 +3,69 @@ from __future__ import annotations
 import argparse
 import asyncio
 from pathlib import Path
+from typing import Any
 
-from olinkb.bootstrap import bootstrap_workspace
 from olinkb.config import SettingsError, get_settings
-from olinkb.server import run_server
-from olinkb.storage.postgres import PostgresStorage
-from olinkb.templates import render_instructions_template, render_mcp_template
-from olinkb.viewer import build_empty_viewer_payload, build_viewer_output, render_viewer_html
-from olinkb.viewer_server import run_live_viewer_server
+
+
+PostgresStorage = None
+
+
+def bootstrap_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    from olinkb.bootstrap import bootstrap_workspace as bootstrap_workspace_impl
+
+    return bootstrap_workspace_impl(*args, **kwargs)
+
+
+def run_server() -> None:
+    from olinkb.server import run_server as run_server_impl
+
+    run_server_impl()
+
+
+def render_instructions_template() -> str:
+    from olinkb.templates import render_instructions_template as render_instructions_template_impl
+
+    return render_instructions_template_impl()
+
+
+def render_mcp_template(*args: Any, **kwargs: Any) -> str:
+    from olinkb.templates import render_mcp_template as render_mcp_template_impl
+
+    return render_mcp_template_impl(*args, **kwargs)
+
+
+def build_empty_viewer_payload() -> dict[str, Any]:
+    from olinkb.viewer import build_empty_viewer_payload as build_empty_viewer_payload_impl
+
+    return build_empty_viewer_payload_impl()
+
+
+def build_viewer_output(*args: Any, **kwargs: Any) -> Path:
+    from olinkb.viewer import build_viewer_output as build_viewer_output_impl
+
+    return build_viewer_output_impl(*args, **kwargs)
+
+
+def render_viewer_html(*args: Any, **kwargs: Any) -> str:
+    from olinkb.viewer import render_viewer_html as render_viewer_html_impl
+
+    return render_viewer_html_impl(*args, **kwargs)
+
+
+def run_live_viewer_server(*args: Any, **kwargs: Any) -> None:
+    from olinkb.viewer_server import run_live_viewer_server as run_live_viewer_server_impl
+
+    run_live_viewer_server_impl(*args, **kwargs)
+
+
+def _get_postgres_storage_class():
+    global PostgresStorage
+    if PostgresStorage is None:
+        from olinkb.storage.postgres import PostgresStorage as postgres_storage_class
+
+        PostgresStorage = postgres_storage_class
+    return PostgresStorage
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -140,7 +195,8 @@ def _prompt_choice(label: str, choices: tuple[str, ...], default: str) -> str:
 
 async def _run_admin_command(args: argparse.Namespace) -> int:
     settings = get_settings()
-    storage = PostgresStorage(
+    storage_class = _get_postgres_storage_class()
+    storage = storage_class(
         settings.pg_url,
         pool_max_size=getattr(settings, "pg_pool_max_size", 5),
     )

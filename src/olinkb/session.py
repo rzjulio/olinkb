@@ -40,6 +40,9 @@ class SessionManager:
     def get(self, session_id: str) -> ActiveSession | None:
         return self._sessions.get(session_id)
 
+    def active_session_ids(self) -> list[str]:
+        return list(self._sessions)
+
     def bump_reads(self, session_id: str, count: int = 1) -> None:
         session = self._sessions.get(session_id)
         if session is not None:

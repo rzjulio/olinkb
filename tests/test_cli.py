@@ -1,12 +1,45 @@
 import asyncio
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import pytest
 
 from olinkb import bootstrap
 from olinkb.cli import build_parser
 from olinkb import cli
+
+
+def test_importing_cli_does_not_eagerly_import_runtime_modules() -> None:
+    src_path = Path(__file__).resolve().parents[1] / "src"
+    env = dict(os.environ)
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        f"{src_path}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else str(src_path)
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, sys; import olinkb.cli; "
+                "print(json.dumps({name: name in sys.modules for name in "
+                "['olinkb.server', 'olinkb.storage.postgres', 'olinkb.viewer_server']}))"
+            ),
+        ],
+        capture_output=True,
+        check=True,
+        env=env,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "olinkb.server": False,
+        "olinkb.storage.postgres": False,
+        "olinkb.viewer_server": False,
+    }
 
 
 def test_cli_parser_accepts_mcp_alias() -> None:
