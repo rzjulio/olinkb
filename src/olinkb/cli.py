@@ -330,6 +330,7 @@ def run_init_workspace(args: argparse.Namespace) -> int:
         print(f"- Instructions: {result['instructions_path']}")
     else:
         print("- Instructions: skipped for global install")
+    print(f"- Skill: {result['skill_path']}")
     return 0
 
 

@@ -9,8 +9,8 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
             {
                 "id": "m1",
                 "uri": "project://olinkb/architecture/core",
-                "title": "Arquitectura Core",
-                "content": "Base del sistema. Ver tambien project://olinkb/decisions/viewer.",
+                "title": "Core Architecture",
+                "content": "System foundation. See also project://olinkb/decisions/viewer.",
                 "memory_type": "decision",
                 "scope": "project",
                 "namespace": "project://olinkb",
@@ -25,7 +25,7 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
                 "id": "m2",
                 "uri": "project://olinkb/decisions/viewer",
                 "title": "Viewer Read Only",
-                "content": "Decision para el sitio read only del proyecto.",
+                "content": "Decision for the project's read-only site.",
                 "memory_type": "decision",
                 "scope": "project",
                 "namespace": "project://olinkb",
@@ -40,7 +40,7 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
                 "id": "m3",
                 "uri": "team://conventions/ui-style",
                 "title": "UI Style",
-                "content": "Visual sobrio y elegante.",
+                "content": "Clean and elegant visual style.",
                 "memory_type": "convention",
                 "scope": "team",
                 "namespace": "team://conventions",
@@ -54,8 +54,8 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
             {
                 "id": "m4",
                 "uri": "personal://rzjulio/private/scratch",
-                "title": "Nota Personal",
-                "content": "Esto no debe aparecer en el viewer.",
+                "title": "Personal Note",
+                "content": "This should not appear in the viewer.",
                 "memory_type": "note",
                 "scope": "personal",
                 "namespace": "personal://rzjulio",
@@ -74,7 +74,7 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
                 "project": "olinkb",
                 "started_at": "2026-04-11T09:00:00+00:00",
                 "ended_at": "2026-04-11T11:30:00+00:00",
-                "summary": "Trabajo de arquitectura del viewer",
+                "summary": "Viewer architecture work",
                 "memories_read": 4,
                 "memories_written": 2,
             }
@@ -91,8 +91,8 @@ def test_build_viewer_payload_creates_relationships_and_counts() -> None:
             }
         ],
         team_members=[
-            {"username": "rzjulio", "display_name": "Rz Julio", "role": "lead", "team": "mi-equipo"},
-            {"username": "ana", "display_name": "Ana", "role": "developer", "team": "mi-equipo"},
+            {"username": "rzjulio", "display_name": "Rz Julio", "role": "lead", "team": "example-team"},
+            {"username": "ana", "display_name": "Ana", "role": "developer", "team": "example-team"},
         ],
     )
 
@@ -129,8 +129,8 @@ def test_build_viewer_payload_extracts_teams_projects_and_states() -> None:
             {
                 "id": "m1",
                 "uri": "project://olinkb/architecture",
-                "title": "Arquitectura",
-                "content": "Contenido",
+                "title": "Architecture",
+                "content": "Content",
                 "memory_type": "decision",
                 "scope": "project",
                 "namespace": "project://olinkb",
@@ -144,8 +144,8 @@ def test_build_viewer_payload_extracts_teams_projects_and_states() -> None:
             {
                 "id": "m2",
                 "uri": "team://conventions/coding",
-                "title": "Convenciones",
-                "content": "Contenido",
+                "title": "Conventions",
+                "content": "Content",
                 "memory_type": "convention",
                 "scope": "team",
                 "namespace": "team://conventions",
@@ -164,7 +164,7 @@ def test_build_viewer_payload_extracts_teams_projects_and_states() -> None:
                 "project": "olinkb",
                 "started_at": "2026-04-11T09:00:00+00:00",
                 "ended_at": "2026-04-11T11:30:00+00:00",
-                "summary": "Trabajo",
+                "summary": "Work",
                 "memories_read": 1,
                 "memories_written": 1,
             }
@@ -306,7 +306,7 @@ def test_render_viewer_html_embeds_serialized_payload() -> None:
         "generatedAt": "2026-04-11T12:00:00+00:00",
         "stats": {"memoryCount": 1, "sessionCount": 0, "auditCount": 0, "authorCount": 1},
         "filters": {"scopes": ["project"], "authors": ["rzjulio"], "tags": ["viewer"], "memoryTypes": ["decision"], "teams": [], "projects": ["olinkb"], "established": ["active", "deleted"]},
-        "memories": [{"id": "m1", "title": "Viewer <Read Only>", "content": "Contenido", "uri": "project://olinkb/viewer", "scope": "project", "author_username": "rzjulio", "tags": ["viewer"], "memory_type": "decision", "updated_at": "2026-04-11T12:00:00+00:00"}],
+        "memories": [{"id": "m1", "title": "Viewer <Read Only>", "content": "Content", "uri": "project://olinkb/viewer", "scope": "project", "author_username": "rzjulio", "tags": ["viewer"], "memory_type": "decision", "updated_at": "2026-04-11T12:00:00+00:00"}],
         "sessions": [],
         "auditLog": [],
         "teamMembers": [],
@@ -401,7 +401,7 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
         "generatedAt": "2026-04-11T12:00:00+00:00",
         "stats": {"memoryCount": 1, "activeMemoryCount": 1, "deletedMemoryCount": 0, "sessionCount": 0, "auditCount": 0, "authorCount": 1, "edgeCount": 0},
         "filters": {"scopes": ["project"], "authors": ["rzjulio"], "tags": ["viewer"], "memoryTypes": ["decision"], "teams": [], "projects": ["olinkb"], "established": ["active", "deleted"]},
-        "memories": [{"id": "m1", "title": "Viewer", "content": "Contenido", "sections": {"what": "Resumen", "why": "Motivo", "where": "Archivo", "learned": "Aprendizaje", "remaining": ""}, "uri": "project://olinkb/viewer", "scope": "project", "author_username": "rzjulio", "tags": ["viewer"], "memory_type": "decision", "updated_at": "2026-04-11T12:00:00+00:00", "created_at": "2026-04-11T12:00:00+00:00", "namespace": "project://olinkb", "isDeleted": False, "retrieval_count": 1}],
+        "memories": [{"id": "m1", "title": "Viewer", "content": "Content", "sections": {"what": "Summary", "why": "Reason", "where": "File", "learned": "Learning", "remaining": ""}, "uri": "project://olinkb/viewer", "scope": "project", "author_username": "rzjulio", "tags": ["viewer"], "memory_type": "decision", "updated_at": "2026-04-11T12:00:00+00:00", "created_at": "2026-04-11T12:00:00+00:00", "namespace": "project://olinkb", "isDeleted": False, "retrieval_count": 1}],
         "sessions": [],
         "auditLog": [],
         "teamMembers": [],
@@ -445,8 +445,13 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'Active' in html
     assert 'Forgotten' in html
     assert 'getBreathingTransform' in html
-    assert 'node.showLabel !== false' in html
-    assert 'if (hovered && node.showLabel !== false)' in html
+    assert 'node.showLabel === false' in html
+    assert 'offsetX: Math.sin(phase * 0.82 + 0.3) * 3' in html
+    assert 'offsetY: Math.cos(phase * 0.94) * 2' in html
+    assert 'scale: 1 + (Math.sin(phase) * 0.005) + (Math.sin(phase * 0.47 + 0.8) * 0.002)' in html
+    assert 'if (!hovered || node.showLabel === false) return;' in html
+    assert html.index("runtime.edges.forEach((edge) =>") < html.index("runtime.nodes.forEach((node) =>")
+    assert html.count("runtime.nodes.forEach((node) =>") >= 2
     assert 'function getNodeRadius(node)' in html
     assert 'canvas.addEventListener("pointerleave", onPointerLeave);' in html
     assert "canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';" in html

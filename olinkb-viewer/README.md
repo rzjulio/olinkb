@@ -1,19 +1,19 @@
 # OlinKB Viewer
 
-Este directorio contiene el artefacto estático de solo lectura para OlinKB.
+This directory contains the read-only static artifact for OlinKB.
 
-Para exploración grande o búsqueda escalable, usa primero el visor vivo:
+For large-scale exploration or scalable search, use the live viewer first:
 
 ```bash
 olinkb viewer
 ```
 
-Ese modo consulta PostgreSQL en vivo y es el camino principal cuando hay muchas notas.
+That mode queries PostgreSQL live and is the main path when there are many notes.
 
-Genera un snapshot estático solo cuando necesites una exportación portable de punto en el tiempo:
+Generate a static snapshot only when you need a portable point-in-time export:
 
 ```bash
 olinkb viewer build
 ```
 
-El resultado se escribe en `olinkb-viewer/index.html` con todos los datos embebidos, listo para abrir localmente o publicar en cualquier hosting estático.
+The result is written to `olinkb-viewer/index.html` with all data embedded, ready to open locally or publish on any static hosting platform.

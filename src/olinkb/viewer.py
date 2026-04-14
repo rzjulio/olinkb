@@ -2508,9 +2508,9 @@ def render_viewer_html(
           }}
           const phase = performance.now() * 0.00105;
           return {{
-            offsetX: Math.sin(phase * 0.82 + 0.3) * 10,
-            offsetY: Math.cos(phase * 0.94) * 7,
-            scale: 1 + (Math.sin(phase) * 0.014) + (Math.sin(phase * 0.47 + 0.8) * 0.005),
+            offsetX: Math.sin(phase * 0.82 + 0.3) * 3,
+            offsetY: Math.cos(phase * 0.94) * 2,
+            scale: 1 + (Math.sin(phase) * 0.005) + (Math.sin(phase * 0.47 + 0.8) * 0.002),
           }};
         }}
 
@@ -2818,11 +2818,15 @@ def render_viewer_html(
             context.lineWidth = hovered ? 2.6 : (selected ? 2.2 : 1);
             context.strokeStyle = selected ? cssVar('--text-strong', 'rgba(255,255,255,0.9)') : cssVar('--node-ring', 'rgba(255,255,255,0.08)');
             context.stroke();
-            if (hovered && node.showLabel !== false) {{
-              context.fillStyle = cssVar('--text', 'rgba(220, 221, 222, 0.92)');
-              context.font = `${{11 / viewport.scale}}px Avenir Next, sans-serif`;
-              context.fillText(node.label, node.x + radius + 8, node.y + 4);
-            }}
+          }});
+
+          runtime.nodes.forEach((node) => {{
+            const hovered = node.id === runtime.hoverId;
+            if (!hovered || node.showLabel === false) return;
+            const radius = getNodeRadius(node);
+            context.fillStyle = cssVar('--text', 'rgba(220, 221, 222, 0.92)');
+            context.font = `${{11 / viewport.scale}}px Avenir Next, sans-serif`;
+            context.fillText(node.label, node.x + radius + 8, node.y + 4);
           }});
           context.restore();
         }}

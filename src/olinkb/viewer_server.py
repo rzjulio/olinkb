@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
 from olinkb.app import OlinKBApp
-from olinkb.config import Settings, get_settings
+from olinkb.config import Settings, get_viewer_settings
 from olinkb.domain import APPROVER_MEMBER_ROLES, is_managed_memory_type
 from olinkb.storage.postgres import PostgresStorage
 from olinkb.viewer import build_empty_viewer_payload, build_viewer_payload, render_viewer_html
@@ -32,6 +32,7 @@ VIEWER_LOGIN_ACCOUNTS = {
     }
 }
 VIEWER_ALLOWED_DOCUMENTATION_TYPES = {"documentation", "business_documentation"}
+VIEWER_FALLBACK_TEAM = "viewer"
 
 
 class ViewerAuthenticationError(PermissionError):
@@ -46,7 +47,7 @@ class _LiveViewerHTTPServer(ThreadingHTTPServer):
     def __init__(self, server_address: tuple[str, int], title: str) -> None:
         super().__init__(server_address, _LiveViewerRequestHandler)
         self.title = title
-        self.settings = get_settings()
+        self.settings = get_viewer_settings()
         self.auth_sessions: dict[str, dict[str, Any]] = {}
         self.index_html = render_viewer_html(
             build_empty_viewer_payload(),
@@ -92,8 +93,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                     _load_viewer_payload(
                         self.server.settings.pg_url,
                         params=parse_qs(parsed.query),
-                        username=self.server.settings.user,
-                        team=self.server.settings.team,
+                        username=self.server.settings.user or None,
+                        team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
@@ -117,7 +118,7 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                         self.server.settings.pg_url,
                         username=login_payload["username"],
                         password=login_payload["password"],
-                        team=self.server.settings.team,
+                        team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
@@ -158,7 +159,7 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                     payload=payload,
                     username=str(session["username"]),
                     role=str(session.get("role") or ""),
-                    team=str(session.get("team") or self.server.settings.team),
+                    team=str(session.get("team") or self.server.settings.team or ""),
                     project=session.get("project") or self.server.settings.default_project,
                     pool_max_size=self.server.settings.pg_pool_max_size,
                 )
@@ -186,8 +187,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                     _load_viewer_payload(
                         self.server.settings.pg_url,
                         params=parse_qs(parsed.query),
-                        username=self.server.settings.user,
-                        team=self.server.settings.team,
+                        username=self.server.settings.user or None,
+                        team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
@@ -496,16 +497,17 @@ async def _create_memory_payload(
         default_project=project,
         default_team=team,
     )
-    app = OlinKBApp()
-    app.settings = Settings(
-        pg_url=pg_url,
-        user=username or app.settings.user,
-        team=team or app.settings.team,
-        default_project=project,
-        cache_ttl_seconds=app.settings.cache_ttl_seconds,
-        cache_max_entries=app.settings.cache_max_entries,
-        pg_pool_max_size=pool_max_size,
-        server_name=app.settings.server_name,
+    app = OlinKBApp(
+        settings=Settings(
+            pg_url=pg_url,
+            user=username or "",
+            team=team or VIEWER_FALLBACK_TEAM,
+            default_project=project,
+            cache_ttl_seconds=300,
+            cache_max_entries=256,
+            pg_pool_max_size=pool_max_size,
+            server_name="OlinKB",
+        )
     )
     app.storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
     try:
@@ -540,7 +542,7 @@ async def _login_viewer_session(
     if account is None or account["password"] != password:
         raise ViewerAuthenticationError("Invalid viewer credentials")
 
-    normalized_team = team or "viewer"
+    normalized_team = team or VIEWER_FALLBACK_TEAM
     role = str(account["role"])
     storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
     try:

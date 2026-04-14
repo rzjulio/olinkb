@@ -58,6 +58,8 @@ The matching environment example is available in `.env.example`.
 - `OLINKB_CACHE_TTL_SECONDS`: optional cache TTL, defaults to `300`
 - `OLINKB_CACHE_MAX_ENTRIES`: optional cache size, defaults to `256`
 
+For the main MCP/server runtime, `OLINKB_TEAM` and `OLINKB_USER` still define the default identity context. The live viewer is looser: `olinkb viewer` only needs `OLINKB_PG_URL` to start browsing data, and it no longer requires `OLINKB_USER` or `OLINKB_TEAM` at startup.
+
 ## Commands
 
 ```bash
@@ -67,14 +69,14 @@ olinkb --init
 olinkb mcp
 olinkb viewer
 olinkb viewer build
-olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team mi-equipo
+olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team example-team
 olinkb template instructions
 olinkb serve
 ```
 
 `olinkb mcp` is an alias for the stdio MCP server entrypoint.
 
-`olinkb viewer` starts the live HTTP viewer backed by PostgreSQL.
+`olinkb viewer` starts the live HTTP viewer backed by PostgreSQL. Startup only requires `OLINKB_PG_URL`; `OLINKB_USER` and `OLINKB_TEAM` are no longer required just to boot the viewer.
 
 `olinkb viewer build` exports a static snapshot to `olinkb-viewer/index.html`.
 
@@ -95,6 +97,8 @@ If you prefer to keep everything remote, you can also install from the release a
 pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
 ```
 
+On Windows, use the same command from PowerShell, Command Prompt, or Windows Terminal.
+
 After installation, the developer only needs the external PostgreSQL connection string and team name:
 
 ```bash
@@ -109,7 +113,28 @@ The interactive initializer asks for:
 
 For `repository`, the project name is detected automatically from the current directory name and written into the generated MCP configuration.
 
-For `global`, OlinKB writes the MCP server into the user's VS Code `mcp.json` and skips repository instructions because they are repository-specific.
+For `global`, OlinKB writes the MCP server into the user's VS Code `mcp.json` and writes a reusable base instructions file into the user's `.copilot` directory.
+
+In both scopes, OlinKB also installs the `memory-relevance-triage` skill so agents have a reusable decision aid for whether a result deserves durable memory.
+
+Global MCP registration paths:
+
+- macOS: `~/Library/Application Support/Code/User/mcp.json`
+- Linux: `~/.config/Code/User/mcp.json`
+- Windows: `%APPDATA%\Code\User\mcp.json`
+- Windows fallback if `APPDATA` is missing or blank: `%USERPROFILE%\AppData\Roaming\Code\User\mcp.json`
+
+Instruction file behavior:
+
+- repository scope writes or updates `.github/copilot-instructions.md`
+- global scope writes or updates `~/.copilot/instructions.md`
+- repository scope writes or updates `.copilot/skills/memory-relevance-triage/SKILL.md`
+- global scope writes or updates `~/.copilot/skills/memory-relevance-triage/SKILL.md`
+- OlinKB does not create or manage repository-local `.copilot/` directories during global setup, so existing repo-local instruction layouts there remain untouched
+- if `.github/copilot-instructions.md` already has other repository guidance, only the generated `## OlinKB Memory Protocol` block is replaced on rerun
+- if `~/.copilot/instructions.md` already has other user guidance, only the generated `## OlinKB Memory Protocol` block is replaced on rerun
+- precedence between repository instructions and any separate user/global Copilot instructions is outside OlinKB; the bootstrap only guarantees additive coexistence and non-destructive file updates
+- global setup therefore does not conflict with repo-local instructions; it adds a user-level MCP registration plus a reusable cross-repository memory protocol
 
 ## GitHub release flow
 
@@ -142,11 +167,13 @@ The prepared release notes for the initial version live in [releases/v0.1.0.md](
 Use the built-in template commands to wire OlinKB into VS Code and your repository instructions:
 
 ```bash
-olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team mi-equipo
+olinkb template mcp --pg-url postgresql://olinkb:olinkb@localhost:5433/olinkb --team example-team
 olinkb template instructions
 ```
 
-The first command prints a ready-to-paste `mcp.json` server block using `olinkb mcp`. The second prints the recommended repository instruction block so the agent knows when to call `boot_session`, `remember`, `save_memory`, and `end_session`.
+The first command prints a ready-to-paste `mcp.json` server block using `olinkb mcp`. The second prints the recommended instruction block so the agent knows when to call `boot_session`, `remember`, `save_memory`, and `end_session`.
+
+`olinkb template instructions` only renders content to stdout. The actual bootstrap paths are `.github/copilot-instructions.md` for repository installs and `~/.copilot/instructions.md` for global installs. The memory triage skill is bootstrapped into `.copilot/skills/memory-relevance-triage/SKILL.md` for repository installs and `~/.copilot/skills/memory-relevance-triage/SKILL.md` for global installs.
 
 If you want the end-user flow to be a single step, use:
 
@@ -158,7 +185,43 @@ That command asks for the install scope, PostgreSQL URL, and team.
 
 When the user chooses `repository`, OlinKB detects the project from the current workspace folder and writes `.vscode/mcp.json` and `.github/copilot-instructions.md` in the current workspace, preserving other MCP servers already registered and avoiding duplicate OlinkB protocol blocks when rerun.
 
-When the user chooses `global`, OlinKB writes the server into the VS Code user-level `mcp.json` and skips repository instructions.
+It also writes `.copilot/skills/memory-relevance-triage/SKILL.md` in the current workspace.
+
+When the user chooses `global`, OlinKB writes the server into the VS Code user-level `mcp.json` and writes the memory protocol into `~/.copilot/instructions.md`.
+
+It also writes the triage skill into `~/.copilot/skills/memory-relevance-triage/SKILL.md`.
+
+On Windows, the global file is `%APPDATA%\Code\User\mcp.json`, with `%USERPROFILE%\AppData\Roaming\Code\User\mcp.json` as the fallback when `APPDATA` is unavailable.
+
+On Windows, the global instructions file is `%USERPROFILE%\.copilot\instructions.md`.
+
+On Windows, the global skill file is `%USERPROFILE%\.copilot\skills\memory-relevance-triage\SKILL.md`.
+
+Exact Windows examples:
+
+```powershell
+pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+olinkb --init --scope global
+```
+
+```bat
+pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+olinkb --init --scope global
+```
+
+For uninstall on Windows, remove the `olinkb` entry from that file, or delete the file only if it contains no other MCP servers:
+
+```powershell
+Remove-Item "$env:APPDATA\Code\User\mcp.json"
+```
+
+```bat
+del "%APPDATA%\Code\User\mcp.json"
+```
+
+If you no longer want the global instructions, remove the generated `## OlinKB Memory Protocol` block from `%USERPROFILE%\.copilot\instructions.md`, or delete that file only if it contains no other user guidance.
+
+If you no longer want the global triage skill, remove `%USERPROFILE%\.copilot\skills\memory-relevance-triage\SKILL.md` or the containing `memory-relevance-triage` directory.
 
 ## Tools exposed by the server
 
@@ -197,6 +260,8 @@ Role rules are enforced below the UI layer:
 
 - admins and leads can create, edit, list, and archive managed engineering content
 - only admins can manage `business_documentation`
+
+If no default team is configured in the environment, the authenticated viewer flows use an internal fallback team (`viewer`) for member provisioning. That fallback is only for the viewer surface; the main MCP runtime still expects explicit identity defaults.
 - project-targeted operations require active membership and lead/admin authority in every targeted project
 
 ## Boot and retrieval behavior

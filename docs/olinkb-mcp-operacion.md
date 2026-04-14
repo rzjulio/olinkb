@@ -1,35 +1,35 @@
-# OlinKB — Operación MCP en VS Code
+# OlinKB — MCP Operation in VS Code
 
-## Propósito
-Este documento describe cómo debe funcionar OlinKB dentro de VS Code para comportarse como Engram: instalado localmente, registrado como servidor MCP por `stdio`, y llamado automáticamente por el agente cuando el prompt realmente requiere memoria.
+## Purpose
+This document describes how OlinKB should work inside VS Code so it behaves like Engram: installed locally, registered as an MCP server over `stdio`, and invoked automatically by the agent when the prompt genuinely requires memory.
 
-La idea central no es que OlinKB esté "haciendo polling" ni corriendo como daemon permanente, sino que esté siempre disponible y que el cliente MCP lo invoque bajo demanda cuando la conversación necesite contexto, recuperación de memoria o persistencia de hallazgos.
+The core idea is not that OlinKB should be "polling" or running as a permanent daemon, but that it should always be available and that the MCP client should invoke it on demand whenever the conversation needs context, memory retrieval, or persistence of findings.
 
-## Modelo Operativo Deseado
-OlinKB debe operar en tres capas:
+## Desired Operating Model
+OlinKB should operate in three layers:
 
-1. **Disponibilidad**
-  OlinKB existe como comando local instalable, por ejemplo `olinkb`.
+1. **Availability**
+  OlinKB exists as an installable local command, for example `olinkb`.
 
-2. **Integración MCP**
-   VS Code lo registra como servidor MCP `stdio` en `mcp.json`.
+2. **MCP integration**
+   VS Code registers it as an MCP `stdio` server in `mcp.json`.
 
-3. **Uso automático guiado por instrucciones**
-   El agente decide usar sus tools cuando el prompt lo amerita, siguiendo un protocolo explícito del repositorio.
+3. **Automatic use guided by instructions**
+   The agent decides to use its tools when the prompt calls for it, following an explicit repository protocol.
 
-## Qué significa "funcionar como Engram"
-Funcionar como Engram significa esto:
+## What "Behaving Like Engram" Means
+Behaving like Engram means this:
 
-- OlinKB está instalado como binario o CLI local.
-- VS Code sabe cómo levantarlo como servidor MCP.
-- El cliente lo arranca bajo demanda.
-- El modelo invoca sus tools cuando necesita memoria.
-- El usuario no tiene que escribir comandos manuales para usarlo.
+- OlinKB is installed as a local binary or CLI.
+- VS Code knows how to start it as an MCP server.
+- The client starts it on demand.
+- The model invokes its tools when it needs memory.
+- The user does not have to type manual commands to use it.
 
-No significa necesariamente que OlinKB tenga que vivir como proceso siempre activo en segundo plano.
+It does not necessarily mean that OlinKB has to live as an always-running background process.
 
-## Registro en VS Code
-La integración esperada es mediante un registro MCP similar a este:
+## Registration in VS Code
+The expected integration is through an MCP registration similar to this:
 
 ```json
 {
@@ -39,8 +39,8 @@ La integración esperada es mediante un registro MCP similar a este:
       "args": ["serve"],
       "type": "stdio",
       "env": {
-        "OLINKB_PG_URL": "postgresql://usuario:password@host:5432/olinkb",
-        "OLINKB_TEAM": "mi-equipo",
+        "OLINKB_PG_URL": "postgresql://user:password@host:5432/olinkb",
+        "OLINKB_TEAM": "my-team",
         "OLINKB_USER": "${env:USER}"
       }
     }
@@ -48,7 +48,7 @@ La integración esperada es mediante un registro MCP similar a este:
 }
 ```
 
-También podría usar un entrypoint más directo:
+It could also use a more direct entrypoint:
 
 ```json
 {
@@ -62,192 +62,192 @@ También podría usar un entrypoint más directo:
 }
 ```
 
-La decisión final entre `serve` y `mcp` depende del diseño del CLI, pero el comportamiento esperado es el mismo: VS Code levanta el proceso y se comunica con él por `stdin/stdout`.
+The final decision between `serve` and `mcp` depends on the CLI design, but the expected behavior is the same: VS Code starts the process and communicates with it over `stdin/stdout`.
 
-## Cómo lo llamaría VS Code
-Cuando el usuario manda un prompt, el flujo esperado es este:
+## How VS Code Would Invoke It
+When the user sends a prompt, the expected flow is this:
 
 ```mermaid
 sequenceDiagram
-    participant User as Usuario
+    participant User as User
     participant IDE as VS Code + Copilot
-    participant MCP as OlinKB MCP Local
+    participant MCP as Local OlinKB MCP
     participant PG as PostgreSQL
 
-    User->>IDE: Envía prompt
-    IDE->>IDE: El agente evalúa si necesita memoria
-    alt requiere memoria
-        IDE->>MCP: Llama tool MCP
-        MCP->>PG: Lee o escribe memoria compartida
-        PG-->>MCP: Resultado
-        MCP-->>IDE: Respuesta de la tool
-    else no requiere memoria
-        IDE->>IDE: Responde sin usar OlinKB
+    User->>IDE: Sends prompt
+    IDE->>IDE: The agent evaluates whether it needs memory
+    alt memory required
+        IDE->>MCP: Calls MCP tool
+        MCP->>PG: Reads or writes shared memory
+        PG-->>MCP: Result
+        MCP-->>IDE: Tool response
+    else memory not required
+        IDE->>IDE: Responds without using OlinKB
     end
-    IDE-->>User: Respuesta final
+    IDE-->>User: Final response
 ```
 
-## Qué significa "automático"
-En este diseño, "automático" significa que el agente invoca OlinKB sin que el usuario lo pida explícitamente, siempre que el prompt parezca requerir memoria del equipo.
+## What "Automatic" Means
+In this design, "automatic" means that the agent invokes OlinKB without the user explicitly asking for it whenever the prompt appears to require team memory.
 
-No significa:
+It does not mean:
 
-- ejecutarlo por cada tecla,
-- ejecutar todas las tools en todos los prompts,
-- interceptar todos los mensajes con un proxy externo obligatorio.
+- running it on every keystroke,
+- executing all tools on every prompt,
+- intercepting every message with a mandatory external proxy.
 
-Sí significa:
+It does mean:
 
-- `boot_session` al inicio de la sesión,
-- `remember` cuando el prompt necesita contexto previo,
-- `save_memory` cuando se descubre algo importante,
-- `end_session` al cierre.
+- `boot_session` at the beginning of the session,
+- `remember` when the prompt needs prior context,
+- `save_memory` when something important is discovered,
+- `end_session` at the end.
 
-## Política de Invocación Recomendada
+## Recommended Invocation Policy
 
-### 1. Inicio de sesión
-En la primera interacción relevante de la sesión, el agente debe llamar:
+### 1. Session start
+On the first relevant interaction of the session, the agent should call:
 
 ```text
 boot_session(author, team, project)
 ```
 
-Esto sirve para:
+This is used to:
 
-- validar identidad,
-- cargar `team://conventions/*`,
-- cargar `project://*` relevante,
-- cargar memoria personal útil,
-- calentar el read cache.
+- validate identity,
+- load `team://conventions/*`,
+- load relevant `project://*`,
+- load useful personal memory,
+- warm the read cache.
 
-### 2. Recuperación automática
-Cuando el prompt pregunta por contexto, decisiones previas, convenciones, bugs conocidos o procedimientos, el agente debe llamar:
+### 2. Automatic retrieval
+When the prompt asks about context, prior decisions, conventions, known bugs, or procedures, the agent should call:
 
 ```text
 remember(query)
 ```
 
-Ejemplos donde sí debería dispararse:
+Examples where it should trigger:
 
-- "¿cómo manejamos auth aquí?"
-- "recuérdame cómo hacemos refresh tokens"
-- "¿por qué usamos Result en vez de excepciones?"
-- "¿ya habíamos resuelto este bug?"
+- "how do we handle auth here?"
+- "remind me how we do refresh tokens"
+- "why do we use Result instead of exceptions?"
+- "had we already solved this bug?"
 
-Ejemplos donde probablemente no hace falta:
+Examples where it is probably unnecessary:
 
-- "hola"
-- "cámbiame este color"
-- "qué hora es"
-- preguntas triviales que solo requieren contexto local inmediato
+- "hello"
+- "change this color"
+- "what time is it"
+- trivial questions that only require immediate local context
 
-### 3. Persistencia automática
-Cuando durante la conversación se produce una decisión, convención, descubrimiento o bugfix, el agente debe llamar:
+### 3. Automatic persistence
+When a decision, convention, discovery, or bugfix happens during the conversation, the agent should call:
 
 ```text
 save_memory(...)
 ```
 
-Usando un `memory_type` compatible, por ejemplo `decision`, `convention`, `discovery`, `bugfix` o `procedure`.
+Using a compatible `memory_type`, for example `decision`, `convention`, `discovery`, `bugfix`, or `procedure`.
 
-Ejemplos:
+Examples:
 
-- se descubre la causa raíz de un bug,
-- se acuerda una nueva convención,
-- se decide una restricción arquitectónica,
-- se documenta un procedimiento reutilizable.
+- the root cause of a bug is discovered,
+- a new convention is agreed on,
+- an architectural constraint is decided,
+- a reusable procedure is documented.
 
-### 4. Cierre
-Cuando la sesión termina o se completa un bloque relevante de trabajo, el agente debe llamar:
+### 4. Closeout
+When the session ends or a relevant block of work is completed, the agent should call:
 
 ```text
 end_session(summary)
 ```
 
-## Flujo MCP Esperado por Tool
+## Expected MCP Flow by Tool
 
 ### `boot_session`
 ```mermaid
 sequenceDiagram
-    participant IDE as Cliente MCP
+    participant IDE as MCP Client
     participant MCP as OlinKB
     participant PG as PostgreSQL
     participant Cache as Read Cache
 
     IDE->>MCP: boot_session(author, team, project)
-    MCP->>PG: validar identidad y cargar contexto
-    PG-->>MCP: memorias relevantes
-    MCP->>Cache: precargar entradas
-    MCP-->>IDE: sesión lista
+    MCP->>PG: validate identity and load context
+    PG-->>MCP: relevant memories
+    MCP->>Cache: preload entries
+    MCP-->>IDE: session ready
 ```
 
 ### `remember`
 ```mermaid
 sequenceDiagram
-    participant IDE as Cliente MCP
+    participant IDE as MCP Client
     participant MCP as OlinKB
     participant Cache as Read Cache
     participant PG as PostgreSQL
 
     IDE->>MCP: remember(query)
-    MCP->>Cache: buscar en cache
+    MCP->>Cache: search cache
     alt cache hit
-        Cache-->>MCP: resultados
+        Cache-->>MCP: results
     else cache miss
-        MCP->>PG: buscar memoria relevante
-        PG-->>MCP: resultados
+        MCP->>PG: search relevant memory
+        PG-->>MCP: results
     end
-    MCP-->>IDE: contexto recuperado
+    MCP-->>IDE: retrieved context
 ```
 
 ### `save_memory`
 ```mermaid
 sequenceDiagram
-    participant IDE as Cliente MCP
+    participant IDE as MCP Client
     participant MCP as OlinKB
     participant Guard as Write Guard
     participant PG as PostgreSQL
     participant Notify as LISTEN/NOTIFY
 
     IDE->>MCP: save_memory(...)
-    MCP->>Guard: validar write
-    Guard-->>MCP: permitido o propuesto
-    MCP->>PG: persistir memoria
-    PG-->>Notify: emitir cambio
-    MCP-->>IDE: guardado exitoso
+    MCP->>Guard: validate write
+    Guard-->>MCP: allowed or proposed
+    MCP->>PG: persist memory
+    PG-->>Notify: emit change
+    MCP-->>IDE: save successful
 ```
 
-## Qué tiene que existir para que esto funcione
+## What Must Exist for This to Work
 
-### 1. CLI instalable
-Debe existir algo ejecutable como:
+### 1. Installable CLI
+There must be something executable like:
 
 ```bash
 olinkb serve
 ```
 
-o
+or
 
 ```bash
 olinkb mcp
 ```
 
-### 2. Servidor MCP por `stdio`
-OlinKB debe hablar MCP por `stdin/stdout`, igual que Engram.
+### 2. MCP server over `stdio`
+OlinKB must speak MCP over `stdin/stdout`, just like Engram.
 
-### 3. Tools mínimas
-Para que la experiencia sea útil y automática, OlinKB necesita al menos:
+### 3. Minimum tools
+For the experience to be useful and automatic, OlinKB needs at least:
 
 - `boot_session`
 - `remember`
 - `save_memory`
 - `end_session`
 
-### 4. Instrucciones del repositorio
-El agente necesita reglas explícitas para saber cuándo usar OlinKB. Sin eso, el servidor estará registrado pero el modelo podría usarlo de forma inconsistente.
+### 4. Repository instructions
+The agent needs explicit rules to know when to use OlinKB. Without that, the server may be registered but the model could use it inconsistently.
 
-## Bloque de Instrucciones Recomendado
-Este es el tipo de instrucción que debe vivir en el repositorio para forzar el comportamiento deseado:
+## Recommended Instruction Block
+This is the type of instruction that should live in the repository to enforce the desired behavior:
 
 ```md
 ## OlinKB Memory Protocol
@@ -278,24 +278,24 @@ You have access to OlinKB via MCP tools.
 - Call `end_session` with a brief summary of what was accomplished.
 ```
 
-## Qué no resuelve MCP por sí solo
-Es importante dejar claro que MCP no garantiza una interceptación dura de cada prompt. El cliente expone tools y el agente decide si llamarlas.
+## What MCP Does Not Solve by Itself
+It is important to make clear that MCP does not guarantee hard interception of every prompt. The client exposes tools, and the agent decides whether to call them.
 
-Eso implica:
+That implies:
 
-- MCP sí permite que OlinKB esté disponible siempre.
-- MCP sí permite que el agente lo invoque automáticamente.
-- MCP no obliga por sí solo a que cada prompt pase por OlinKB.
+- MCP does allow OlinKB to be always available.
+- MCP does allow the agent to invoke it automatically.
+- MCP alone does not force every prompt to pass through OlinKB.
 
-Si alguna vez se quisiera una garantía absoluta de "prefetch antes de cada prompt", eso ya sería otra capa: proxy, middleware u orquestador externo. Para la arquitectura actual, la recomendación correcta es no ir por ahí al inicio.
+If absolute guarantees such as "prefetch before every prompt" were ever required, that would be another layer entirely: a proxy, middleware, or an external orchestrator. For the current architecture, the correct recommendation is not to go there initially.
 
-## Recomendación Final
-El modelo correcto para OlinKB es este:
+## Final Recommendation
+The correct model for OlinKB is this:
 
-1. Instalar OlinKB como CLI local.
-2. Registrarlo en VS Code como MCP `stdio`.
-3. Exponer un conjunto mínimo de tools bien diseñadas.
-4. Guiar su uso con instrucciones del repositorio.
-5. Conectar esas tools a PostgreSQL como memoria compartida del equipo.
+1. Install OlinKB as a local CLI.
+2. Register it in VS Code as an MCP `stdio` server.
+3. Expose a minimal set of well-designed tools.
+4. Guide its use with repository instructions.
+5. Connect those tools to PostgreSQL as the team's shared memory.
 
-Con eso, OlinKB se comporta igual que Engram desde el punto de vista del usuario: está disponible siempre, VS Code lo llama cuando hace falta, y la memoria aparece integrada al flujo normal del agente en lugar de sentirse como una herramienta aparte.
+With that, OlinKB behaves exactly like Engram from the user's point of view: it is always available, VS Code calls it when needed, and memory appears integrated into the agent's normal workflow instead of feeling like a separate tool.

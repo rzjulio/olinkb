@@ -1,12 +1,16 @@
 import json
 
-from olinkb.templates import render_instructions_template, render_mcp_template
+from olinkb.templates import (
+    render_instructions_template,
+    render_mcp_template,
+    render_memory_relevance_skill_template,
+)
 
 
 def test_render_mcp_template_uses_mcp_alias() -> None:
     rendered = render_mcp_template(
         pg_url="postgresql://olinkb:olinkb@localhost:5433/olinkb",
-        team="mi-equipo",
+        team="example-team",
     )
 
     config = json.loads(rendered)
@@ -14,7 +18,7 @@ def test_render_mcp_template_uses_mcp_alias() -> None:
     assert config["servers"]["olinkb"]["command"] == "olinkb"
     assert config["servers"]["olinkb"]["args"] == ["mcp"]
     assert config["servers"]["olinkb"]["type"] == "stdio"
-    assert config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "mi-equipo"
+    assert config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "example-team"
 
 
 def test_render_instructions_mentions_boot_and_end_session() -> None:
@@ -29,6 +33,7 @@ def test_render_instructions_mentions_boot_and_end_session() -> None:
 def test_render_instructions_encourages_richer_context_blocks() -> None:
     rendered = render_instructions_template()
 
+    assert "default memory workflow across repositories" in rendered
     assert "richer context blocks" in rendered
     assert "Do not wait until `end_session`" in rendered
     assert "Do not save a one-line summary" in rendered
@@ -44,3 +49,15 @@ def test_render_instructions_encourages_richer_context_blocks() -> None:
     assert "without reopening every touched file first" in rendered
     assert "include_content=false" in rendered
     assert "explicitly calls `propose_memory_promotion(...)`" in rendered
+    assert "specialized repository skill exists" in rendered
+
+
+def test_render_memory_relevance_skill_template_contains_triage_contract() -> None:
+    rendered = render_memory_relevance_skill_template()
+
+    assert "name: memory-relevance-triage" in rendered
+    assert "## Decision Rule" in rendered
+    assert "## Result-Aware Triage" in rendered
+    assert "## Output Contract" in rendered
+    assert "SAVE" in rendered
+    assert "SKIP" in rendered

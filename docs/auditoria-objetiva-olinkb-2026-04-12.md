@@ -1,121 +1,121 @@
-# Auditoria Objetiva de OlinKB
+# Objective Audit of OlinKB
 
-Fecha: 12 de abril de 2026
+Date: April 12, 2026
 
-## Resumen Ejecutivo
+## Executive Summary
 
-Veredicto corto y honesto:
+Short and honest verdict:
 
-- Si ayuda: si, pero hoy ayuda como base operativa de memoria compartida para equipos pequenos, no como sistema maduro de contexto curado.
-- Si funciona como deberia: parcialmente. El nucleo CRUD y el flujo MCP son coherentes, pero hay huecos importantes de scoping, seguridad, verificacion e integridad operativa.
-- Si ahorra tokens: si, a nivel de payload. El ahorro existe y esta implementado, pero es aproximado, condicional y no equivale automaticamente a mejor contexto.
-- Si entrega contexto siempre limpio y curado: no. Entrega contexto mas liviano y mas estructurado, pero no garantiza limpieza, relevancia ni aislamiento por proyecto/equipo.
-- Si sirve para 10 desarrolladores trabajando a la par: con matices y despues de ajustes importantes, podria. En el estado actual, hay riesgos reales de mezcla de contexto y contencion.
-- Si escala a cientos de desarrolladores en empresa: no. Faltan aislamiento multi-tenant, autorizacion real, invalidacion distribuida, observabilidad y una capa de retrieval mas sofisticada.
+- Is it helpful: yes, but today it helps as an operational foundation for shared memory in small teams, not as a mature system for curated context.
+- Does it work as it should: partially. The CRUD core and MCP flow are coherent, but there are important gaps in scoping, security, verification, and operational integrity.
+- Does it save tokens: yes, at the payload level. The savings exist and are implemented, but they are approximate, conditional, and do not automatically mean better context.
+- Does it always deliver clean, curated context: no. It delivers lighter and more structured context, but it does not guarantee cleanliness, relevance, or project/team isolation.
+- Would it serve 10 developers working in parallel: with caveats, and only after important adjustments, maybe. In the current state, there are real risks of context mixing and contention.
+- Would it scale to hundreds of developers in an enterprise: no. It still lacks real multi-tenant isolation, authorization, distributed invalidation, observability, and a more sophisticated retrieval layer.
 
-La conclusion mas importante es esta: OlinKB ya es una buena base tecnica para evolucionar, pero aun no es un sistema confiable de memoria compartida curada para multi-proyecto, multi-equipo o empresa grande.
+The most important conclusion is this: OlinKB is already a good technical base to evolve, but it is not yet a reliable curated shared-memory system for multi-project, multi-team, or large-enterprise use.
 
-## Respuesta Directa a las Preguntas
+## Direct Answers to the Questions
 
-### 1. Realmente ofrece ayuda
+### 1. Does it really help
 
-Si, en estos escenarios:
+Yes, in these scenarios:
 
-- Equipos pequenos que quieren recordar decisiones, bugs, procedimientos y cierres de sesion dentro del flujo MCP.
-- Repositorios donde ya existe disciplina para escribir memorias estructuradas.
-- Entornos donde PostgreSQL compartido ya esta disponible y el costo de instalacion local no es problema.
+- Small teams that want to remember decisions, bugs, procedures, and session closures inside the MCP flow.
+- Repositories where there is already discipline around writing structured memories.
+- Environments where shared PostgreSQL is already available and local installation cost is not a problem.
 
-No ayuda tanto en estos escenarios:
+It helps less in these scenarios:
 
-- Cuando se espera que la herramienta "entienda" semantica, relaciones causales o intencion de la consulta.
-- Cuando hay multiples proyectos/equipos compartiendo la misma base y se necesita aislamiento fuerte.
-- Cuando el equipo espera que el contexto llegue curado automaticamente sin disciplina de captura.
+- When the team expects the tool to understand semantics, causal relationships, or query intent.
+- When multiple projects and teams share the same database and strong isolation is required.
+- When the team expects context to arrive curated automatically without disciplined capture.
 
-### 2. Realmente funciona como deberia
+### 2. Does it really work as it should
 
-La respuesta objetiva es: aun no del todo.
+The objective answer is: not completely yet.
 
-Lo que si esta bien encaminado:
+What is on solid footing:
 
-- MCP server simple y claro sobre `stdio`.
-- Persistencia en PostgreSQL.
-- Guardado con `audit_log`, `soft delete`, `content_hash` y `metadata` JSONB.
-- Flujo de `boot_session`, `remember`, `save_memory`, `end_session`, `forget` bien separado entre app, storage y server.
-- Viewer live y snapshot como herramientas utiles de inspeccion.
+- A simple and clear MCP server over `stdio`.
+- PostgreSQL persistence.
+- Saving with `audit_log`, `soft delete`, `content_hash`, and `metadata` JSONB.
+- A `boot_session`, `remember`, `save_memory`, `end_session`, and `forget` flow that is well separated across app, storage, and server.
+- Live viewer and snapshot viewer as useful inspection tools.
 
-Lo que impide decir "funciona como deberia" sin reservas:
+What prevents saying "it works as it should" without reservations:
 
-- La suite hoy no esta totalmente verde: `pytest -q` da `62 passed, 1 failed`.
-- El README afirma que la suite actual esta pasando, pero eso no coincide con el estado real.
-- El filtrado de `remember` no esta aislando por proyecto/equipo/autor actual; solo filtra por `scope`.
+- The suite is not fully green today: `pytest -q` returns `62 passed, 1 failed`.
+- The README claims the current suite is passing, but that does not match the real state.
+- `remember` filtering is not isolated by current project, team, or author; it only filters by `scope`.
 
-### 3. Si ahorra tokens
+### 3. Does it save tokens
 
-Si, pero con precision:
+Yes, but precisely:
 
-- `remember(..., include_content=false)` omite el cuerpo completo y deja metadata + preview.
-- `boot_session` usa modo hibrido con `BOOT_FULL_CONTENT_LIMIT = 5`.
-- Existe un comando `benchmark` y una ruta `benchmark_payloads()` para medir bytes y tokens aproximados.
+- `remember(..., include_content=false)` omits the full body and returns metadata plus a preview.
+- `boot_session` uses a hybrid mode with `BOOT_FULL_CONTENT_LIMIT = 5`.
+- There is a `benchmark` command and a `benchmark_payloads()` path to measure bytes and approximate tokens.
 
-Lo que limita esa afirmacion:
+What limits that claim:
 
-- El calculo de tokens es solo una aproximacion de `chars / 4`, no un tokenizer real.
-- El ahorro es ahorro de payload, no evidencia de ahorro neto de tokens del agente en flujos reales.
-- Si el agente pide `include_content=true`, el beneficio se reduce rapido.
-- El ahorro no resuelve por si mismo la calidad del contexto.
+- Token calculation is only an approximation of `chars / 4`, not a real tokenizer.
+- The savings are payload savings, not evidence of net agent-token savings in real workflows.
+- If the agent asks for `include_content=true`, the benefit drops quickly.
+- Saving payload does not, by itself, solve context quality.
 
-### 4. Si entrega contexto siempre limpio y curado
+### 4. Does it always deliver clean and curated context
 
 No.
 
-Entrega contexto mas limpio que una memoria cruda, pero no siempre limpio y mucho menos siempre curado.
+It delivers cleaner context than raw memory, but not always clean and much less always curated.
 
-Razones:
+Reasons:
 
-- La busqueda es trigram + `ILIKE`; no hay retrieval semantico, clustering, intent detection ni enrichment.
-- La deduplicacion es exacta por SHA256; memorias equivalentes con redaccion distinta sobreviven como duplicados conceptuales.
-- No existe consolidacion automatica de memorias relacionadas.
-- La busqueda principal no filtra por tenant real; esto puede contaminar el recall.
+- Search is trigram plus `ILIKE`; there is no semantic retrieval, clustering, intent detection, or enrichment.
+- Deduplication is exact by SHA256; equivalent memories with different wording survive as conceptual duplicates.
+- There is no automatic consolidation of related memories.
+- The main search does not filter by real tenant boundaries; this can contaminate recall.
 
-### 5. Si serviria para un equipo de 10 desarrolladores en paralelo
+### 5. Would it serve a team of 10 developers in parallel
 
-No lo descartaria, pero hoy no lo recomendaria sin cambios previos.
+I would not rule it out, but I would not recommend it yet without prior changes.
 
-Los dos problemas practicos mas graves para ese caso son:
+The two most serious practical problems for that case are:
 
-- `max_size=5` fijo en el pool de conexiones.
-- `remember` y el viewer no estan aislados por proyecto/equipo real dentro de la consulta.
+- A fixed `max_size=5` in the connection pool.
+- `remember` and the viewer are not isolated by real project or team inside the query.
 
-Si el despliegue fuera un solo equipo, pocos proyectos, una base compartida controlada, y se corrigen esos puntos, entonces si puede ser util para 10 personas.
+If the deployment were a single team, few projects, a controlled shared database, and those points were fixed, then yes, it could be useful for 10 people.
 
-### 6. Si escalaria a cientos de desarrolladores en una empresa
+### 6. Would it scale to hundreds of developers in an enterprise
 
-No en el estado actual.
+Not in the current state.
 
-La base elegida, PostgreSQL, si puede escalar. Lo que no escala aun es la arquitectura de aislamiento, seguridad, coherencia de cache y retrieval.
+The chosen base, PostgreSQL, can scale. What does not scale yet is the architecture for isolation, security, cache coherence, and retrieval.
 
-## Fortalezas Reales del Proyecto
+## Real Strengths of the Project
 
-### 1. Base tecnica razonable y pequena
+### 1. Reasonable and small technical base
 
-El proyecto es entendible. La separacion entre `app.py`, `server.py`, `storage/postgres.py`, `session.py`, `templates.py` y `bootstrap.py` es pragmatica y mantenible.
+The project is understandable. The separation between `app.py`, `server.py`, `storage/postgres.py`, `session.py`, `templates.py`, and `bootstrap.py` is pragmatic and maintainable.
 
-Esto importa porque mejorar un sistema pequeno y coherente es mucho mas viable que rescatar un monolito desordenado.
+That matters because improving a small, coherent system is much more viable than rescuing a disordered monolith.
 
-### 2. PostgreSQL fue una decision correcta
+### 2. PostgreSQL was the right decision
 
-Cambiar de SQLite a PostgreSQL fue una decision acertada para memoria compartida.
+Switching from SQLite to PostgreSQL was the right decision for shared memory.
 
-Beneficios actuales:
+Current benefits:
 
-- concurrencia real de lecturas/escrituras
-- `pg_trgm` para search basico util
-- `JSONB` para metadata estructurada
-- `audit_log` y extensiones estandar
+- real concurrent reads and writes
+- `pg_trgm` for useful basic search
+- `JSONB` for structured metadata
+- `audit_log` and standard extensions
 
-### 3. La superficie MCP es minima y clara
+### 3. The MCP surface is minimal and clear
 
-Las herramientas son pocas y entendibles:
+The tools are few and understandable:
 
 - `boot_session`
 - `remember`
@@ -123,345 +123,345 @@ Las herramientas son pocas y entendibles:
 - `end_session`
 - `forget`
 
-Eso reduce complejidad cognitiva y facilita adopcion.
+That reduces cognitive complexity and makes adoption easier.
 
-### 4. Hay un intento serio de ahorrar contexto
+### 4. There is a serious attempt to save context
 
-El proyecto no solo dice que ahorra tokens; hay implementacion concreta:
+The project does not just say it saves tokens; there is concrete implementation:
 
-- boot hibrido
+- hybrid boot
 - `include_content=false`
 - `preview`
 - benchmark CLI
 
-Eso lo pone por encima de muchos sistemas de memoria que solo prometen ahorro sin instrumentacion.
+That puts it above many memory systems that only promise savings without instrumentation.
 
-### 5. Hay trazabilidad y estructura
+### 5. There is traceability and structure
 
-El uso de `audit_log`, `soft delete`, `metadata` JSONB y `content_hash` da una base util para gobernanza futura.
+Using `audit_log`, `soft delete`, `metadata` JSONB, and `content_hash` provides a useful base for future governance.
 
-### 6. La documentacion es mas honesta que la media
+### 6. The documentation is more honest than average
 
-`README.md` ya aclara varias cosas que no existen todavia: RLS, semantic retrieval, LISTEN/NOTIFY y forgetting engine. Eso es bueno. El problema es que aun quedan algunas afirmaciones que ya no coinciden con el estado real.
+`README.md` already clarifies several things that do not exist yet: RLS, semantic retrieval, LISTEN/NOTIFY, and a forgetting engine. That is good. The problem is that some claims still do not match the real current state.
 
-## Debilidades y Riesgos Serios
+## Weaknesses and Serious Risks
 
-### 1. Riesgo critico: `remember` no esta aislado por proyecto, equipo ni usuario
+### 1. Critical risk: `remember` is not isolated by project, team, or user
 
-Evidencia:
+Evidence:
 
-- `src/olinkb/app.py` calcula `project_name` en `remember()`.
-- Pero `src/olinkb/storage/postgres.py` en `search_memories()` no recibe ni usa `project`, `team` ni `author_username`.
-- La consulta filtra solo con `scope = ANY(...)`.
+- `src/olinkb/app.py` computes `project_name` in `remember()`.
+- But `src/olinkb/storage/postgres.py` in `search_memories()` does not receive or use `project`, `team`, or `author_username`.
+- The query only filters with `scope = ANY(...)`.
 
-Impacto:
+Impact:
 
-- `scope="project"` puede devolver memorias de cualquier proyecto almacenado en la misma base.
-- `scope="team"` puede devolver memorias de cualquier equipo.
-- `scope="personal"` potencialmente expone memorias personales de otros usuarios si comparten la misma base.
-- `scope="all"`, que es el default, amplifica el problema.
-
-Conclusion:
-
-Este es hoy el principal bloqueo para afirmar que OlinKB entrega contexto limpio o multi-tenant seguro.
-
-### 2. Riesgo critico: no hay autorizacion real, solo datos de rol
-
-Evidencia:
-
-- `team_members.role` existe en `001_init.sql`.
-- `create_or_update_member()` guarda `role`.
-- No hay chequeos de rol antes de `save_memory`, `forget_memory`, `search_memories` o `search_viewer_memories`.
-
-Impacto:
-
-- El concepto de rol hoy es decorativo.
-- No existe enforcement para namespaces sensibles como convenciones de equipo.
-- No hay aislamiento de permisos por namespace.
+- `scope="project"` can return memories from any project stored in the same database.
+- `scope="team"` can return memories from any team.
+- `scope="personal"` can potentially expose personal memories from other users if they share the same database.
+- `scope="all"`, which is the default, amplifies the problem.
 
 Conclusion:
 
-No es correcto venderlo como listo para empresa mientras los roles no tengan efecto real.
+Today this is the main blocker to claiming that OlinKB delivers clean context or secure multi-tenant behavior.
 
-### 3. Pool de conexiones fijo y subdimensionado
+### 2. Critical risk: there is no real authorization, only role data
 
-Evidencia:
+Evidence:
 
-- `src/olinkb/storage/postgres.py` crea el pool con `min_size=1, max_size=5`.
+- `team_members.role` exists in `001_init.sql`.
+- `create_or_update_member()` stores `role`.
+- There are no role checks before `save_memory`, `forget_memory`, `search_memories`, or `search_viewer_memories`.
 
-Impacto:
+Impact:
 
-- Para varios agentes concurrentes, 5 conexiones es un limite bajo.
-- En un equipo de 10 devs con varias operaciones superpuestas, puede haber contencion y latencia evitable.
-
-Conclusion:
-
-Debe ser configurable por entorno y medido con carga real.
-
-### 4. Sesiones activas solo viven en memoria del proceso
-
-Evidencia:
-
-- `src/olinkb/session.py` usa un diccionario en memoria.
-- `OlinKBApp` lo usa para `memories_read` y `memories_written` durante la sesion.
-
-Impacto:
-
-- Si el proceso muere, se pierde el estado activo de sesion.
-- No hay coordinacion entre procesos.
-- No sirve para analytics operativos ni observabilidad distribuida.
-
-Nota:
-
-El proyecto tiene una ruta de recuperacion parcial al cerrar sesion, pero no resuelve coordinacion multi-proceso.
-
-### 5. Cache local sin invalidacion distribuida
-
-Evidencia:
-
-- `src/olinkb/storage/cache.py` implementa una cache local en memoria con TTL.
-- `src/olinkb/config.py` fija por defecto `OLINKB_CACHE_TTL_SECONDS=300`.
-- No existe `LISTEN/NOTIFY` ni invalidacion cross-process.
-
-Impacto:
-
-- Un proceso puede seguir leyendo datos viejos durante varios minutos.
-- En equipos concurrentes, la frescura del contexto no es garantizable.
+- The concept of role is currently decorative.
+- There is no enforcement for sensitive namespaces such as team conventions.
+- There is no permission isolation by namespace.
 
 Conclusion:
 
-Esto no invalida el producto para equipos pequenos, pero si es insuficiente para coordinacion fuerte entre muchos agentes.
+It is not correct to market it as enterprise-ready while roles have no real effect.
 
-### 6. El retrieval sigue siendo basico
+### 3. Fixed and undersized connection pool
 
-Evidencia:
+Evidence:
 
-- `search_memories()` usa `similarity(...)` y `ILIKE`.
-- No hay embeddings, `pgvector`, query intent, re-ranking semantico ni expansion por relaciones.
+- `src/olinkb/storage/postgres.py` creates the pool with `min_size=1, max_size=5`.
 
-Impacto:
+Impact:
 
-- El sistema recuerda texto parecido, no conocimiento necesariamente relevante.
-- No hay curacion automatica del contexto.
-
-Conclusion:
-
-Hoy es una memoria searchable, no una memoria inteligente.
-
-### 7. La estructura capturada y la estructura extraida no coinciden del todo
-
-Evidencia:
-
-- `src/olinkb/templates.py` instruye a guardar bloques como `What`, `Why`, `Where`, `Learned`, `Context`, `Decision`, `Evidence`, `Next Steps`.
-- `src/olinkb/storage/postgres.py` extrae metadata con `STRUCTURED_METADATA_PATTERN`.
-- Ese patron no incluye `Evidence`.
-
-Impacto:
-
-- Parte del contexto recomendado por las instrucciones no queda estructurado.
-- Los previews y la metadata no representan todo lo que el propio protocolo pide guardar.
-
-Ademas:
-
-- La extraccion depende de encabezados en ingles.
-- En equipos bilingues o hispanohablantes, la estructura real puede degradarse.
-
-### 8. La verificacion automatizada da confianza parcial, no confianza fuerte
-
-Evidencia:
-
-- La suite actual ejecutada localmente dio `62 passed, 1 failed`.
-- El fallo esta en `tests/test_viewer.py` y comprueba que el HTML del viewer contenga `All notes`, texto que hoy no aparece.
-- Muchos tests del storage y app usan fakes y stubs (`FakeStorage`, `SavePool`, `QueryPool`, `BootQueryPool`, `BenchmarkQueryPool`, etc.).
-
-Impacto:
-
-- Hay buena cobertura unitaria de contratos.
-- Hay poca evidencia de comportamiento real contra PostgreSQL vivo y flujos completos.
+- For several concurrent agents, 5 connections is a low limit.
+- In a team of 10 developers with overlapping operations, it can create avoidable contention and latency.
 
 Conclusion:
 
-El proyecto esta mejor testado que un prototipo improvisado, pero no lo suficiente para sostener claims de robustez de equipo grande.
+It should be configurable by environment and measured under real load.
 
-### 9. El README tiene una afirmacion ya desactualizada
+### 4. Active sessions live only in process memory
 
-Evidencia:
+Evidence:
 
-- `README.md` dice: "The current test suite is passing".
-- La ejecucion real del repo en este analisis no coincide.
+- `src/olinkb/session.py` uses an in-memory dictionary.
+- `OlinKBApp` uses it for `memories_read` and `memories_written` during the session.
 
-Impacto:
+Impact:
 
-- Resta credibilidad operativa.
-- Aunque sea un detalle pequeno, es exactamente el tipo de detalle que hace dudar de otros claims.
+- If the process dies, active session state is lost.
+- There is no coordination between processes.
+- It does not serve operational analytics or distributed observability.
 
-### 10. El boot esta mas curado que el remember
+Note:
 
-Evidencia:
+The project has a partial recovery path when closing a session, but it does not solve multi-process coordination.
 
-- `load_boot_memories()` si limita por `system://`, `team://conventions/`, proyecto actual y `personal://usuario/...`.
-- `remember()` no hace un filtrado equivalente sobre memorias.
+### 5. Local cache without distributed invalidation
 
-Impacto:
+Evidence:
 
-- El arranque es relativamente prudente.
-- El recall ad hoc es mucho mas riesgoso en limpieza de contexto.
+- `src/olinkb/storage/cache.py` implements a local in-memory cache with TTL.
+- `src/olinkb/config.py` defaults `OLINKB_CACHE_TTL_SECONDS=300`.
+- There is no `LISTEN/NOTIFY` or cross-process invalidation.
 
-## Lo Que Se Puede Mejorar Ya
+Impact:
 
-### Prioridad Alta
+- One process can keep reading stale data for several minutes.
+- In concurrent teams, freshness of context cannot be guaranteed.
 
-1. Corregir el scoping de `remember`.
+Conclusion:
 
-- Filtrar por proyecto actual en memorias `project://...`.
-- Filtrar por equipo actual en memorias `team://...`.
-- Filtrar por usuario actual en memorias `personal://...`.
-- Hacer que `scope="all"` signifique "all within my tenant/session context", no "all rows of that scope in the database".
+This does not invalidate the product for small teams, but it is insufficient for strong coordination across many agents.
 
-2. Corregir el scoping del viewer live.
+### 6. Retrieval is still basic
 
-- `search_viewer_memories()` no deberia exponer dataset transversal por defecto si la base se comparte entre equipos/proyectos.
+Evidence:
 
-3. Implementar autorizacion real.
+- `search_memories()` uses `similarity(...)` and `ILIKE`.
+- There are no embeddings, `pgvector`, query intent, semantic reranking, or relationship expansion.
 
-- Primero a nivel de aplicacion.
-- Idealmente despues a nivel de base con RLS.
+Impact:
 
-4. Hacer configurable el pool de PostgreSQL.
+- The system remembers similar text, not necessarily relevant knowledge.
+- There is no automatic curation of context.
 
-- Por ejemplo `OLINKB_PG_POOL_MIN_SIZE` y `OLINKB_PG_POOL_MAX_SIZE`.
+Conclusion:
 
-5. Reparar el estado de la suite.
+Today it is searchable memory, not intelligent memory.
 
-- O se corrige el test del viewer.
-- O se corrige el HTML del viewer.
-- Pero no deberia quedar rojo mientras el README dice lo contrario.
+### 7. Captured structure and extracted structure do not fully match
 
-6. Agregar tests de integracion reales.
+Evidence:
 
-- PostgreSQL real levantado en CI.
-- Flujos `boot -> remember -> save -> end -> forget`.
-- Casos multi-tenant y multi-project.
+- `src/olinkb/templates.py` instructs agents to save blocks like `What`, `Why`, `Where`, `Learned`, `Context`, `Decision`, `Evidence`, and `Next Steps`.
+- `src/olinkb/storage/postgres.py` extracts metadata with `STRUCTURED_METADATA_PATTERN`.
+- That pattern does not include `Evidence`.
 
-### Prioridad Media
+Impact:
 
-1. Alinear instrucciones y extraccion de metadata.
+- Part of the context recommended by the instructions is not stored as structured data.
+- Previews and metadata do not represent everything that the protocol itself asks to save.
 
-- Agregar `Evidence` a la extraccion.
-- Decidir si `Remaining`, `Risks` o `Open Questions` tambien deben estructurarse.
-- Soportar encabezados en espanol si el producto se usara en equipos hispanohablantes.
+Additionally:
 
-2. Mejorar la validez del benchmark de tokens.
+- Extraction depends on English headings.
+- In bilingual or Spanish-speaking teams, the real structure can degrade.
 
-- Mantener el benchmark actual por simplicidad.
-- Pero aclarar en CLI/docs que es aproximado.
-- Agregar opcion futura con tokenizer real del proveedor principal.
+### 8. Automated verification gives partial confidence, not strong confidence
 
-3. Invalidacion distribuida de cache.
+Evidence:
 
-- `LISTEN/NOTIFY` es la mejora natural.
+- The current suite run locally returned `62 passed, 1 failed`.
+- The failure is in `tests/test_viewer.py` and checks that the viewer HTML contains `All notes`, text that does not currently appear.
+- Many storage and app tests use fakes and stubs (`FakeStorage`, `SavePool`, `QueryPool`, `BootQueryPool`, `BenchmarkQueryPool`, and so on).
 
-4. Retrieval mas inteligente.
+Impact:
 
-- embeddings o `pgvector`
-- dedup semantico
+- There is good unit coverage of contracts.
+- There is little evidence of real behavior against live PostgreSQL and full flows.
+
+Conclusion:
+
+The project is better tested than an improvised prototype, but not enough to support large-team robustness claims.
+
+### 9. The README has an outdated claim
+
+Evidence:
+
+- `README.md` says: "The current test suite is passing".
+- The real execution in this analysis does not match.
+
+Impact:
+
+- It reduces operational credibility.
+- Even if it is a small detail, it is exactly the kind of detail that makes other claims harder to trust.
+
+### 10. Boot is more curated than remember
+
+Evidence:
+
+- `load_boot_memories()` does limit by `system://`, `team://conventions/`, current project, and `personal://user/...`.
+- `remember()` does not apply equivalent filtering to memories.
+
+Impact:
+
+- Startup is relatively prudent.
+- Ad hoc recall is much riskier in terms of context cleanliness.
+
+## What Can Be Improved Right Now
+
+### High Priority
+
+1. Fix `remember` scoping.
+
+- Filter by current project for `project://...` memories.
+- Filter by current team for `team://...` memories.
+- Filter by current user for `personal://...` memories.
+- Make `scope="all"` mean "all within my tenant/session context", not "all rows of that scope in the database".
+
+2. Fix live viewer scoping.
+
+- `search_viewer_memories()` should not expose a cross-cutting dataset by default if the database is shared across teams or projects.
+
+3. Implement real authorization.
+
+- First at the application level.
+- Ideally afterward at the database level with RLS.
+
+4. Make the PostgreSQL pool configurable.
+
+- For example `OLINKB_PG_POOL_MIN_SIZE` and `OLINKB_PG_POOL_MAX_SIZE`.
+
+5. Repair the suite state.
+
+- Either fix the viewer test.
+- Or fix the viewer HTML.
+- But it should not remain red while the README says otherwise.
+
+6. Add real integration tests.
+
+- Live PostgreSQL brought up in CI.
+- `boot -> remember -> save -> end -> forget` flows.
+- Multi-tenant and multi-project cases.
+
+### Medium Priority
+
+1. Align instructions and metadata extraction.
+
+- Add `Evidence` to extraction.
+- Decide whether `Remaining`, `Risks`, or `Open Questions` should also be structured.
+- Support Spanish headings if the product will be used in Spanish-speaking teams.
+
+2. Improve token benchmark validity.
+
+- Keep the current benchmark for simplicity.
+- But clarify in CLI/docs that it is approximate.
+- Add a future option with a real tokenizer from the main provider.
+
+3. Distributed cache invalidation.
+
+- `LISTEN/NOTIFY` is the natural next step.
+
+4. Smarter retrieval.
+
+- embeddings or `pgvector`
+- semantic deduplication
 - query intent
-- reranking por tipo de memoria + recencia + autoridad
+- reranking by memory type, recency, and authority
 
-5. Persistir mas senales operativas.
+5. Persist more operational signals.
 
-- metricas por consulta
-- latencias
-- hit ratio de cache
-- memorias mas consultadas
+- metrics per query
+- latencies
+- cache hit ratio
+- most accessed memories
 
-### Prioridad Baja
+### Low Priority
 
-1. Mejorar naming y claims del viewer.
+1. Improve viewer naming and claims.
 
-- Separar mejor el viewer de inspeccion del discurso central del producto.
+- Separate the inspection viewer more clearly from the core product narrative.
 
-2. Internacionalizacion de templates e interfaz.
+2. Internationalize templates and interface.
 
-3. Refinar el scoring de boot con datos reales, no solo heuristicas.
+3. Refine boot scoring with real data instead of only heuristics.
 
-## Lo Que Se Puede Quitar o Rebajar
+## What Should Be Removed or Softened
 
-### 1. Quitar del discurso la idea de que los roles ya protegen el sistema
+### 1. Remove the idea that roles already protect the system
 
-Hoy los roles existen en datos, no en enforcement.
+Today roles exist in the data, not in enforcement.
 
-### 2. Rebajar cualquier claim de "contexto curado"
+### 2. Soften any claim of "curated context"
 
-Mas correcto hoy seria decir:
+A more accurate description today would be:
 
-- contexto mas liviano
-- contexto estructurado cuando la memoria viene bien escrita
-- memoria compartida searchable
+- lighter context
+- structured context when the memory is well written
+- searchable shared memory
 
-Pero no "siempre limpio" ni "curado".
+But not "always clean" or "curated".
 
-### 3. Quitar la linea del README que afirma que la suite esta pasando hasta que vuelva a ser verdad
+### 3. Remove the README line claiming the suite is passing until that becomes true again
 
-### 4. Quitar la suposicion de que `scope` equivale a tenancy
+### 4. Remove the assumption that `scope` equals tenancy
 
-`scope` solo expresa categoria. No es aislamiento.
+`scope` only expresses category. It is not isolation.
 
-## Lo Que Conviene Mantener
+## What Should Be Kept
 
-- PostgreSQL como base principal.
-- La API MCP pequena.
+- PostgreSQL as the main base.
+- The small MCP API.
 - `metadata` JSONB.
 - `audit_log`.
 - soft delete.
 - benchmark CLI.
-- boot hibrido con payload lean.
-- bootstrap de VS Code.
+- hybrid boot with lean payload.
+- VS Code bootstrap.
 
-Todo eso tiene sentido y no deberia tirarse.
+All of that makes sense and should not be thrown away.
 
-## Evaluacion por Escala
+## Evaluation by Scale
 
-### 1 a 3 desarrolladores
+### 1 to 3 developers
 
-Si. Es un uso razonable hoy, sobre todo si trabajan sobre uno o pocos proyectos y hay disciplina para guardar memorias buenas.
+Yes. It is a reasonable use today, especially if they work on one or a few projects and there is discipline around saving good memories.
 
-### 4 a 10 desarrolladores
+### 4 to 10 developers
 
-Posible, pero no lo dejaria entrar asi a produccion compartida sin antes corregir:
+Possible, but I would not let it enter shared production in this state without first fixing:
 
-- scoping de `remember`
-- pool configurable
-- tests de integracion
-- invalidacion de cache, al menos parcial
+- `remember` scoping
+- configurable pool sizing
+- integration tests
+- cache invalidation, at least partially
 
-### 10 a 50 desarrolladores
+### 10 to 50 developers
 
-No todavia. Ya aparecen problemas de tenancy, permisos, observabilidad y frescura de contexto.
+Not yet. That is where tenancy, permissions, observability, and context freshness issues become visible.
 
-### 100+ desarrolladores
+### 100+ developers
 
-No. Faltan demasiadas piezas estructurales para decir que esta listo para empresa.
+No. Too many structural pieces are still missing to say it is enterprise-ready.
 
-## Juicio Final
+## Final Judgment
 
-OlinKB no es humo. Tiene valor real y una base tecnica util. No es un producto vacio.
+OlinKB is not smoke and mirrors. It has real value and a useful technical base. It is not an empty product.
 
-Pero tampoco es correcto presentarlo hoy como una solucion madura de memoria compartida curada para equipos grandes.
+But it is also not correct to present it today as a mature curated shared-memory solution for large teams.
 
-La mejor forma de describirlo objetivamente seria esta:
+The best objective way to describe it would be this:
 
-> OlinKB es una fundacion prometedora para memoria compartida de agentes, con buena direccion tecnica y mejoras reales de payload, pero todavia no garantiza aislamiento, curacion semantica ni escalabilidad operativa suficientes para equipos grandes o empresa.
+> OlinKB is a promising foundation for shared agent memory, with good technical direction and real payload improvements, but it still does not guarantee the isolation, semantic curation, or operational scalability needed for large teams or enterprise use.
 
-## Recomendacion Practica
+## Practical Recommendation
 
-Si el objetivo es mejorar la herramienta de la forma mas efectiva posible, yo haria este orden:
+If the goal is to improve the tool in the most effective order, I would do this:
 
-1. Corregir scoping multi-tenant de `remember` y viewer.
-2. Implementar autorizacion real por namespace/rol.
-3. Reparar suite roja y agregar integracion con PostgreSQL vivo.
-4. Hacer configurable el pool y medir carga.
-5. Agregar invalidacion distribuida de cache.
-6. Recien despues invertir en retrieval semantico y dedup inteligente.
+1. Fix multi-tenant scoping in `remember` and the viewer.
+2. Implement real authorization by namespace and role.
+3. Repair the red suite and add integration with live PostgreSQL.
+4. Make the pool configurable and measure load.
+5. Add distributed cache invalidation.
+6. Only then invest in semantic retrieval and intelligent deduplication.
 
 Ese orden ataca primero verdad operativa, seguridad y limpieza de contexto. Luego viene la inteligencia extra.

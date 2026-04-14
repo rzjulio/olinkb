@@ -38,16 +38,25 @@ class Settings:
     server_name: str = "OlinKB"
 
     @classmethod
-    def from_env(cls, env: dict[str, str] | None = None) -> "Settings":
+    def from_env(
+        cls,
+        env: dict[str, str] | None = None,
+        *,
+        require_user: bool = True,
+        require_team: bool = True,
+    ) -> "Settings":
         values = env or dict(os.environ)
         user = values.get("OLINKB_USER") or values.get("USER") or values.get("USERNAME")
-        if not user:
+        if require_user and not user:
             raise SettingsError("Missing OLINKB_USER and no OS user fallback was found")
+        team = values.get("OLINKB_TEAM") or ""
+        if require_team and not team:
+            raise SettingsError("Missing required environment variable: OLINKB_TEAM")
 
         return cls(
             pg_url=_get_required_env("OLINKB_PG_URL", values),
-            user=user,
-            team=_get_required_env("OLINKB_TEAM", values),
+            user=user or "",
+            team=team,
             default_project=values.get("OLINKB_PROJECT"),
             cache_ttl_seconds=_get_int("OLINKB_CACHE_TTL_SECONDS", 300, values),
             cache_max_entries=_get_int("OLINKB_CACHE_MAX_ENTRIES", 256, values),
@@ -59,3 +68,8 @@ class Settings:
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings.from_env()
+
+
+@lru_cache(maxsize=1)
+def get_viewer_settings() -> Settings:
+    return Settings.from_env(require_user=False, require_team=False)

@@ -52,10 +52,24 @@ pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0
 olinkb --init
 ```
 
+On Windows, run the same commands from PowerShell, Command Prompt, or Windows Terminal.
+
 On Windows, installation can look idle for a while because the wheel still needs to install runtime dependencies. If you want visible progress and the best chance of staying on binary wheels, use:
 
 ```bash
 pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+```
+
+Explicit Windows examples:
+
+```powershell
+pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+olinkb --init --scope global
+```
+
+```bat
+pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
+olinkb --init --scope global
 ```
 
 If `asyncpg` has no compatible wheel for that Python build, `pip` may compile it from source and that is usually the slowest step.
@@ -65,7 +79,31 @@ If `asyncpg` has no compatible wheel for that Python build, `pip` may compile it
 It also lets the user choose between:
 
 - `1 repository`: writes `.vscode/mcp.json` and `.github/copilot-instructions.md` in the current repository
-- `2 global`: writes the VS Code user-level MCP configuration and skips repository instructions
+- `2 global`: writes the VS Code user-level MCP configuration and a user-level `.copilot/instructions.md`
+
+Bootstrap also installs the `memory-relevance-triage` skill:
+
+- repository scope: `.copilot/skills/memory-relevance-triage/SKILL.md`
+- global scope: `~/.copilot/skills/memory-relevance-triage/SKILL.md`
+
+Global MCP registration paths:
+
+- macOS: `~/Library/Application Support/Code/User/mcp.json`
+- Linux: `~/.config/Code/User/mcp.json`
+- Windows: `%APPDATA%\Code\User\mcp.json`
+- Windows fallback if `APPDATA` is missing or blank: `%USERPROFILE%\AppData\Roaming\Code\User\mcp.json`
+
+Instructions file behavior:
+
+- repository scope merges the OlinKB protocol block into `.github/copilot-instructions.md`
+- global scope writes a cross-repository instructions file at `~/.copilot/instructions.md`
+- repository scope installs the memory triage skill into `.copilot/skills/memory-relevance-triage/SKILL.md`
+- global scope installs the same skill into `~/.copilot/skills/memory-relevance-triage/SKILL.md`
+- OlinKB does not modify repository-local `.copilot/` directories during global setup; existing repo-local instructions there stay untouched
+- if `.github/copilot-instructions.md` already contains non-OlinKB sections, OlinKB replaces only its own `## OlinKB Memory Protocol` block and leaves the other repository guidance in place
+- if `~/.copilot/instructions.md` already exists, OlinKB replaces only its own `## OlinKB Memory Protocol` block there and preserves the rest of the user's global guidance
+- OlinKB does not decide precedence between repository instructions and any separate user/global instructions already loaded by VS Code or Copilot; its guarantee is coexistence at the file level, not editor-level merge priority
+- global setup therefore does not overwrite repo-local instructions; it adds a reusable base protocol at the user level while repository instructions can still be more specific
 
 The developer needs:
 
@@ -102,6 +140,7 @@ If you used repository installation (`olinkb --init` and chose `repository`):
 - remove the `olinkb` server entry from `.vscode/mcp.json`
 - if `.vscode/mcp.json` only contains OlinKB, you can delete the file instead
 - remove the generated OlinKB protocol block from `.github/copilot-instructions.md` if you no longer want repository-level agent instructions
+- remove `.copilot/skills/memory-relevance-triage/SKILL.md` if you no longer want the repository-local memory triage skill
 
 Example cleanup:
 
@@ -109,11 +148,51 @@ Example cleanup:
 rm -f .vscode/mcp.json
 ```
 
+Windows equivalents:
+
+```powershell
+Remove-Item .vscode\mcp.json
+```
+
+```bat
+del .vscode\mcp.json
+```
+
 If you used global installation (`olinkb --init` and chose `global`), remove the `olinkb` entry from the VS Code user-level MCP file, or delete the file if OlinKB is the only configured server:
 
 - macOS: `~/Library/Application Support/Code/User/mcp.json`
 - Linux: `~/.config/Code/User/mcp.json`
 - Windows: `%APPDATA%\\Code\\User\\mcp.json`
+
+Global instructions are also written to `~/.copilot/instructions.md` on macOS/Linux and `%USERPROFILE%\\.copilot\\instructions.md` on Windows.
+
+The memory triage skill is also written to `~/.copilot/skills/memory-relevance-triage/SKILL.md` on macOS/Linux and `%USERPROFILE%\\.copilot\\skills\\memory-relevance-triage\\SKILL.md` on Windows.
+
+If you no longer want the global OlinKB guidance, remove the generated `## OlinKB Memory Protocol` block from that global instructions file, or delete the file only if it contains no other user guidance you want to keep.
+
+If you no longer want the global OlinKB memory triage skill, delete `~/.copilot/skills/memory-relevance-triage/SKILL.md` or the containing `memory-relevance-triage` directory.
+
+If `APPDATA` is not available on Windows, OlinKB falls back to `%USERPROFILE%\\AppData\\Roaming\\Code\\User\\mcp.json`.
+
+Windows delete commands, only if that file contains no other MCP servers you want to keep:
+
+```powershell
+Remove-Item "$env:APPDATA\Code\User\mcp.json"
+```
+
+```bat
+del "%APPDATA%\Code\User\mcp.json"
+```
+
+If you initialized globally from PowerShell or Command Prompt, the interactive command is still the same:
+
+```powershell
+olinkb --init --scope global
+```
+
+```bat
+olinkb --init --scope global
+```
 
 ### 3. Remove generated workspace artifacts
 
@@ -176,6 +255,8 @@ olinkb viewer
 ```
 
 That starts the HTTP viewer backed directly by PostgreSQL, so search stays server-side through `/api/viewer`. This is the scalable path for large datasets.
+
+For startup, the live viewer now only requires `OLINKB_PG_URL`. It no longer requires `OLINKB_USER` or `OLINKB_TEAM` just to boot the read-only browsing surface. If you later use authenticated viewer flows like login or managed-document authoring, OlinKB will provision a local viewer fallback team internally when no default team is configured.
 
 This repository also includes a read-only viewer scaffold under `olinkb-viewer` for static exports.
 

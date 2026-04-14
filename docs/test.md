@@ -1,3 +1,3 @@
-# Estandar de prueba
-Esta es una prueba, quiero que respondas con este numero: 783940
-El color a responder es rojo
+# Test Standard
+This is a test. I want you to respond with this number: 783940
+The color to respond with is red

@@ -1,201 +1,201 @@
-# Base de Conocimiento: Sistemas de Memoria para IA
+# Knowledge Base: AI Memory Systems
 
-> Síntesis de 20 repositorios analizados — Abril 2026
-> Objetivo: Fundamentar el diseño de un sistema de memoria compartida para equipos de desarrollo con GitHub Copilot
+> Synthesis of 20 analyzed repositories — April 2026
+> Objective: Ground the design of a shared memory system for development teams using GitHub Copilot
 
 ---
 
-## 1. Taxonomía de Sistemas Analizados
+## 1. Taxonomy of Analyzed Systems
 
-### 1.1 Frameworks de Orquestación (RAG/Agentes)
+### 1.1 Orchestration Frameworks (RAG/Agents)
 
-| Repo | Stars | Licencia | Rol Principal |
+| Repo | Stars | License | Primary Role |
 |------|-------|----------|--------------|
-| **LangChain** | 133k | MIT | Orquestación de agentes, interfaz estándar para modelos/embeddings/vector stores |
-| **LlamaIndex** | 48.5k | MIT | Framework centrado en documentos, indexación y retrieval |
-| **Haystack** | 24.8k | Apache-2.0 | Pipelines de search+RAG para producción enterprise |
-| **Quivr** | 39.1k | Apache-2.0 | "Second Brain" — RAG opinado, `Brain.from_files()` en 5 líneas |
-| **AnythingLLM** | 58.1k | MIT | Workspace all-in-one, privacy-first, self-hosted |
-| **Open WebUI** | 131k | Custom | Plataforma AI extensible con RAG local y auth enterprise |
+| **LangChain** | 133k | MIT | Agent orchestration, standard interface for models/embeddings/vector stores |
+| **LlamaIndex** | 48.5k | MIT | Document-centered framework for indexing and retrieval |
+| **Haystack** | 24.8k | Apache-2.0 | Search + RAG pipelines for enterprise production |
+| **Quivr** | 39.1k | Apache-2.0 | "Second Brain" — opinionated RAG, `Brain.from_files()` in 5 lines |
+| **AnythingLLM** | 58.1k | MIT | All-in-one workspace, privacy-first, self-hosted |
+| **Open WebUI** | 131k | Custom | Extensible AI platform with local RAG and enterprise auth |
 
-**Lección clave**: Estos frameworks son demasiado pesados para memoria de equipo. Sirven como referencia para patrones de retrieval, pero no son la base correcta para un sistema ligero de memoria compartida.
+**Key lesson**: These frameworks are too heavy for team memory. They are useful as references for retrieval patterns, but they are not the right foundation for a lightweight shared-memory system.
 
-### 1.2 Sistemas de Memoria Persistente para Agentes (CORE)
+### 1.2 Persistent Memory Systems for Agents (CORE)
 
-| Repo | Stars | Licencia | Innovación Principal |
-|------|-------|----------|---------------------|
-| **nocturne_memory** | 939 | MIT | URI Graph Routing, memoria soberana de primera persona, glossary auto-linking |
-| **LycheeMem** | 218 | Apache-2.0 | 3 memory stores (working/semantic/procedural), 4-module pipeline, académicamente riguroso |
-| **mcp-mem0** | 670 | MIT | Template MCP mínimo sobre Mem0, 3 tools |
-| **DeerFlow** | 60.5k | MIT | Long-term memory con deduplicación, sub-agentes con contexto aislado |
-| **PraisonAI** | 6.9k | MIT | `memory=True` flag, persistencia a 20+ DBs, CLI para memoria |
+| Repo | Stars | License | Main Innovation |
+|------|-------|----------|-----------------|
+| **nocturne_memory** | 939 | MIT | URI Graph Routing, sovereign first-person memory, glossary auto-linking |
+| **LycheeMem** | 218 | Apache-2.0 | 3 memory stores (working/semantic/procedural), 4-module pipeline, academically rigorous |
+| **mcp-mem0** | 670 | MIT | Minimal MCP template on top of Mem0, 3 tools |
+| **DeerFlow** | 60.5k | MIT | Long-term memory with deduplication, sub-agents with isolated context |
+| **PraisonAI** | 6.9k | MIT | `memory=True` flag, persistence to 20+ DBs, memory CLI |
 
-**Lección clave**: nocturne_memory es el más relevante directamente (filosofía URI, soberanía de memoria). LycheeMem aporta el retrieval más sofisticado académicamente.
+**Key lesson**: nocturne_memory is the most directly relevant one (URI philosophy, memory sovereignty). LycheeMem contributes the most sophisticated academic retrieval approach.
 
-### 1.3 Sistemas de Rendimiento y Caché
+### 1.3 Performance and Cache Systems
 
-| Repo | Stars | Licencia | Rol |
-|------|-------|----------|-----|
-| **TeleMem** | 456 | Apache-2.0 | Drop-in replacement de Mem0, 86.33% accuracy, clustering semántico con LLM |
-| **GPTCache** | 8k | MIT | Caché semántico para queries LLM, reduce costos 10× y latencia 100× |
-| **Pathway** | 63.5k | BSL 1.1 | ETL en tiempo real, mantiene índices RAG sincronizados |
+| Repo | Stars | License | Role |
+|------|-------|----------|------|
+| **TeleMem** | 456 | Apache-2.0 | Drop-in replacement for Mem0, 86.33% accuracy, semantic clustering with an LLM |
+| **GPTCache** | 8k | MIT | Semantic cache for LLM queries, reduces cost by 10x and latency by 100x |
+| **Pathway** | 63.5k | BSL 1.1 | Real-time ETL, keeps RAG indexes synchronized |
 
-**Lección clave**: TeleMem demuestra que el dedup semántico con LLM es superior al vector similarity simple. GPTCache aporta el concepto de caché semántico.
+**Key lesson**: TeleMem shows that LLM-based semantic deduplication outperforms simple vector similarity. GPTCache contributes the concept of semantic caching.
 
-### 1.4 Sistemas Especializados
+### 1.4 Specialized Systems
 
-| Repo | Stars | Licencia | Rol |
-|------|-------|----------|-----|
-| **everything-claude-code** | 151k | MIT | Hooks de persistencia de sesión, 47 agentes, compactación estratégica |
-| **Aetherius** | 313 | Custom | Simulacra de memoria humana (implícita/explícita/episódica/flashbulb) |
-| **KAG** | 8.7k | Apache-2.0 | Knowledge Augmented Generation con grafos de conocimiento |
-| **OpenClaw-DeepReeder** | 222 | MIT | Gateway de ingestión de contenido web → Markdown → memoria |
+| Repo | Stars | License | Role |
+|------|-------|----------|------|
+| **everything-claude-code** | 151k | MIT | Session persistence hooks, 47 agents, strategic compaction |
+| **Aetherius** | 313 | Custom | Human-memory simulacra (implicit/explicit/episodic/flashbulb) |
+| **KAG** | 8.7k | Apache-2.0 | Knowledge Augmented Generation with knowledge graphs |
+| **OpenClaw-DeepReeder** | 222 | MIT | Web content ingestion gateway -> Markdown -> memory |
 
-### 1.5 Meta-Recursos
+### 1.5 Meta-Resources
 
-| Repo | Stars | Licencia | Rol |
-|------|-------|----------|-----|
-| **Awesome-AI-Memory** | 710 | Apache-2.0 | Taxonomía académica completa, 30+ sistemas listados, benchmarks |
+| Repo | Stars | License | Role |
+|------|-------|----------|------|
+| **Awesome-AI-Memory** | 710 | Apache-2.0 | Complete academic taxonomy, 30+ listed systems, benchmarks |
 
 ---
 
-## 2. Patrones Arquitectónicos Clave
+## 2. Key Architectural Patterns
 
-### 2.1 Protocolo MCP (Model Context Protocol)
+### 2.1 MCP Protocol (Model Context Protocol)
 
-**Adoptado por**: nocturne_memory, LycheeMem, mcp-mem0, KAG, DeerFlow, PraisonAI, AnythingLLM
+**Adopted by**: nocturne_memory, LycheeMem, mcp-mem0, KAG, DeerFlow, PraisonAI, AnythingLLM
 
-MCP es el estándar emergente de facto para comunicación agente↔memoria. Permite:
-- Interfaz universal independiente del modelo LLM ("One Soul, Any Engine")
-- Tools estandarizados que cualquier harness puede invocar
-- Transporte via stdio o SSE (Server-Sent Events)
+MCP is the de facto emerging standard for agent-to-memory communication. It enables:
+- A universal interface independent of the LLM model ("One Soul, Any Engine")
+- Standardized tools that any harness can invoke
+- Transport through stdio or SSE (Server-Sent Events)
 
-**Tools MCP típicos** (7 en nocturne_memory):
+**Typical MCP tools** (7 in nocturne_memory):
 ```
 read_memory, create_memory, update_memory, delete_memory,
 add_alias, manage_triggers, search_memory
 ```
 
-**Implicación para nosotros**: MCP es el protocolo correcto. GitHub Copilot soporta MCP tools.
+**Implication for us**: MCP is the right protocol. GitHub Copilot supports MCP tools.
 
-### 2.2 Almacenamiento: SQLite como Base
+### 2.2 Storage: SQLite as the Base
 
-**Usado por**: nocturne_memory, LycheeMem, everything-claude-code, GPTCache, PraisonAI
+**Used by**: nocturne_memory, LycheeMem, everything-claude-code, GPTCache, PraisonAI
 
-Por qué SQLite domina:
-- Zero-config, archivo único, no requiere servidor
-- FTS5 para búsqueda full-text nativa
-- WAL mode para lecturas concurrentes
-- Se puede replicar/backupear como archivo
-- Suficiente para equipos de hasta ~50 desarrolladores
+Why SQLite dominates:
+- Zero-config, single file, no server required
+- FTS5 for native full-text search
+- WAL mode for concurrent reads
+- Can be replicated/backed up as a file
+- Sufficient for teams of up to about 50 developers
 
-**LycheeMem** combina SQLite FTS5 + LanceDB vector index — el mejor combo descubierto.
+**LycheeMem** combines SQLite FTS5 + LanceDB vector index — the best combination discovered.
 
-**GPTCache** soporta 12+ backends de storage (SQLite, PostgreSQL, MySQL, Redis, MongoDB, DynamoDB, etc.) pero SQLite es el default.
+**GPTCache** supports 12+ storage backends (SQLite, PostgreSQL, MySQL, Redis, MongoDB, DynamoDB, etc.) but SQLite is the default.
 
-### 2.3 Organización de Memoria: URI Jerárquico
+### 2.3 Memory Organization: Hierarchical URI
 
-**Originado en**: nocturne_memory
+**Originated in**: nocturne_memory
 
 ```
-core://agent/identity          → Identidad del agente
-project://architecture         → Decisiones arquitectónicas
-system://boot                  → Carga automática al iniciar
-system://index                 → Índice del sistema
-user://preferences/rzjulio     → Preferencias del usuario
-team://conventions/naming      → Convenciones del equipo
+core://agent/identity          -> Agent identity
+project://architecture         -> Architectural decisions
+system://boot                  -> Automatic startup load
+system://index                 -> System index
+user://preferences/rzjulio     -> User preferences
+team://conventions/naming      -> Team conventions
 ```
 
-**Por qué funciona**: El path IS semantics — no necesitas vector search para navegar la estructura, el URI ya indica el contexto.
+**Why it works**: The path IS semantics — you do not need vector search to navigate the structure because the URI already indicates the context.
 
-### 2.4 Retrieval: Híbrido con Degradación Graceful
+### 2.4 Retrieval: Hybrid with Graceful Degradation
 
-**Mejor implementación**: LycheeMem (4-module pipeline)
+**Best implementation**: LycheeMem (4-module pipeline)
 
-**Patrón general de retrieval híbrido**:
+**General hybrid retrieval pattern**:
 - Keyword search (FTS5)
 - Semantic search (embeddings)
-- Hybrid search (ambos + reranking)
-- Si embeddings fallan → degrada a keyword con `degrade_reasons` reportados
+- Hybrid search (both + reranking)
+- If embeddings fail -> degrade to keyword with reported `degrade_reasons`
 
-**LycheeMem** (más sofisticado):
-1. Compact Semantic Encoding → typed extraction → decontextualization
+**LycheeMem** (more sophisticated):
+1. Compact Semantic Encoding -> typed extraction -> decontextualization
 2. Record Fusion + Conflict Update + Hierarchical Consolidation
-3. Action-Aware Hierarchical Retrieval → composite-level relevance → tree expansion
+3. Action-Aware Hierarchical Retrieval -> composite-level relevance -> tree expansion
 4. Candidate Aggregation + Context Enrichment
 
 **Intent-Aware Search** (LycheeMem):
-- 4 categorías: factual, exploratory, temporal, causal
-- Cada intent → estrategia de retrieval diferente
+- 4 categories: factual, exploratory, temporal, causal
+- Each intent -> a different retrieval strategy
 
-### 2.5 Seguridad de Escritura: Write Guard Pattern
+### 2.5 Write Safety: Write Guard Pattern
 
-**Patrón propuesto por**: nocturne_memory, refinado como concepto general
+**Pattern proposed by**: nocturne_memory, refined as a general concept
 
-Pipeline de escritura auditible:
+Auditable write pipeline:
 ```
-Request → Write Guard (pre-check) → Write Lane (serializado) → SQLite → Snapshot
-```
-
-- Write Guard: valida antes de escribir
-- Write Lane: serializa escrituras para evitar race conditions
-- Snapshots: permiten rollback completo
-- SQLite lock retry: manejo transient de locks
-
-### 2.6 Ciclo de Vida de Sesión
-
-**Patrón consolidado** (everything-claude-code + nocturne_memory):
-
-```
-1. Boot     → system://boot carga memorias core (identidad, contexto)
-2. Recall   → Buscar memorias relevantes al task actual
-3. Work     → El agente trabaja con contexto enriquecido
-4. Write    → Guardar descubrimientos, decisiones, bugs corregidos
-5. Compact  → Consolidar contexto antes de cierre
-6. Recover  → En caso de compactación o crash, recuperar desde snapshots
+Request -> Write Guard (pre-check) -> Write Lane (serialized) -> SQLite -> Snapshot
 ```
 
-### 2.7 Tipos de Memoria (Taxonomía Consolidada)
+- Write Guard: validates before writing
+- Write Lane: serializes writes to avoid race conditions
+- Snapshots: allow full rollback
+- SQLite lock retry: handles transient locks
 
-De Awesome-AI-Memory + Aetherius + LycheeMem:
+### 2.6 Session Lifecycle
 
-| Tipo | Descripción | Persistencia | Ejemplo |
+**Consolidated pattern** (everything-claude-code + nocturne_memory):
+
+```
+1. Boot     -> system://boot loads core memories (identity, context)
+2. Recall   -> Search relevant memories for the current task
+3. Work     -> The agent works with enriched context
+4. Write    -> Save discoveries, decisions, fixed bugs
+5. Compact  -> Consolidate context before closing
+6. Recover  -> In case of compaction or crash, recover from snapshots
+```
+
+### 2.7 Memory Types (Consolidated Taxonomy)
+
+From Awesome-AI-Memory + Aetherius + LycheeMem:
+
+| Type | Description | Persistence | Example |
 |------|-------------|-------------|---------|
-| **Working Memory** | Contexto activo de la sesión | Sesión | "Estoy refactorizando el módulo auth" |
-| **Semantic Memory** | Hechos, preferencias, procedimientos | Permanente | "El proyecto usa TypeScript strict mode" |
-| **Episodic Memory** | Eventos específicos timestamped | Permanente | "El 15/04 migramos de Redux a Zustand" |
-| **Procedural Memory** | How-to knowledge reutilizable | Permanente | "Para deployar: `npm run build && vercel`" |
-| **Flashbulb Memory** | Eventos significativos/emocionales | Permanente | "Descubrimos memory leak que causaba OOM en prod" |
+| **Working Memory** | Active session context | Session | "I am refactoring the auth module" |
+| **Semantic Memory** | Facts, preferences, procedures | Permanent | "The project uses TypeScript strict mode" |
+| **Episodic Memory** | Specific timestamped events | Permanent | "On 04/15 we migrated from Redux to Zustand" |
+| **Procedural Memory** | Reusable how-to knowledge | Permanent | "To deploy: `npm run build && vercel`" |
+| **Flashbulb Memory** | Significant/emotional events | Permanent | "We discovered a memory leak causing OOM in prod" |
 
-**LycheeMem** define 7 MemoryRecord types: `fact, preference, event, constraint, procedure, failure_pattern, tool_affordance`
+**LycheeMem** defines 7 MemoryRecord types: `fact, preference, event, constraint, procedure, failure_pattern, tool_affordance`
 
-### 2.8 Deduplicación y Conflictos
+### 2.8 Deduplication and Conflicts
 
-| Repo | Estrategia |
-|------|-----------|
-| **TeleMem** | Clustering semántico con LLM — merge de memorias similares via LLM call |
-| **LycheeMem** | SHA256 hash para dedup exacto + CompositeRecord hierarchy |
-| **DeerFlow** | Deduplicación de facts en long-term memory |
-| **nocturne_memory** | Glossary auto-hyperlinking con Aho-Corasick (memory network auto-weaves) |
+| Repo | Strategy |
+|------|----------|
+| **TeleMem** | Semantic clustering with an LLM — merge similar memories through an LLM call |
+| **LycheeMem** | SHA256 hash for exact dedup + CompositeRecord hierarchy |
+| **DeerFlow** | Deduplication of facts in long-term memory |
+| **nocturne_memory** | Glossary auto-hyperlinking with Aho-Corasick (the memory network auto-weaves) |
 
-### 2.9 Observabilidad y Auditoría
+### 2.9 Observability and Auditability
 
 **TeleMem**:
-- FAISS + JSON dual-write → retrieval rápido + auditoría humana legible
-- Metadata con timestamp, round_index, character
+- FAISS + JSON dual-write -> fast retrieval + human-readable auditability
+- Metadata with timestamp, round_index, character
 
-### 2.10 Ingestión de Contenido
+### 2.10 Content Ingestion
 
-**OpenClaw-DeepReeder** aporta el patrón:
-- URL → Router (Twitter/Reddit/YouTube/Generic) → Parser → Clean Markdown → Memory
-- YAML frontmatter con `content_hash: sha256:...` para dedup
-- Zero API keys para fuentes principales
+**OpenClaw-DeepReeder** contributes this pattern:
+- URL -> Router (Twitter/Reddit/YouTube/Generic) -> Parser -> Clean Markdown -> Memory
+- YAML frontmatter with `content_hash: sha256:...` for deduplication
+- Zero API keys for primary sources
 
 ---
 
-## 3. Arquitectura de Referencia Propuesta
+## 3. Proposed Reference Architecture
 
-Síntesis de los mejores patrones de nocturne_memory (FastAPI + SQLite), LycheeMem (retrieval pipeline) y everything-claude-code (session hooks):
+Synthesis of the best patterns from nocturne_memory (FastAPI + SQLite), LycheeMem (retrieval pipeline), and everything-claude-code (session hooks):
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -218,7 +218,7 @@ Síntesis de los mejores patrones de nocturne_memory (FastAPI + SQLite), LycheeM
 └─────────────────────────────────────────────────┘
 ```
 
-**Basado en**: nocturne_memory (FastAPI + SQLite + URI routing) + LycheeMem (retrieval pipeline) + everything-claude-code (session hooks)
+**Based on**: nocturne_memory (FastAPI + SQLite + URI routing) + LycheeMem (retrieval pipeline) + everything-claude-code (session hooks)
 
 **4 Deployment Profiles**:
 - **A**: Pure local (SQLite only, no embeddings)
@@ -228,104 +228,104 @@ Síntesis de los mejores patrones de nocturne_memory (FastAPI + SQLite), LycheeM
 
 ---
 
-## 4. Conceptos Académicos Relevantes (de Awesome-AI-Memory)
+## 4. Relevant Academic Concepts (from Awesome-AI-Memory)
 
-### 4.1 Cuatro Capas del Sistema de Memoria
-1. **Storage Layer**: Vector DBs, graph DBs, almacenamiento híbrido
+### 4.1 Four Layers of the Memory System
+1. **Storage Layer**: Vector DBs, graph DBs, hybrid storage
 2. **Processing Layer**: Embedding models, summarization, segmenters
 3. **Retrieval Layer**: Multi-stage retrievers, reranking, context injectors
-4. **Control Layer**: Priorización, forgetting controllers, consistency coordinators
+4. **Control Layer**: Prioritization, forgetting controllers, consistency coordinators
 
-### 4.2 Operaciones Atómicas de Memoria
-- **Writing**: Convertir contenido en vectores + almacenar
-- **Retrieval**: Generar query → obtener Top-K memorias relevantes
-- **Updating**: Encontrar memorias similares → reemplazar o enriquecer
-- **Deletion**: Eliminar por instrucción o política (privacy/expiration)
-- **Compression**: Merge de memorias relacionadas en resúmenes
+### 4.2 Atomic Memory Operations
+- **Writing**: Convert content into vectors + store it
+- **Retrieval**: Generate a query -> obtain Top-K relevant memories
+- **Updating**: Find similar memories -> replace or enrich
+- **Deletion**: Remove by instruction or policy (privacy/expiration)
+- **Compression**: Merge related memories into summaries
 
-### 4.3 Clasificación por Alcance de Compartición
-- **Personal Memory**: Un solo usuario
-- **Team Memory**: Espacios colaborativos
-- **Public Memory**: Knowledge bases compartidas
+### 4.3 Classification by Sharing Scope
+- **Personal Memory**: Single user
+- **Team Memory**: Collaborative spaces
+- **Public Memory**: Shared knowledge bases
 
-### 4.4 Mecanismos de Olvido
-- **Selective Forgetting**: Machine unlearning de información específica
-- **Privacy-Driven**: Auto-eliminación de PII
-- **Memory Decay**: Reducción de prioridad por inactividad (configurable, e.g. half-life 30 días)
-- **Conflict-Driven**: Actualizar/descartar memorias contradichas por nueva evidencia
+### 4.4 Forgetting Mechanisms
+- **Selective Forgetting**: Machine unlearning of specific information
+- **Privacy-Driven**: Automatic removal of PII
+- **Memory Decay**: Priority reduction due to inactivity (configurable, e.g. 30-day half-life)
+- **Conflict-Driven**: Update/discard memories contradicted by new evidence
 
-### 4.5 Benchmarks de Evaluación
+### 4.5 Evaluation Benchmarks
 - **LOCOMO, LONGMEMEVAL**: Long-term memory evaluation
 - **MemBench, Minerva**: Memory mechanism evaluation
-- **MemoryAgentBench**: Comprehensive agent memory evaluation
+- **MemoryAgentBench**: Comprehensive agent-memory evaluation
 - **HaluMem**: Memory hallucination detection
 
 ---
 
-## 5. Decisiones de Diseño Críticas
+## 5. Critical Design Decisions
 
-### 5.1 ¿Vector RAG o Memory System?
+### 5.1 Vector RAG or Memory System?
 
-nocturne_memory lo articuló mejor: "NOT another RAG system"
+nocturne_memory expressed it best: "NOT another RAG system"
 
-**Problemas de Vector RAG puro**:
-- Semantic shredding: pierde contexto al chunk-ear documentos
-- Read-only: no permite al agente escribir/actualizar su propia memoria
-- Trigger blindness: no sabe CUÁNDO una memoria es relevante
-- Memory islands: memorias aisladas sin conexiones entre sí
-- No identity: no mantiene un "yo" persistente
+**Problems with pure Vector RAG**:
+- Semantic shredding: loses context when chunking documents
+- Read-only: does not allow the agent to write/update its own memory
+- Trigger blindness: does not know WHEN a memory is relevant
+- Memory islands: isolated memories with no connections between them
+- No identity: it does not maintain a persistent "self"
 
-**Solución**: Sistema de memoria soberana donde el agente decide qué recordar.
+**Solution**: A sovereign memory system where the agent decides what to remember.
 
-### 5.2 ¿Dónde almacenar para un equipo?
+### 5.2 Where to Store for a Team?
 
-| Opción | Pros | Contras | Veredicto |
-|--------|------|---------|-----------|
-| SQLite local por dev | Rápido, zero-config | No compartido | ✅ Para memoria personal |
-| SQLite + sync (Git/S3) | Compartible, auditable | Merge conflicts | ⚠️ Viable con write serialization |
-| PostgreSQL central | Multi-user nativo | Requiere servidor | ✅ Para memoria compartida de equipo |
-| SQLite + Litestream | Replicación continua, zero-config | Solo 1 writer | ⚠️ Suficiente para equipos pequeños |
+| Option | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| SQLite local per developer | Fast, zero-config | Not shared | ✅ For personal memory |
+| SQLite + sync (Git/S3) | Shareable, auditable | Merge conflicts | ⚠️ Viable with write serialization |
+| PostgreSQL central | Native multi-user | Requires a server | ✅ For shared team memory |
+| SQLite + Litestream | Continuous replication, zero-config | Only 1 writer | ⚠️ Enough for small teams |
 
-**Recomendación**: Arquitectura de 2 niveles:
-1. SQLite local para memoria personal del desarrollador (rápido, offline)
-2. PostgreSQL compartido para memoria del equipo (convenciones, decisiones, patterns)
+**Recommendation**: Two-level architecture:
+1. Local SQLite for the developer's personal memory (fast, offline)
+2. Shared PostgreSQL for team memory (conventions, decisions, patterns)
 
-### 5.3 ¿Qué embeddings usar?
+### 5.3 Which Embeddings to Use?
 
-| Opción | Latencia | Costo | Calidad |
-|--------|----------|-------|---------|
-| text-embedding-3-small (OpenAI) | ~50ms | $0.02/1M tokens | Buena |
-| nomic-embed-text (local) | ~10ms | Gratis | Buena |
-| Sin embeddings (FTS5 only) | ~1ms | Gratis | Suficiente para keyword |
+| Option | Latency | Cost | Quality |
+|--------|---------|------|---------|
+| text-embedding-3-small (OpenAI) | ~50ms | $0.02/1M tokens | Good |
+| nomic-embed-text (local) | ~10ms | Free | Good |
+| No embeddings (FTS5 only) | ~1ms | Free | Enough for keyword search |
 
-**Recomendación**: Empezar con FTS5 only (Profile A — solo local), agregar embeddings como mejora incremental.
-
----
-
-## 6. Sistemas Existentes Descartados para Nuestro Caso
-
-| Sistema | Razón de Descarte |
-|---------|------------------|
-| LangChain/LlamaIndex/Haystack | Demasiado pesado, framework completo no necesario |
-| Quivr | Inactivo (~10 meses sin commits) |
-| Open WebUI | Orientado a UI de chat, no a memoria de agentes |
-| Pathway | BSL 1.1 (restricciones comerciales), orientado a streaming ETL |
-| KAG | Enfocado a knowledge graphs para QA, no a memoria de agentes |
-| Aetherius | Stale (2 años sin commits), monolítico, requiere Qdrant |
-| Memory-Palace | Proyecto con poca tracción real (266 stars), documentación ambiciosa pero sin evidencia de producción verificable |
-| GPTCache | Cache, no memoria — concepto útil pero problema diferente |
-| OpenClaw-DeepReeder | Ingestión, no memoria — podría integrarse como data source |
+**Recommendation**: Start with FTS5 only (Profile A — local only), then add embeddings as an incremental improvement.
 
 ---
 
-## 7. Ranking de Relevancia para Nuestro Objetivo
+## 6. Existing Systems Rejected for Our Use Case
 
-1. **nocturne_memory** ⭐⭐⭐⭐⭐ — Filosofía correcta (URI graph, soberanía de memoria), arquitectura FastAPI + SQLite directamente aplicable
-2. **LycheeMem** ⭐⭐⭐⭐⭐ — Retrieval más sofisticado, tipos de memoria action-aware, pipeline académicamente riguroso
-3. **everything-claude-code** ⭐⭐⭐⭐ — Hook patterns para lifecycle de sesión
-4. **TeleMem** ⭐⭐⭐⭐ — Dedup semántico con LLM, benchmarks sólidos
-5. **DeerFlow** ⭐⭐⭐ — Long-term memory con dedup, sub-agent patterns
-6. **PraisonAI** ⭐⭐⭐ — API minimal (`memory=True`), buena persistencia
-7. **mcp-mem0** ⭐⭐⭐ — Template MCP mínimo, buen punto de partida
-8. **Awesome-AI-Memory** ⭐⭐⭐ — Taxonomía académica para fundamentar decisiones
-9. **GPTCache** ⭐⭐ — Concepto de caché semántico aplicable como optimización
+| System | Reason for Rejection |
+|--------|----------------------|
+| LangChain/LlamaIndex/Haystack | Too heavy; a complete framework is unnecessary |
+| Quivr | Inactive (about 10 months without commits) |
+| Open WebUI | Focused on chat UI, not agent memory |
+| Pathway | BSL 1.1 (commercial restrictions), oriented to streaming ETL |
+| KAG | Focused on knowledge graphs for QA, not agent memory |
+| Aetherius | Stale (2 years without commits), monolithic, requires Qdrant |
+| Memory-Palace | Project with little real traction (266 stars), ambitious docs but no verifiable production evidence |
+| GPTCache | Cache, not memory — useful concept, different problem |
+| OpenClaw-DeepReeder | Ingestion, not memory — could be integrated as a data source |
+
+---
+
+## 7. Relevance Ranking for Our Objective
+
+1. **nocturne_memory** ⭐⭐⭐⭐⭐ — Correct philosophy (URI graph, memory sovereignty), FastAPI + SQLite architecture directly applicable
+2. **LycheeMem** ⭐⭐⭐⭐⭐ — Most sophisticated retrieval, action-aware memory types, academically rigorous pipeline
+3. **everything-claude-code** ⭐⭐⭐⭐ — Hook patterns for session lifecycle
+4. **TeleMem** ⭐⭐⭐⭐ — LLM-based semantic deduplication, solid benchmarks
+5. **DeerFlow** ⭐⭐⭐ — Long-term memory with dedup, sub-agent patterns
+6. **PraisonAI** ⭐⭐⭐ — Minimal API (`memory=True`), good persistence
+7. **mcp-mem0** ⭐⭐⭐ — Minimal MCP template, a good starting point
+8. **Awesome-AI-Memory** ⭐⭐⭐ — Academic taxonomy to support decisions
+9. **GPTCache** ⭐⭐ — Semantic-cache concept applicable as an optimization

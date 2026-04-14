@@ -1,101 +1,101 @@
-# Brainstorming Visual Companion: Cómo Replicarlo Bien
+# Brainstorming Visual Companion: How to Replicate It Properly
 
-Esta guía documenta cómo volver a montar el visual companion de la skill de brainstorming con estas propiedades:
+This guide documents how to rebuild the brainstorming skill's visual companion with these properties:
 
-- branding visual fijo y consistente
-- sistema de diseño compartido en todas las pantallas renderizadas como fragmentos HTML
-- flujo explícito de selección con botón `Accept selection`
-- emisión de un evento final `choice-confirmed`
-- preparación para una integración futura con VS Code o un host bridge
+- fixed and consistent visual branding
+- a shared design system across all screens rendered as HTML fragments
+- an explicit selection flow with an `Accept selection` button
+- emission of a final `choice-confirmed` event
+- preparation for future integration with VS Code or a host bridge
 
-La intención es que puedas repetir el cambio sin redescubrir la arquitectura ni perder detalles operativos.
+The goal is to let you repeat the change without rediscovering the architecture or losing operational details.
 
-## 1. Qué se cambió exactamente
+## 1. What changed exactly
 
-El companion ya no depende solo del estilo del HTML que se renderice. Ahora existe una capa base reusable que envuelve los fragmentos y les aplica una identidad visual común.
+The companion no longer depends only on the style of whatever HTML gets rendered. There is now a reusable base layer that wraps fragments and gives them a shared visual identity.
 
-Además, la selección del usuario ya no se interpreta únicamente por clicks exploratorios. El flujo correcto es:
+In addition, user selection is no longer interpreted only through exploratory clicks. The correct flow is:
 
-1. el usuario selecciona una opción
-2. el footer habilita `Accept selection`
-3. el usuario confirma
-4. el helper emite un evento estructurado `choice-confirmed`
+1. the user selects an option
+2. the footer enables `Accept selection`
+3. the user confirms
+4. the helper emits a structured `choice-confirmed` event
 
-Ese evento se publica en varios canales para no quedar acoplado a una sola integración.
+That event is published on several channels so the system is not coupled to a single integration.
 
-## 2. Archivos que forman el sistema
+## 2. Files that make up the system
 
-La implementación vive fuera de este repo, en la skill local de brainstorming.
+The implementation lives outside this repository, in the local brainstorming skill.
 
-Archivos clave:
+Key files:
 
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/frame-template.html`
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/helper.js`
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/server.cjs`
 - `/Users/rzjulio/.agents/skills/brainstorming/visual-companion.md`
 
-Responsabilidad de cada uno:
+Responsibility of each one:
 
-- `frame-template.html`: shell visual fija. Define branding, layout global, footer, botón Accept y tokens CSS.
-- `helper.js`: lógica cliente. Maneja selección, confirmación, envío de eventos y hooks hacia host.
-- `server.cjs`: persiste eventos del navegador en `state_dir/events`.
-- `visual-companion.md`: contrato operativo para usar correctamente el sistema.
+- `frame-template.html`: fixed visual shell. Defines branding, global layout, footer, Accept button, and CSS tokens.
+- `helper.js`: client-side logic. Handles selection, confirmation, event dispatch, and host hooks.
+- `server.cjs`: persists browser events to `state_dir/events`.
+- `visual-companion.md`: operational contract for using the system correctly.
 
-## 3. Arquitectura del flujo
+## 3. Flow architecture
 
-El flujo completo es este:
+The complete flow is this:
 
-1. el servidor de brainstorming observa `screen_dir`
-2. cuando aparece un HTML nuevo, sirve la pantalla más reciente
-3. si el archivo es un fragmento, el servidor lo envuelve en `frame-template.html`
-4. el navegador carga `helper.js`
-5. el usuario hace clicks sobre nodos con `data-choice`
-6. el helper actualiza el estado visual del footer
-7. al hacer click en `Accept selection`, el helper construye el payload final
-8. ese payload se emite por WebSocket, DOM event y host bridge si existe
-9. `server.cjs` lo escribe en `state_dir/events`
+1. the brainstorming server watches `screen_dir`
+2. when new HTML appears, it serves the latest screen
+3. if the file is a fragment, the server wraps it in `frame-template.html`
+4. the browser loads `helper.js`
+5. the user clicks nodes with `data-choice`
+6. the helper updates the footer's visual state
+7. when the user clicks `Accept selection`, the helper builds the final payload
+8. that payload is emitted through WebSocket, a DOM event, and a host bridge if one exists
+9. `server.cjs` writes it to `state_dir/events`
 
-## 4. Branding persistente
+## 4. Persistent branding
 
-Si quieres que el companion siempre se vea igual, la regla importante es esta:
+If you want the companion to always look the same, this is the important rule:
 
-**usa fragmentos HTML por defecto, no documentos completos.**
+**use HTML fragments by default, not full documents.**
 
-Cuando escribes un fragmento, el servidor lo envuelve con la plantilla base. Eso garantiza:
+When you write a fragment, the server wraps it with the base template. That guarantees:
 
-- header con identidad visual
-- paleta fija para light y dark
-- tipografía y espaciados comunes
-- footer con indicador y botón de confirmación
-- comportamiento interactivo compartido
+- a header with visual identity
+- a fixed palette for light and dark
+- shared typography and spacing
+- a footer with an indicator and confirmation button
+- shared interactive behavior
 
-Si en cambio sirves un documento HTML completo con `<!DOCTYPE html>` o `<html>`, el sistema solo inyecta el helper. No hereda automáticamente la shell visual ni el flujo base del footer.
+If instead you serve a complete HTML document with `<!DOCTYPE html>` or `<html>`, the system only injects the helper. It does not automatically inherit the visual shell or the base footer flow.
 
-## 5. Cómo reconstruir la plantilla visual
+## 5. How to rebuild the visual template
 
-El archivo a tocar es:
+The file to edit is:
 
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/frame-template.html`
 
-La plantilla debe contener al menos estas piezas:
+The template must contain at least these pieces:
 
-### 5.1 Variables de diseño
+### 5.1 Design variables
 
-Define tokens globales en `:root` y en `@media (prefers-color-scheme: dark)`.
+Define global tokens in `:root` and in `@media (prefers-color-scheme: dark)`.
 
-Recomendación mínima:
+Minimum recommendation:
 
-- fondos: `--bg-primary`, `--bg-secondary`, `--bg-tertiary`, `--bg-elevated`
-- tipografía: `--text-primary`, `--text-secondary`, `--text-tertiary`
-- identidad: `--accent`, `--highlight`
-- interacción: `--selected-bg`, `--selected-border`
+- backgrounds: `--bg-primary`, `--bg-secondary`, `--bg-tertiary`, `--bg-elevated`
+- typography: `--text-primary`, `--text-secondary`, `--text-tertiary`
+- identity: `--accent`, `--highlight`
+- interaction: `--selected-bg`, `--selected-border`
 - feedback: `--success`, `--warning`, `--error`
-- profundidad: `--shadow-soft`, `--shadow-strong`
-- radios: `--radius-xl`, `--radius-lg`, `--radius-md`
+- depth: `--shadow-soft`, `--shadow-strong`
+- radii: `--radius-xl`, `--radius-lg`, `--radius-md`
 
-### 5.2 Shell visual
+### 5.2 Visual shell
 
-La estructura recomendada es:
+The recommended structure is:
 
 ```html
 <body>
@@ -109,22 +109,22 @@ La estructura recomendada es:
 </body>
 ```
 
-Dentro del header conviene mantener:
+Inside the header, it is useful to keep:
 
-- marca visual pequeña, por ejemplo `SP`
-- título del producto o flujo
-- subtítulo corto
-- estado de sesión vivo
+- a small visual mark, for example `SP`
+- the product or flow title
+- a short subtitle
+- live session state
 
-### 5.3 Footer fijo
+### 5.3 Fixed footer
 
-El footer debe incluir:
+The footer must include:
 
 - `#indicator-text`
 - `#indicator-note`
-- botón `#accept-selection`
+- button `#accept-selection`
 
-Ejemplo mínimo:
+Minimum example:
 
 ```html
 <div class="indicator-bar">
@@ -138,30 +138,30 @@ Ejemplo mínimo:
 </div>
 ```
 
-Sin estos IDs, `helper.js` no puede sincronizar correctamente el estado del footer.
+Without those IDs, `helper.js` cannot correctly synchronize footer state.
 
-## 6. Cómo reconstruir el flujo de selección
+## 6. How to rebuild the selection flow
 
-El archivo a tocar es:
+The file to edit is:
 
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/helper.js`
 
-### 6.1 Qué hace el helper
+### 6.1 What the helper does
 
-Debe cubrir estas responsabilidades:
+It should cover these responsibilities:
 
-1. conectarse por WebSocket al companion server
-2. emitir todos los clicks exploratorios
-3. mantener el estado de selección actual
-4. habilitar o deshabilitar el botón Accept
-5. construir un payload final cuando el usuario confirma
-6. enviar ese payload por más de un canal
+1. connect to the companion server by WebSocket
+2. emit all exploratory clicks
+3. keep track of current selection state
+4. enable or disable the Accept button
+5. build a final payload when the user confirms
+6. send that payload through more than one channel
 
-### 6.2 Contrato de selección
+### 6.2 Selection contract
 
-Los elementos seleccionables deben usar `data-choice`.
+Selectable elements must use `data-choice`.
 
-Ejemplo:
+Example:
 
 ```html
 <div class="options">
@@ -169,17 +169,17 @@ Ejemplo:
     <div class="letter">A</div>
     <div class="content">
       <h3>Layout A</h3>
-      <p>Descripción</p>
+      <p>Description</p>
     </div>
   </div>
 </div>
 ```
 
-Para multiselección, el contenedor debe tener `data-multiselect`.
+For multi-select, the container must have `data-multiselect`.
 
-### 6.3 Payload final recomendado
+### 6.3 Recommended final payload
 
-Al confirmar, el helper debe construir algo como esto:
+When the user confirms, the helper should build something like this:
 
 ```json
 {
@@ -203,26 +203,26 @@ Al confirmar, el helper debe construir algo como esto:
 }
 ```
 
-### 6.4 Canales donde debe emitirse
+### 6.4 Channels where it should be emitted
 
-La confirmación final debe emitirse al menos en estos canales:
+The final confirmation should be emitted through at least these channels:
 
-- WebSocket local del companion
+- the companion's local WebSocket
 - `window.dispatchEvent(new CustomEvent(...))`
 - `window.parent.postMessage(...)`
-- `acquireVsCodeApi().postMessage(...)` si existe
+- `acquireVsCodeApi().postMessage(...)` if it exists
 
-Esto no significa que Copilot Chat vaya a reaccionar automáticamente. Significa que el navegador ya queda preparado para que un host bridge pueda escucharlo.
+That does not mean Copilot Chat will react automatically. It means the browser is already prepared for a host bridge to listen to it.
 
-## 7. Cómo persistir el evento confirmado
+## 7. How to persist the confirmed event
 
-El archivo a tocar es:
+The file to edit is:
 
 - `/Users/rzjulio/.agents/skills/brainstorming/scripts/server.cjs`
 
-En `handleMessage(text)`, el servidor debe seguir escribiendo al archivo `state_dir/events` no solo cuando existe `event.choice`, sino también cuando exista un arreglo de `event.choices`.
+In `handleMessage(text)`, the server should keep writing to the `state_dir/events` file not only when `event.choice` exists, but also when an `event.choices` array exists.
 
-La condición importante es esta idea:
+The important condition is this idea:
 
 ```js
 if (event.choice || (Array.isArray(event.choices) && event.choices.length > 0)) {
@@ -230,48 +230,48 @@ if (event.choice || (Array.isArray(event.choices) && event.choices.length > 0)) 
 }
 ```
 
-Eso permite persistir tanto clicks simples como confirmaciones finales más ricas.
+That makes it possible to persist both simple clicks and richer final confirmations.
 
-## 8. Cómo documentar el contrato de uso
+## 8. How to document the usage contract
 
-El archivo a tocar es:
+The file to edit is:
 
 - `/Users/rzjulio/.agents/skills/brainstorming/visual-companion.md`
 
-Debe dejar explícito lo siguiente:
+It should make the following explicit:
 
-- que los fragmentos HTML heredan la shell visual compartida
-- que el flujo estándar de selección ahora es de dos pasos: elegir y confirmar
-- que existe un evento `choice-confirmed`
-- que el companion emite eventos para un host bridge futuro
-- que, por ahora, el flujo principal sigue dependiendo del próximo turno del chat
+- that HTML fragments inherit the shared visual shell
+- that the standard selection flow is now two steps: choose and confirm
+- that a `choice-confirmed` event exists
+- that the companion emits events for a future host bridge
+- that, for now, the main flow still depends on the next chat turn
 
-## 9. Cómo probar que funciona de verdad
+## 9. How to test that it really works
 
-La validación correcta tiene dos partes: sintaxis y flujo real.
+Correct validation has two parts: syntax and real flow.
 
-### 9.1 Validación de sintaxis
+### 9.1 Syntax validation
 
 ```bash
 node --check /Users/rzjulio/.agents/skills/brainstorming/scripts/helper.js
 node --check /Users/rzjulio/.agents/skills/brainstorming/scripts/server.cjs
 ```
 
-Si ambos comandos terminan sin salida, la sintaxis JavaScript está bien.
+If both commands finish without output, JavaScript syntax is fine.
 
-### 9.2 Validación de flujo manual
+### 9.2 Manual flow validation
 
-1. arranca el servidor del visual companion
-2. toma la URL devuelta y ábrela en el navegador
-3. escribe un fragmento HTML nuevo en `screen_dir`
-4. verifica que aparezca con la shell branded
-5. selecciona una opción
-6. verifica que el footer cambie y habilite `Accept selection`
-7. haz click en `Accept selection`
-8. abre `state_dir/events`
-9. verifica que exista una línea `choice-confirmed`
+1. start the visual companion server
+2. take the returned URL and open it in the browser
+3. write a new HTML fragment into `screen_dir`
+4. verify that it appears with the branded shell
+5. select an option
+6. verify that the footer changes and enables `Accept selection`
+7. click `Accept selection`
+8. open `state_dir/events`
+9. verify that there is a `choice-confirmed` line
 
-### 9.3 Fragmento mínimo de prueba
+### 9.3 Minimum test fragment
 
 ```html
 <h2>Which direction should we take?</h2>
@@ -282,7 +282,7 @@ Si ambos comandos terminan sin salida, la sintaxis JavaScript está bien.
     <div class="letter">A</div>
     <div class="content">
       <h3>Warm editorial</h3>
-      <p>Más humano, cálido y expresivo.</p>
+      <p>More human, warm, and expressive.</p>
     </div>
   </div>
 
@@ -290,129 +290,129 @@ Si ambos comandos terminan sin salida, la sintaxis JavaScript está bien.
     <div class="letter">B</div>
     <div class="content">
       <h3>Sharp systems UI</h3>
-      <p>Más técnico, estructurado y preciso.</p>
+      <p>More technical, structured, and precise.</p>
     </div>
   </div>
 </div>
 ```
 
-### 9.4 Evento esperado
+### 9.4 Expected event
 
-Después de confirmar una opción, `state_dir/events` debería contener algo como esto:
+After confirming an option, `state_dir/events` should contain something like this:
 
 ```jsonl
-{"type":"click","choice":"b","text":"B Sharp systems UI Más técnico, estructurado y preciso.","timestamp":1706000115}
+{"type":"click","choice":"b","text":"B Sharp systems UI More technical, structured, and precise.","timestamp":1706000115}
 {"type":"choice-confirmed","choice":"b","choices":["b"],"label":"Sharp systems UI","labels":["Sharp systems UI"],"confirmed":true,"screenTitle":"Which direction should we take?","timestamp":1706000117}
 ```
 
-## 10. Qué sí se puede automatizar y qué no
+## 10. What can and cannot be automated today
 
-### Sí se puede hoy
+### What can be automated today
 
-- fijar branding y diseño global del companion
-- imponer un footer estándar con botón Accept
-- distinguir entre exploración y confirmación final
-- persistir la decisión final en `state_dir/events`
-- emitir la decisión a un posible host externo
+- fix branding and the companion's global design
+- enforce a standard footer with an Accept button
+- distinguish between exploration and final confirmation
+- persist the final decision in `state_dir/events`
+- emit the decision to a possible external host
 
-### No se puede solo con la skill actual
+### What cannot be done with the current skill alone
 
-No existe hoy un puente soportado para que una página HTML del companion escriba por sí sola en Copilot Chat y dispare automáticamente el siguiente turno dentro del chat de VS Code.
+There is currently no supported bridge that allows a companion HTML page to write to Copilot Chat by itself and automatically trigger the next turn inside the VS Code chat.
 
-En otras palabras:
+In other words:
 
-- el companion ya puede publicar el evento
-- pero alguien más tiene que escucharlo y convertirlo en una acción de chat
+- the companion can already publish the event
+- but something else still has to listen and convert it into a chat action
 
-## 11. Qué hace falta para el auto-disparo real hacia Copilot Chat
+## 11. What is needed for real automatic triggering into Copilot Chat
 
-Si quieres que el usuario seleccione una opción, haga click en Accept y que inmediatamente arranque el siguiente paso sin volver manualmente al chat, necesitas una capa adicional.
+If you want the user to select an option, click Accept, and immediately start the next step without manually returning to the chat, you need an additional layer.
 
-La ruta correcta es una extensión o host bridge de VS Code que haga esto:
+The correct path is a VS Code extension or host bridge that does this:
 
-1. renderice el webview o intercepte el mensaje publicado
-2. escuche `acquireVsCodeApi().postMessage(...)` o `window.parent.postMessage(...)`
-3. reciba el payload `choice-confirmed`
-4. lo convierta en una acción de chat o en una llamada al modelo
-5. continúe el flujo automáticamente
+1. render the webview or intercept the published message
+2. listen to `acquireVsCodeApi().postMessage(...)` or `window.parent.postMessage(...)`
+3. receive the `choice-confirmed` payload
+4. convert it into a chat action or a model call
+5. continue the flow automatically
 
-El companion ya quedó preparado para eso, pero la skill por sí sola todavía no controla Copilot Chat.
+The companion is already prepared for that, but the skill alone still does not control Copilot Chat.
 
-### 11.1 La decisión de arquitectura importante
+### 11.1 The important architecture decision
 
-No conviene intentar detectar "el chat que esté abierto" en el momento en que llega la confirmación desde el browser.
+It is not a good idea to try to detect "whatever chat is currently open" at the moment a confirmation arrives from the browser.
 
-Ese enfoque parece cómodo, pero técnicamente es frágil por tres razones:
+That approach looks convenient, but it is technically fragile for three reasons:
 
-1. puede haber varios chats abiertos o varias pestañas activas
-2. la API pública no está pensada para inyectar texto arbitrario en cualquier hilo estándar de Copilot Chat
-3. un mensaje tardío del companion puede llegar cuando el usuario ya cambió de chat, editor o contexto visual
+1. there may be multiple chats open or several active tabs
+2. the public API is not designed to inject arbitrary text into any standard Copilot Chat thread
+3. a delayed companion message may arrive after the user has already changed chats, editors, or visual context
 
-La solución correcta no es adivinar el chat correcto después. La solución correcta es **amarrar el companion al chat correcto desde el momento en que se lanza**.
+The correct solution is not to guess the right chat afterward. The correct solution is to **bind the companion to the right chat from the moment it launches**.
 
-En esta guía, esa correlación se hace con un identificador único llamado `launchId`.
+In this guide, that correlation is done with a unique identifier called `launchId`.
 
-### 11.2 La arquitectura recomendada
+### 11.2 The recommended architecture
 
-La recomendación fuerte es esta:
+The strong recommendation is this:
 
-1. crear una extensión de VS Code propia
-2. registrar un chat participant propio, por ejemplo `@brainstorm`
-3. hacer que solo ese participant pueda abrir el Visual Companion
-4. generar un `launchId` por cada lanzamiento del companion
-5. guardar un registro interno con el contexto del request que originó ese companion
-6. cuando el browser envíe `choice-confirmed`, usar `launchId` para reanudar exactamente ese flujo
+1. create your own VS Code extension
+2. register your own chat participant, for example `@brainstorm`
+3. make only that participant able to open the Visual Companion
+4. generate a `launchId` for each companion launch
+5. store an internal record with the context of the request that created that companion
+6. when the browser sends `choice-confirmed`, use `launchId` to resume exactly that flow
 
-La clave está en que ya no dependes del "chat activo". Dependes de una correlación explícita y estable.
+The key point is that you no longer depend on the "active chat". You depend on explicit, stable correlation.
 
-### 11.3 Qué APIs sí son fiables para esto
+### 11.3 Which APIs are actually reliable for this
 
-Las piezas públicas y razonables sobre las que conviene construir son estas:
+The public, reasonable pieces to build on are these:
 
 - `vscode.chat.createChatParticipant(...)`
 - `ChatRequest`
 - `ChatContext.history`
-- `request.model.sendRequest(...)` o `vscode.lm.selectChatModels(...)`
+- `request.model.sendRequest(...)` or `vscode.lm.selectChatModels(...)`
 - `webview.onDidReceiveMessage(...)`
 - `acquireVsCodeApi().postMessage(...)`
 
-Estas piezas te permiten:
+These let you:
 
-- recibir una petición dentro de un flujo de chat controlado por tu extensión
-- abrir un webview o asociarte a uno existente
-- mandar mensajes desde el webview hacia la extensión
-- continuar el razonamiento automáticamente cuando el usuario confirme una opción
+- receive a request inside a chat flow controlled by your extension
+- open a webview or attach to an existing one
+- send messages from the webview back to the extension
+- continue reasoning automatically when the user confirms an option
 
-Lo que no debes tomar como base de arquitectura es cualquier comando interno o no documentado de GitHub Copilot Chat que aparente "meter texto en el input y enviarlo".
+What you should not use as an architectural foundation is any internal or undocumented GitHub Copilot Chat command that appears to "type text into the input and send it".
 
-### 11.4 Modelo mental del sistema
+### 11.4 System mental model
 
-Piensa la solución como cuatro capas:
+Think of the solution as four layers:
 
 1. **Chat origin**
-   - el usuario hace una petición a `@brainstorm`
-   - el participant decide que necesita apoyo visual
+   - the user makes a request to `@brainstorm`
+   - the participant decides visual support is needed
 
 2. **Launch registry**
-   - la extensión crea `launchId`
-   - persiste estado suficiente para reanudar
+   - the extension creates `launchId`
+   - it persists enough state to resume
 
 3. **Visual companion bridge**
-   - el webview recibe `launchId`
-   - el usuario selecciona y confirma
-   - el browser devuelve `choice-confirmed`
+   - the webview receives `launchId`
+   - the user selects and confirms
+   - the browser returns `choice-confirmed`
 
 4. **Resume engine**
-   - la extensión recibe la confirmación
-   - busca el `launchId`
-   - reconstruye el prompt de continuación
-   - dispara automáticamente la siguiente llamada al modelo
+   - the extension receives the confirmation
+   - it looks up `launchId`
+   - it rebuilds the continuation prompt
+   - it automatically triggers the next model call
 
-### 11.5 Estructura mínima del registro de lanzamiento
+### 11.5 Minimum launch registry structure
 
-La extensión necesita mantener un mapa de sesiones pendientes. No hace falta una base de datos compleja al principio. Un `Map<string, PendingLaunch>` en memoria puede servir para el MVP. Si quieres resiliencia ante reloads de la ventana, luego lo persistes en `ExtensionContext.workspaceState`.
+The extension needs to keep a map of pending sessions. You do not need a complex database at first. A `Map<string, PendingLaunch>` in memory can serve for the MVP. If you want resilience across window reloads, then persist it later in `ExtensionContext.workspaceState`.
 
-Tipo sugerido:
+Suggested type:
 
 ```ts
 type PendingLaunch = {
@@ -430,25 +430,25 @@ type PendingLaunch = {
 };
 ```
 
-Qué debe guardar como mínimo:
+What it must store at minimum:
 
-- `launchId`: correlación principal
-- `originalPrompt`: la intención original del usuario
-- `serializedHistory`: contexto suficiente para continuar
-- `visualQuestion`: la pregunta concreta que se estaba resolviendo visualmente
-- `state`: para evitar dobles procesamientos
-- timestamps: para expiración y limpieza
+- `launchId`: the main correlation key
+- `originalPrompt`: the user's original intent
+- `serializedHistory`: enough context to continue
+- `visualQuestion`: the specific question being solved visually
+- `state`: to avoid double-processing
+- timestamps: for expiration and cleanup
 
-### 11.6 Cómo se genera y usa `launchId`
+### 11.6 How `launchId` is generated and used
 
-Regla simple:
+Simple rule:
 
-- cada vez que el participant abre un companion, genera un ID nuevo
-- ese ID se guarda en el registro interno
-- el mismo ID se inyecta en el HTML del companion
-- el helper lo devuelve al confirmar
+- every time the participant opens a companion, generate a new ID
+- store that ID in the internal registry
+- inject the same ID into the companion HTML
+- return it from the helper on confirmation
 
-Ejemplo de payload enriquecido desde el webview:
+Example enriched payload from the webview:
 
 ```json
 {
@@ -463,106 +463,106 @@ Ejemplo de payload enriquecido desde el webview:
 }
 ```
 
-Con eso, la extensión ya no tiene que preguntarse "de qué chat vino esto". Solo hace:
+With that, the extension no longer has to ask "which chat did this come from?". It only does:
 
-1. tomar `launchId`
-2. buscarlo en `pendingLaunches`
-3. continuar la sesión correcta
+1. take `launchId`
+2. look it up in `pendingLaunches`
+3. continue the correct session
 
-### 11.7 Flujo end-to-end recomendado
+### 11.7 Recommended end-to-end flow
 
-#### Fase A: arranque desde chat
+#### Phase A: launch from chat
 
-1. el usuario escribe algo a `@brainstorm`
-2. el participant detecta que necesita una pregunta visual
-3. la extensión crea `launchId`
-4. serializa el contexto mínimo necesario
-5. abre o actualiza el webview del companion
-6. inyecta el contenido HTML más `launchId`
-7. responde en el chat con algo como: "Te abrí el companion visual. Haz tu selección y confirma con Accept."
+1. the user writes something to `@brainstorm`
+2. the participant detects that a visual question is needed
+3. the extension creates `launchId`
+4. it serializes the minimum context needed
+5. it opens or updates the companion webview
+6. it injects the HTML content plus `launchId`
+7. it responds in the chat with something like: "I opened the visual companion for you. Make your selection there and confirm with Accept."
 
-#### Fase B: interacción visual
+#### Phase B: visual interaction
 
-1. el webview renderiza opciones
-2. el usuario explora clicando opciones
-3. el helper actualiza el footer
-4. el usuario hace click en `Accept selection`
-5. el helper emite `choice-confirmed` con `launchId`
+1. the webview renders options
+2. the user explores by clicking options
+3. the helper updates the footer
+4. the user clicks `Accept selection`
+5. the helper emits `choice-confirmed` with `launchId`
 
-#### Fase C: reanudación automática
+#### Phase C: automatic resume
 
-1. la extensión recibe el mensaje del webview
-2. valida que `launchId` exista
-3. valida que la sesión siga en estado `waiting-for-selection`
-4. marca el registro como `confirmed`
-5. construye un prompt de continuación con la selección
-6. llama al modelo automáticamente
-7. publica el resultado en la superficie que hayas decidido
-8. marca la sesión como `completed`
+1. the extension receives the webview message
+2. it validates that `launchId` exists
+3. it validates that the session is still in `waiting-for-selection`
+4. it marks the registry entry as `confirmed`
+5. it builds a continuation prompt with the selection
+6. it calls the model automatically
+7. it publishes the result on whatever surface you chose
+8. it marks the session as `completed`
 
-### 11.8 Dónde debe mostrarse la continuación
+### 11.8 Where the continuation should appear
 
-Aquí hay una decisión importante. Hay tres opciones reales.
+There is an important decision here. There are three real options.
 
-#### Opción A: seguir dentro de tu participant propio
+#### Option A: continue inside your own participant
 
-Esta es la mejor opción.
+This is the best option.
 
-Cómo funciona:
+How it works:
 
-- el usuario inicia el flujo en `@brainstorm`
-- la continuación también pertenece a `@brainstorm`
-- el estado se conserva porque el origen del companion siempre fue ese participant
+- the user starts the flow in `@brainstorm`
+- the continuation also belongs to `@brainstorm`
+- state is preserved because the companion always originated from that participant
 
-Ventajas:
+Advantages:
 
-- control total del contexto
-- correlación clara
-- no dependes de hacks de la UI estándar de Copilot
-- evitas que la respuesta termine en un chat equivocado
+- full control of context
+- clear correlation
+- you do not depend on hacks around standard Copilot UI
+- you avoid the answer landing in the wrong chat
 
-Desventaja:
+Disadvantage:
 
-- la experiencia ocurre en tu participant, no en cualquier chat genérico de Copilot
+- the experience lives in your participant, not in any generic Copilot chat
 
-#### Opción B: disparar un request al modelo y mostrar el resultado en una vista propia
+#### Option B: send a model request and show the result in your own view
 
-Esto también es válido, pero es menos integrado visualmente con la experiencia de chat.
+This is also valid, but it is less visually integrated with the chat experience.
 
-Ventajas:
+Advantages:
 
-- flujo totalmente automático
-- control técnico alto
+- fully automatic flow
+- high technical control
 
-Desventajas:
+Disadvantages:
 
-- la continuación ya no vive como mensaje dentro del hilo de chat
+- the continuation no longer appears as a message inside the chat thread
 
-#### Opción C: intentar insertar el texto en la UI estándar de Copilot Chat
+#### Option C: try to insert text into the standard Copilot Chat UI
 
-No es la opción recomendada.
+This is not the recommended option.
 
-Problemas:
+Problems:
 
-- no hay una API pública estable para eso
-- puedes terminar dependiendo de comandos internos
-- se vuelve frágil con actualizaciones
-- es muy difícil garantizar que llegue al hilo correcto en todos los casos
+- there is no stable public API for that
+- you can end up depending on internal commands
+- it becomes fragile across updates
+- it is very hard to guarantee that it reaches the correct thread in every case
 
-Conclusión: para que funcione perfecto, usa la Opción A.
+Conclusion: if you want it to work correctly, use Option A.
 
-### 11.9 Cómo reconstruir el contexto correcto
+### 11.9 How to reconstruct the correct context
 
-La extensión no debe depender de tener un identificador interno del chat estándar de Copilot. Debe depender del contexto que capturó cuando nació el launch.
+The extension should not depend on having an internal identifier for standard Copilot Chat. It should depend on the context it captured when the launch was created.
 
-Al crear `PendingLaunch`, conviene guardar:
+When creating `PendingLaunch`, it is useful to store:
 
 - `request.prompt`
-- `request.command` si existe
-- historial serializado desde `ChatContext.history`
-- cualquier referencia relevante al workspace o al archivo activo
+- `request.command` if present
+- serialized history from `ChatContext.history`
+- any relevant reference to the workspace or active file
 
-Ejemplo de serialización simple:
+Simple serialization example:
 
 ```ts
 function serializeHistory(history: readonly (vscode.ChatRequestTurn | vscode.ChatResponseTurn)[]) {
@@ -590,7 +590,7 @@ function serializeHistory(history: readonly (vscode.ChatRequestTurn | vscode.Cha
 }
 ```
 
-Con eso puedes reconstruir un prompt compuesto como:
+With that, you can reconstruct a composite prompt like:
 
 ```text
 We are resuming a brainstorming flow.
@@ -611,97 +611,97 @@ Relevant prior conversation:
 Continue the brainstorming process from this confirmed visual decision.
 ```
 
-### 11.10 Cómo abrir el webview sin perder la correlación
+### 11.10 How to open the webview without losing correlation
 
-Hay dos modelos posibles:
+There are two possible models:
 
-#### Modelo 1: un panel por lanzamiento
+#### Model 1: one panel per launch
 
-Cada `launchId` abre su propio panel.
+Each `launchId` opens its own panel.
 
-Ventajas:
+Advantages:
 
-- aislamiento total
-- casi imposible mezclar confirmaciones
+- total isolation
+- almost impossible to mix confirmations
 
-Desventajas:
+Disadvantages:
 
-- puede llenar la UI si el usuario lanza muchos companions
+- it can clutter the UI if the user launches many companions
 
-#### Modelo 2: un panel reutilizable con estado interno
+#### Model 2: one reusable panel with internal state
 
-Un solo panel que se reutiliza y actualiza su contenido.
+A single panel is reused and its content updated.
 
-Ventajas:
+Advantages:
 
-- menos ruido visual
+- less visual noise
 
-Desventajas:
+Disadvantages:
 
-- exige disciplina fuerte con `launchId`
-- si reemplazas contenido mientras hay una confirmación pendiente, puedes crear errores de correlación
+- requires strict discipline around `launchId`
+- if you replace content while a confirmation is still pending, you can create correlation errors
 
-Para un MVP serio, yo empezaría con el Modelo 1. Es más fácil de razonar y más difícil de romper.
+For a serious MVP, I would start with Model 1. It is easier to reason about and harder to break.
 
-### 11.11 Manejo de errores y casos límite
+### 11.11 Error handling and edge cases
 
-Si quieres que funcione perfecto, estos casos deben resolverse explícitamente:
+If you want this to work reliably, these cases must be handled explicitly:
 
-#### Caso: el usuario abre dos companions desde dos chats distintos
+#### Case: the user opens two companions from two different chats
 
-Solución:
+Solution:
 
-- dos `launchId` distintos
-- dos entradas distintas en `pendingLaunches`
-- idealmente dos paneles distintos
+- two different `launchId` values
+- two different entries in `pendingLaunches`
+- ideally two different panels
 
-#### Caso: el usuario confirma una selección con un `launchId` expirado
+#### Case: the user confirms a selection with an expired `launchId`
 
-Solución:
+Solution:
 
-- la extensión rechaza el mensaje
-- muestra aviso: "Esta sesión visual ya expiró. Lanza una nueva desde el chat."
+- the extension rejects the message
+- it shows a notice: "This visual session has already expired. Launch a new one from the chat."
 
-#### Caso: llega doble click sobre Accept
+#### Case: Accept gets double-clicked
 
-Solución:
+Solution:
 
-- usa `state`
-- solo procesas si está en `waiting-for-selection`
-- si ya está en `confirmed` o `completed`, ignoras el duplicado
+- use `state`
+- only process if it is in `waiting-for-selection`
+- if it is already `confirmed` or `completed`, ignore the duplicate
 
-#### Caso: el usuario cierra el panel y luego vuelve
+#### Case: the user closes the panel and later comes back
 
-Solución:
+Solution:
 
-- si el launch sigue vivo, restauras desde `workspaceState`
-- si no quieres soportar restore en el MVP, expira la sesión con claridad
+- if the launch is still alive, restore from `workspaceState`
+- if you do not want restore in the MVP, expire the session clearly
 
-#### Caso: el modelo falla al continuar automáticamente
+#### Case: the model fails during automatic continuation
 
-Solución:
+Solution:
 
-- no pierdas la selección confirmada
-- cambia el estado a `confirmed`
-- ofrece botón o comando para `retry`
+- do not lose the confirmed selection
+- switch state to `confirmed`
+- offer a button or command for `retry`
 
-### 11.12 Política de expiración y limpieza
+### 11.12 Expiration and cleanup policy
 
-No conviene dejar `launchId` vivos indefinidamente.
+You should not keep `launchId` values alive indefinitely.
 
-Regla práctica inicial:
+Practical starting rule:
 
-- `waiting-for-selection`: expira en 30 minutos
-- `confirmed`: conservar unos minutos extra por si hace falta retry
-- `completed`: limpiar pronto
+- `waiting-for-selection`: expire after 30 minutes
+- `confirmed`: keep a few extra minutes in case retry is needed
+- `completed`: clean up soon
 
-Limpieza sugerida:
+Suggested cleanup:
 
-- al activar la extensión
-- cada vez que llega un evento nuevo
-- con un `setInterval` liviano
+- when the extension activates
+- every time a new event arrives
+- with a lightweight `setInterval`
 
-### 11.13 Pseudocódigo del bridge recomendado
+### 11.13 Recommended bridge pseudocode
 
 ```ts
 const pendingLaunches = new Map<string, PendingLaunch>();
@@ -750,43 +750,43 @@ async function handleWebviewMessage(message) {
 }
 ```
 
-### 11.14 La recomendación final, sin ambigüedad
+### 11.14 Final recommendation, without ambiguity
 
-Si el requisito es:
+If the requirement is:
 
-"quiero que el usuario seleccione en el Visual Companion y que automáticamente continúe el flujo correcto, sin mezclarse con otros chats"
+"I want the user to select in the Visual Companion and have the correct flow continue automatically, without mixing with other chats"
 
-entonces la arquitectura recomendada es esta:
+then the recommended architecture is this:
 
-1. participant propio `@brainstorm`
-2. bridge de extensión propio
-3. correlación explícita por `launchId`
-4. estado pendiente guardado por lanzamiento
-5. continuación automática controlada por la extensión
-6. nada de depender del chat activo visible ni de inyectar texto en la UI estándar de Copilot
+1. your own `@brainstorm` participant
+2. your own extension bridge
+3. explicit correlation through `launchId`
+4. pending state stored per launch
+5. automatic continuation controlled by the extension
+6. no dependence on whichever active chat is visible, and no text injection into the standard Copilot UI
 
-Ese enfoque sí puede quedar robusto, trazable y mantenible.
+That approach can actually be robust, traceable, and maintainable.
 
-## 12. Checklist corto para repetir el trabajo
+## 12. Short checklist to repeat the work
 
-Usa este checklist cuando quieras rehacerlo desde cero:
+Use this checklist when you want to rebuild it from scratch:
 
-1. actualiza `frame-template.html` con tokens, branding, shell y footer fijo
-2. asegura que el footer tenga `indicator-text`, `indicator-note` y `accept-selection`
-3. actualiza `helper.js` para manejar selección, confirmación y emisión multinivel
-4. actualiza `server.cjs` para persistir eventos con `choices`
-5. actualiza `visual-companion.md` para fijar el contrato de uso
-6. valida con `node --check`
-7. valida con una sesión real del companion
-8. confirma que `state_dir/events` contiene `choice-confirmed`
+1. update `frame-template.html` with tokens, branding, shell, and a fixed footer
+2. ensure the footer has `indicator-text`, `indicator-note`, and `accept-selection`
+3. update `helper.js` to handle selection, confirmation, and multi-channel emission
+4. update `server.cjs` to persist events with `choices`
+5. update `visual-companion.md` to lock in the usage contract
+6. validate with `node --check`
+7. validate with a real companion session
+8. confirm that `state_dir/events` contains `choice-confirmed`
 
-## 13. Regla operativa importante
+## 13. Important operating rule
 
-Si el objetivo es mantener siempre la misma identidad visual, evita mandar documentos HTML completos salvo que de verdad necesites control total. El comportamiento reusable y estable vive en la combinación de:
+If the goal is to always keep the same visual identity, avoid sending full HTML documents unless you truly need total control. Reusable and stable behavior lives in the combination of:
 
 - `frame-template.html`
 - `helper.js`
 - `server.cjs`
-- el contrato explicado en `visual-companion.md`
+- the contract explained in `visual-companion.md`
 
 Si uno de esos cuatro elementos se desvía, la experiencia deja de ser consistente.

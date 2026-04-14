@@ -1,5 +1,6 @@
 import pytest
 
+from olinkb import config
 from olinkb.app import OlinKBApp
 from olinkb import viewer_server
 
@@ -132,9 +133,9 @@ class FakeViewerStorage:
 
 
 class FakeViewerApp:
-    def __init__(self) -> None:
+    def __init__(self, settings=None) -> None:
         self.calls: list[dict[str, object]] = []
-        self.settings = type(
+        self.settings = settings or type(
             "Settings",
             (),
             {
@@ -156,6 +157,39 @@ class FakeViewerApp:
     async def save_memory(self, **kwargs):
         self.calls.append(kwargs)
         return {"status": "create", "id": "new-1", "uri": kwargs["uri"], "scope": kwargs["scope"]}
+
+
+def test_get_viewer_settings_allows_missing_olinkb_user_and_team(monkeypatch) -> None:
+    config.get_viewer_settings.cache_clear()
+    monkeypatch.delenv("OLINKB_USER", raising=False)
+    monkeypatch.delenv("USER", raising=False)
+    monkeypatch.delenv("USERNAME", raising=False)
+    monkeypatch.delenv("OLINKB_TEAM", raising=False)
+    monkeypatch.setenv("OLINKB_PG_URL", "postgresql://unused")
+
+    settings = config.get_viewer_settings()
+
+    assert settings.user == ""
+    assert settings.team == ""
+    config.get_viewer_settings.cache_clear()
+
+
+def test_live_viewer_server_initializes_without_olinkb_user_or_team(monkeypatch) -> None:
+    config.get_viewer_settings.cache_clear()
+    monkeypatch.delenv("OLINKB_USER", raising=False)
+    monkeypatch.delenv("USER", raising=False)
+    monkeypatch.delenv("USERNAME", raising=False)
+    monkeypatch.delenv("OLINKB_TEAM", raising=False)
+    monkeypatch.setenv("OLINKB_PG_URL", "postgresql://unused")
+
+    server = viewer_server._LiveViewerHTTPServer(("127.0.0.1", 0), title="Test Viewer")
+
+    try:
+        assert server.settings.user == ""
+        assert server.settings.team == ""
+    finally:
+        server.server_close()
+        config.get_viewer_settings.cache_clear()
 
 
 @pytest.mark.asyncio
@@ -325,15 +359,15 @@ def test_normalize_create_memory_payload_blocks_business_docs_for_non_admin() ->
 
 
 def test_build_memory_uri_generates_expected_note_paths() -> None:
-    assert viewer_server._build_memory_uri(scope="project", scope_key="olinkb", title="Nueva doc") == "project://olinkb/notes/nueva-doc"
-    assert viewer_server._build_memory_uri(scope="team", scope_key="mi-equipo", title="Nueva doc") == "team://mi-equipo/notes/nueva-doc"
-    assert viewer_server._build_memory_uri(scope="system", scope_key="notes", title="Nueva doc") == "system://notes/nueva-doc"
+    assert viewer_server._build_memory_uri(scope="project", scope_key="olinkb", title="New doc") == "project://olinkb/notes/new-doc"
+    assert viewer_server._build_memory_uri(scope="team", scope_key="example-team", title="New doc") == "team://example-team/notes/new-doc"
+    assert viewer_server._build_memory_uri(scope="system", scope_key="notes", title="New doc") == "system://notes/new-doc"
 
 
 @pytest.mark.asyncio
 async def test_create_memory_payload_calls_app_save_memory(monkeypatch) -> None:
     app = FakeViewerApp()
-    monkeypatch.setattr(viewer_server, "OlinKBApp", lambda: app)
+    monkeypatch.setattr(viewer_server, "OlinKBApp", lambda settings=None: app)
     monkeypatch.setattr(viewer_server, "PostgresStorage", lambda *_args, **_kwargs: app.storage)
 
     result = await viewer_server._create_memory_payload(
@@ -358,6 +392,53 @@ async def test_create_memory_payload_calls_app_save_memory(monkeypatch) -> None:
     assert app.calls[0]["author"] == "rzjulio"
     assert app.calls[0]["memory_type"] == "documentation"
     assert app.calls[0]["metadata"]["applicable_projects"] == ["olinkb"]
+
+
+@pytest.mark.asyncio
+async def test_create_memory_payload_builds_explicit_app_settings_without_env_defaults(monkeypatch) -> None:
+    captured_settings = {}
+
+    def make_app(settings=None):
+        captured_settings["settings"] = settings
+        return FakeViewerApp(settings=settings)
+
+    monkeypatch.setattr(viewer_server, "OlinKBApp", make_app)
+    monkeypatch.setattr(viewer_server, "PostgresStorage", lambda *_args, **_kwargs: type("Storage", (), {"close": FakeViewerApp()._close})())
+
+    await viewer_server._create_memory_payload(
+        "postgresql://unused",
+        payload={
+            "title": "New doc",
+            "content": "# Content",
+            "memory_type": "documentation",
+            "target_scope": "repo",
+            "applicable_projects": ["olinkb"],
+        },
+        username="rzjulio",
+        role="lead",
+        team=None,
+        project="olinkb",
+    )
+
+    assert captured_settings["settings"].user == "rzjulio"
+    assert captured_settings["settings"].team == "viewer"
+
+
+@pytest.mark.asyncio
+async def test_login_viewer_session_falls_back_to_viewer_team_without_default_team(monkeypatch) -> None:
+    storage = FakeViewerStorage()
+    monkeypatch.setattr(viewer_server, "PostgresStorage", lambda *_args, **_kwargs: storage)
+
+    session = await viewer_server._login_viewer_session(
+        "postgresql://unused",
+        username="admin",
+        password="admin",
+        team=None,
+        project="olinkb",
+    )
+
+    assert session["team"] == "viewer"
+    assert storage.created_members[0]["team"] == "viewer"
 
 
 def test_build_viewer_auth_payload_defaults_to_anonymous() -> None:

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -668,22 +668,22 @@
     <div class="page-shell">
         <header class="hero">
             <div class="eyebrow">Visual Companion · OlinKB CLI + MCP</div>
-            <h1>Qué instala la CLI y qué pasa realmente cuando el editor usa OlinKB</h1>
+            <h1>What the CLI installs and what really happens when the editor uses OlinKB</h1>
             <p class="hero-copy">
-                Esta vista separa la historia en tres capas: <span class="highlight">instalación del paquete</span>,
-                <span class="highlight">bootstrap del workspace</span> y <span class="highlight">ejecución MCP en tiempo
-                    real</span>.
-                La meta es que puedas ver, casi como una radiografía, qué aparece en la máquina del developer y qué se
-                mueve detrás del telón.
+                This view separates the story into three layers: <span class="highlight">package installation</span>,
+                <span class="highlight">workspace bootstrap</span>, and <span class="highlight">real-time MCP
+                    execution</span>.
+                The goal is to let you see, almost like an X-ray, what appears on the developer's machine and what
+                moves behind the curtain.
             </p>
             <div class="hero-grid">
                 <div class="hero-card">
-                    <h3>Resumen en una frase</h3>
+                    <h3>Summary in one sentence</h3>
                     <p>
-                        OlinKB no instala un daemon: instala un comando local <span class="mono">olinkb</span>, escribe
-                        configuración MCP para VS Code,
-                        usa PostgreSQL como memoria persistente y deja que el editor levante un proceso <span
-                            class="mono">olinkb mcp</span> por demanda vía <span class="mono">stdio</span>.
+                        OlinKB does not install a daemon: it installs a local <span class="mono">olinkb</span>
+                        command, writes MCP configuration for VS Code, uses PostgreSQL as persistent memory, and lets
+                        the editor launch an <span class="mono">olinkb mcp</span> process on demand over <span
+                            class="mono">stdio</span>.
                     </p>
                     <div class="pill-list">
                         <span class="pill">Python package</span>
@@ -694,91 +694,92 @@
                     </div>
                 </div>
                 <div class="hero-card">
-                    <h3>A simple vista</h3>
+                    <h3>At a glance</h3>
                     <div class="stat-grid">
-                        <div class="stat"><strong>1</strong><span>comando principal: <span
-                                    class="mono">olinkb</span></span></div>
-                        <div class="stat"><strong>2</strong><span>dependencias Python clave: <span
-                                    class="mono">mcp</span> y <span class="mono">asyncpg</span></span></div>
-                        <div class="stat"><strong>5</strong><span>tools MCP visibles: boot, remember, save, end,
+                        <div class="stat"><strong>1</strong><span>main command: <span class="mono">olinkb</span></span>
+                        </div>
+                        <div class="stat"><strong>2</strong><span>key Python dependencies: <span class="mono">mcp</span>
+                                y <span class="mono">asyncpg</span></span></div>
+                        <div class="stat"><strong>5</strong><span>visible MCP tools: boot, remember, save, end,
                                 forget</span></div>
-                        <div class="stat"><strong>0</strong><span>daemons residentes creados por OlinKB</span></div>
+                        <div class="stat"><strong>0</strong><span>resident daemons created by OlinKB</span></div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <nav class="toc" aria-label="Secciones del companion">
+        <nav class="toc" aria-label="Companion sections">
             <a href="#timeline">Timeline</a>
-            <a href="#wheel">Dentro del wheel</a>
-            <a href="#visible-hidden">Visible vs oculto</a>
-            <a href="#machine">Mapa de máquina</a>
-            <a href="#artifacts">Archivos creados</a>
-            <a href="#runtime">Runtime MCP</a>
-            <a href="#installed">Qué sí / qué no</a>
+            <a href="#wheel">Inside the wheel</a>
+            <a href="#visible-hidden">Visible vs hidden</a>
+            <a href="#machine">Machine map</a>
+            <a href="#artifacts">Created files</a>
+            <a href="#runtime">MCP runtime</a>
+            <a href="#installed">What is / is not installed</a>
         </nav>
 
         <section id="timeline">
             <div class="section-head">
                 <div>
-                    <h2>Timeline de instalación</h2>
+                    <h2>Installation timeline</h2>
                 </div>
-                <p>De izquierda a derecha: lo que ejecuta el developer y la consecuencia material de cada paso.</p>
+                <p>From left to right: what the developer runs and the material consequence of each step.</p>
             </div>
             <div class="timeline">
                 <article class="step" data-step="01">
                     <div class="step-label">Paquete</div>
-                    <h3>pipx instala el wheel</h3>
-                    <p>Se descarga o abre el wheel, se crea un venv aislado y se expone el launcher <span
-                            class="mono">olinkb</span>.</p>
+                    <h3>pipx installs the wheel</h3>
+                    <p>The wheel is downloaded or opened, an isolated venv is created, and the <span
+                            class="mono">olinkb</span> launcher is exposed.</p>
                     <ul>
                         <li>Script entrypoint: <span class="mono">olinkb = olinkb.cli:main</span></li>
-                        <li>Dependencias: <span class="mono">mcp</span>, <span class="mono">asyncpg</span></li>
-                        <li>No toca todavía VS Code ni PostgreSQL</li>
+                        <li>Dependencies: <span class="mono">mcp</span>, <span class="mono">asyncpg</span></li>
+                        <li>It does not touch VS Code or PostgreSQL yet</li>
                     </ul>
                 </article>
                 <article class="step" data-step="02">
                     <div class="step-label">Bootstrap</div>
                     <h3><span class="mono">olinkb --init</span></h3>
-                    <p>Pregunta scope, URL de PostgreSQL y team. Detecta el nombre del proyecto si el scope es de
-                        repositorio.</p>
+                    <p>It asks for scope, the PostgreSQL URL, and the team. It detects the project name if the scope
+                        is repository-level.</p>
                     <ul>
                         <li>Scope: <span class="mono">repository</span> o <span class="mono">global</span></li>
-                        <li>Construye el bloque MCP con env vars</li>
-                        <li>Hace merge en lugar de reescribir ciegamente</li>
+                        <li>Builds the MCP block with env vars</li>
+                        <li>Merges instead of blindly overwriting</li>
                     </ul>
                 </article>
                 <article class="step" data-step="03">
                     <div class="step-label">Editor</div>
-                    <h3>VS Code queda cableado</h3>
-                    <p>El editor ahora sabe que existe un servidor MCP llamado <span class="mono">olinkb</span> y cómo
-                        arrancarlo.</p>
+                    <h3>VS Code gets wired up</h3>
+                    <p>The editor now knows that an MCP server called <span class="mono">olinkb</span> exists and
+                        how to start it.</p>
                     <ul>
                         <li>Usa <span class="mono">command: olinkb</span></li>
                         <li>Usa <span class="mono">args: ["mcp"]</span></li>
-                        <li>Pasa <span class="mono">OLINKB_PG_URL</span>, <span class="mono">OLINKB_TEAM</span>, <span
-                                class="mono">OLINKB_USER</span></li>
+                        <li>Passes <span class="mono">OLINKB_PG_URL</span>, <span class="mono">OLINKB_TEAM</span>,
+                            <span class="mono">OLINKB_USER</span>
+                        </li>
                     </ul>
                 </article>
                 <article class="step" data-step="04">
-                    <div class="step-label">Base de datos</div>
+                    <div class="step-label">Database</div>
                     <h3><span class="mono">olinkb migrate</span></h3>
-                    <p>Se crean extensiones, tablas e índices. Aquí nace el storage persistente real.</p>
+                    <p>Extensions, tables, and indexes are created. This is where real persistent storage begins.</p>
                     <ul>
                         <li>Extensiones: <span class="mono">uuid-ossp</span>, <span class="mono">pg_trgm</span></li>
                         <li>Tablas: team_members, memories, sessions, audit_log</li>
-                        <li>La DB es la memoria compartida real</li>
+                        <li>The DB is the real shared memory</li>
                     </ul>
                 </article>
                 <article class="step" data-step="05">
-                    <div class="step-label">Uso real</div>
-                    <h3>El editor levanta el subprocess MCP</h3>
-                    <p>Cada vez que Copilot necesita memoria, puede arrancar <span class="mono">olinkb mcp</span> y
-                        hablar por stdin/stdout.</p>
+                    <div class="step-label">Real use</div>
+                    <h3>The editor launches the MCP subprocess</h3>
+                    <p>Whenever Copilot needs memory, it can start <span class="mono">olinkb mcp</span> and talk
+                        over stdin/stdout.</p>
                     <ul>
-                        <li>No hay puerto HTTP para MCP</li>
-                        <li>No hay servicio siempre encendido</li>
-                        <li>La caché vive solo mientras vive el proceso</li>
+                        <li>There is no HTTP port for MCP</li>
+                        <li>There is no always-on service</li>
+                        <li>The cache lives only as long as the process lives</li>
                     </ul>
                 </article>
             </div>
@@ -787,16 +788,16 @@
         <section id="wheel">
             <div class="section-head">
                 <div>
-                    <h2>Qué instala exactamente el wheel</h2>
+                    <h2>What the wheel actually installs</h2>
                 </div>
-                <p>Esta es la parte que normalmente queda invisible: el wheel no instala solo un comando, instala un
-                    paquete Python completo y un launcher que apunta al entrypoint del proyecto.</p>
+                <p>This is the part that usually stays invisible: the wheel does not install only a command, it
+                    installs a full Python package and a launcher that points to the project's entrypoint.</p>
             </div>
             <div class="wheel-grid">
                 <article class="artifact-card">
-                    <h3>Lo que queda en disco</h3>
-                    <p>Tras <span class="mono">pipx install olinkb-0.1.0-py3-none-any.whl</span>, pipx crea un venv
-                        aislado y dentro instala el paquete Python con su código y metadatos.</p>
+                    <h3>What lands on disk</h3>
+                    <p>After <span class="mono">pipx install olinkb-0.1.0-py3-none-any.whl</span>, pipx creates an
+                        isolated venv and installs the Python package with its code and metadata inside it.</p>
                     <div class="artifact-path">site-packages/
                         olinkb/
                         __init__.py
@@ -806,55 +807,56 @@
                         bootstrap.py
                         olinkb-0.1.0.dist-info/</div>
                     <ul>
-                        <li>Sí, hay archivos <span class="mono">.py</span> reales instalados en tu máquina.</li>
-                        <li>También quedan las dependencias <span class="mono">mcp</span> y <span
-                                class="mono">asyncpg</span> en ese mismo entorno.</li>
-                        <li>El código no vive en tu Python global, sino en el entorno aislado que maneja pipx.</li>
+                        <li>Yes, real <span class="mono">.py</span> files are installed on your machine.</li>
+                        <li>The <span class="mono">mcp</span> and <span class="mono">asyncpg</span> dependencies
+                            also live in that same environment.</li>
+                        <li>The code does not live in your global Python, but in the isolated environment managed by
+                            pipx.</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
-                    <h3>Cómo nace el comando <span class="mono">olinkb</span></h3>
-                    <p>El wheel trae metadata para que el instalador genere un launcher a partir del script declarado en
-                        el proyecto.</p>
+                    <h3>How the <span class="mono">olinkb</span> command is created</h3>
+                    <p>The wheel carries metadata so the installer can generate a launcher from the script declared in
+                        the project.</p>
                     <div class="artifact-path">[project.scripts]
                         olinkb = "olinkb.cli:main"</div>
                     <ul>
-                        <li>Eso le dice al instalador qué función debe ejecutar el comando.</li>
-                        <li>El launcher suele ser un script pequeño o shim que llama al Python del venv.</li>
-                        <li>Cuando escribes <span class="mono">olinkb ...</span>, en realidad terminas ejecutando <span
-                                class="mono">main()</span> de <span class="mono">olinkb/cli.py</span>.</li>
+                        <li>That tells the installer which function the command must execute.</li>
+                        <li>The launcher is usually a small script or shim that calls the venv's Python.</li>
+                        <li>When you type <span class="mono">olinkb ...</span>, you are really executing <span
+                                class="mono">main()</span> from <span class="mono">olinkb/cli.py</span>.</li>
                     </ul>
                 </article>
             </div>
-            <div class="flow-strip" aria-label="Flujo interno del launcher olinkb">
+            <div class="flow-strip" aria-label="Internal flow of the olinkb launcher">
                 <div class="flow-chip">
                     <strong>1. Shell</strong>
-                    Tu terminal resuelve <span class="mono">olinkb</span> desde el PATH.
+                    Your terminal resolves <span class="mono">olinkb</span> from the PATH.
                 </div>
                 <div class="flow-chip">
                     <strong>2. Launcher</strong>
-                    El wrapper apunta al Python del venv creado por pipx.
+                    The wrapper points to the Python in the venv created by pipx.
                 </div>
                 <div class="flow-chip">
                     <strong>3. Import</strong>
-                    Python importa <span class="mono">olinkb.cli</span> desde los archivos instalados.
+                    Python imports <span class="mono">olinkb.cli</span> from the installed files.
                 </div>
                 <div class="flow-chip">
                     <strong>4. Entry point</strong>
-                    Se ejecuta <span class="mono">olinkb.cli:main</span> y de ahí salen <span class="mono">mcp</span>,
-                    <span class="mono">migrate</span>, <span class="mono">--init</span> y demás.
+                    <span class="mono">olinkb.cli:main</span> runs, and from there <span class="mono">mcp</span>,
+                    <span class="mono">migrate</span>, <span class="mono">--init</span>, and the rest branch off.
                 </div>
             </div>
             <div class="mini-grid">
                 <div class="mini-panel">
-                    <h3>Lo importante</h3>
-                    <p>Instalar el wheel sí deja software Python local en tu máquina. No es un acceso remoto al repo ni
-                        un alias vacío.</p>
+                    <h3>What matters</h3>
+                    <p>Installing the wheel does leave local Python software on your machine. It is not remote access
+                        to the repo or an empty alias.</p>
                 </div>
                 <div class="mini-panel">
-                    <h3>Lo que no hace</h3>
-                    <p>No instala PostgreSQL, no crea un daemon y no migra la base automáticamente. Solo deja el
-                        software local listo para usarse.</p>
+                    <h3>What it does not do</h3>
+                    <p>It does not install PostgreSQL, does not create a daemon, and does not migrate the database
+                        automatically. It only leaves the local software ready to use.</p>
                 </div>
             </div>
         </section>
@@ -862,40 +864,40 @@
         <section id="visible-hidden">
             <div class="section-head">
                 <div>
-                    <h2>Lo visible y lo invisible</h2>
+                    <h2>The visible and the invisible</h2>
                 </div>
-                <p>Esta separación aclara por qué OlinKB puede sentirse “simple” por fuera y, aun así, tener varias
-                    capas internas.</p>
+                <p>This separation clarifies why OlinKB can feel simple from the outside and still have multiple
+                    internal layers.</p>
             </div>
             <div class="visible-hidden">
                 <article class="panel visible">
                     <div class="panel-head">
-                        <h3>Lo que el developer sí ve</h3>
+                        <h3>What the developer does see</h3>
                         <span>front stage</span>
                     </div>
                     <ul>
-                        <li>El comando <span class="mono">olinkb</span> aparece disponible en la terminal.</li>
-                        <li><span class="mono">olinkb --init</span> pide pocos datos y escribe config.</li>
-                        <li>Se crean archivos en <span class="mono">.vscode</span>, <span class="mono">.github</span> y
-                            opcionalmente en el viewer scaffold.</li>
-                        <li><span class="mono">olinkb migrate</span> imprime migraciones aplicadas.</li>
-                        <li>Luego el agente usa memoria sin pedir comandos manuales en cada prompt.</li>
+                        <li>The <span class="mono">olinkb</span> command appears in the terminal.</li>
+                        <li><span class="mono">olinkb --init</span> asks for a small amount of data and writes
+                            config.</li>
+                        <li>Files are created in <span class="mono">.vscode</span>, <span class="mono">.github</span>,
+                            and optionally in the viewer scaffold.</li>
+                        <li><span class="mono">olinkb migrate</span> prints the applied migrations.</li>
+                        <li>After that, the agent uses memory without asking for manual commands in every prompt.</li>
                     </ul>
                 </article>
                 <article class="panel hidden">
                     <div class="panel-head">
-                        <h3>Lo que ocurre por detrás</h3>
+                        <h3>What happens behind the scenes</h3>
                         <span>back stage</span>
                     </div>
                     <ul>
-                        <li>El entrypoint del paquete entra por <span class="mono">olinkb.cli:main</span>.</li>
-                        <li>El bootstrap hace merge de JSON e inserta o actualiza el protocolo en instrucciones del
-                            repo.</li>
-                        <li>El runtime MCP crea un <span class="mono">OlinKBApp</span> con settings, cache TTL y session
-                            manager.</li>
-                        <li>Las búsquedas <span class="mono">remember</span> usan trigram similarity con <span
+                        <li>The package entrypoint comes in through <span class="mono">olinkb.cli:main</span>.</li>
+                        <li>Bootstrap merges JSON and inserts or updates the protocol in the repo instructions.</li>
+                        <li>The MCP runtime creates an <span class="mono">OlinKBApp</span> with settings, cache TTL,
+                            and a session manager.</li>
+                        <li><span class="mono">remember</span> searches use trigram similarity with <span
                                 class="mono">pg_trgm</span>.</li>
-                        <li>La persistencia real no vive en el proceso MCP: vive en PostgreSQL.</li>
+                        <li>Real persistence does not live in the MCP process: it lives in PostgreSQL.</li>
                     </ul>
                 </article>
             </div>
@@ -904,15 +906,15 @@
         <section id="machine">
             <div class="section-head">
                 <div>
-                    <h2>Mapa de la máquina del developer</h2>
+                    <h2>Developer machine map</h2>
                 </div>
-                <p>Cuatro zonas: package install, editor config, subprocess MCP y base persistente.</p>
+                <p>Four zones: package installation, editor config, MCP subprocess, and persistent backend.</p>
             </div>
             <div class="machine-map">
                 <article class="lane-card">
                     <div class="lane-tag">1 · Python tooling</div>
-                    <h3>pipx / venv aislado</h3>
-                    <p>Es donde vive el paquete instalado y sus dependencias Python.</p>
+                    <h3>pipx / isolated venv</h3>
+                    <p>This is where the installed package and its Python dependencies live.</p>
                     <ul>
                         <li>Wheel de OlinKB</li>
                         <li>Launcher <span class="mono">olinkb</span></li>
@@ -920,29 +922,29 @@
                     </ul>
                 </article>
                 <article class="lane-card">
-                    <div class="lane-tag">2 · Workspace o usuario</div>
+                    <div class="lane-tag">2 · Workspace or user</div>
                     <h3>VS Code MCP registry</h3>
-                    <p>Es donde el editor aprende cómo arrancar el servidor y con qué variables de entorno.</p>
+                    <p>This is where the editor learns how to start the server and with which environment variables.</p>
                     <ul>
                         <li><span class="mono">.vscode/mcp.json</span> o user <span class="mono">mcp.json</span></li>
-                        <li>Instructions del repo para activar las tools</li>
-                        <li>Project name inyectado en modo repository</li>
+                        <li>Repo instructions for activating the tools</li>
+                        <li>Project name injected in repository mode</li>
                     </ul>
                 </article>
                 <article class="lane-card">
-                    <div class="lane-tag">3 · Proceso efímero</div>
+                    <div class="lane-tag">3 · Ephemeral process</div>
                     <h3>Subprocess <span class="mono">olinkb mcp</span></h3>
-                    <p>Vive mientras la conversación necesita el servidor MCP. Después desaparece.</p>
+                    <p>It lives while the conversation needs the MCP server. After that, it disappears.</p>
                     <ul>
                         <li>Transport: stdin/stdout</li>
                         <li>Official MCP low-level router</li>
-                        <li>ReadCache + SessionManager en RAM</li>
+                        <li>ReadCache + SessionManager in RAM</li>
                     </ul>
                 </article>
                 <article class="lane-card">
                     <div class="lane-tag">4 · Persistencia</div>
                     <h3>PostgreSQL compartido</h3>
-                    <p>Es la fuente de verdad que sobrevive a reinicios, cierres del editor y múltiples developers.</p>
+                    <p>It is the source of truth that survives restarts, editor shutdowns, and multiple developers.</p>
                     <ul>
                         <li>memories</li>
                         <li>sessions</li>
@@ -956,84 +958,84 @@
         <section id="artifacts">
             <div class="section-head">
                 <div>
-                    <h2>Archivos y artefactos que aparecen</h2>
+                    <h2>Files and artifacts that appear</h2>
                 </div>
-                <p>No todo se crea en el mismo momento. Algunos artefactos son de bootstrap, otros son de migración y
-                    otros son puramente runtime.</p>
+                <p>Not everything is created at the same moment. Some artifacts come from bootstrap, others from
+                    migration, and others are purely runtime.</p>
             </div>
             <div class="artifact-grid">
                 <article class="artifact-card">
-                    <h3>Instalación del comando</h3>
-                    <p>Esto aparece por instalar el wheel con pipx.</p>
+                    <h3>Command installation</h3>
+                    <p>This appears when the wheel is installed with pipx.</p>
                     <div class="artifact-path">pipx venv + launcher
                         olinkb</div>
                     <ul>
-                        <li>Expone el entrypoint CLI</li>
-                        <li>Contiene el código Python del paquete</li>
-                        <li>No crea todavía schema ni config de VS Code</li>
+                        <li>Exposes the CLI entrypoint</li>
+                        <li>Contains the package's Python code</li>
+                        <li>Does not create the schema or VS Code config yet</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
                     <h3>Bootstrap repository</h3>
-                    <p>Esto aparece cuando el scope es del repo actual.</p>
+                    <p>This appears when the scope is the current repo.</p>
                     <div class="artifact-path">.vscode/mcp.json
                         .github/copilot-instructions.md
                         olinkb-viewer/index.html
                         olinkb-viewer/README.md</div>
                     <ul>
-                        <li>Registra el servidor MCP</li>
-                        <li>Le enseña al agente cuándo usar memoria</li>
-                        <li>Evita duplicar bloques al re-ejecutarse</li>
+                        <li>Registers the MCP server</li>
+                        <li>Teaches the agent when to use memory</li>
+                        <li>Avoids duplicating blocks when re-run</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
                     <h3>Bootstrap global</h3>
-                    <p>Esto aparece cuando el developer elige scope global.</p>
+                    <p>This appears when the developer chooses global scope.</p>
                     <div class="artifact-path">macOS
                         ~/Library/Application Support/Code/User/mcp.json</div>
                     <ul>
-                        <li>Configura VS Code a nivel usuario</li>
-                        <li>No escribe instrucciones del repo</li>
-                        <li>Útil si no quieres commitear la integración</li>
+                        <li>Configures VS Code at the user level</li>
+                        <li>Does not write repo instructions</li>
+                        <li>Useful if you do not want to commit the integration</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
                     <h3>Schema PostgreSQL</h3>
-                    <p>Esto nace cuando se ejecuta la migración.</p>
+                    <p>This is created when the migration runs.</p>
                     <div class="artifact-path">schema_migrations
                         team_members
                         memories
                         sessions
                         audit_log</div>
                     <ul>
-                        <li>También crea índices trigram GIN</li>
-                        <li>Las extensiones quedan habilitadas en la DB</li>
-                        <li>Aquí vive la memoria compartida</li>
+                        <li>Also creates trigram GIN indexes</li>
+                        <li>The extensions remain enabled in the DB</li>
+                        <li>This is where the shared memory lives</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
-                    <h3>Estado efímero</h3>
-                    <p>Esto existe solo mientras vive el proceso MCP actual.</p>
+                    <h3>Ephemeral state</h3>
+                    <p>This exists only while the current MCP process is alive.</p>
                     <div class="artifact-path">ReadCache (TTL)
                         SessionManager
-                        settings cargados en RAM</div>
+                        settings loaded in RAM</div>
                     <ul>
-                        <li>No sobrevive al cierre del subprocess</li>
-                        <li>Sirve para velocidad y contexto inmediato</li>
-                        <li>No reemplaza a PostgreSQL</li>
+                        <li>Does not survive subprocess shutdown</li>
+                        <li>Helps with speed and immediate context</li>
+                        <li>Does not replace PostgreSQL</li>
                     </ul>
                 </article>
                 <article class="artifact-card">
-                    <h3>Integración automática</h3>
-                    <p>Lo más importante no es solo el binario; es la combinación de binario + registro MCP +
-                        instrucciones.</p>
+                    <h3>Automatic integration</h3>
+                    <p>The most important part is not only the binary; it is the combination of binary + MCP registry
+                        + instructions.</p>
                     <div class="artifact-path">command: olinkb
                         args: ["mcp"]
                         env: OLINKB_*</div>
                     <ul>
-                        <li>Sin esto, el editor no lo invoca automáticamente</li>
-                        <li>Sin instrucciones, el modelo puede usarlo de forma inconsistente</li>
-                        <li>Sin DB, el servidor no tiene memoria real</li>
+                        <li>Without this, the editor does not invoke it automatically</li>
+                        <li>Without instructions, the model may use it inconsistently</li>
+                        <li>Without the DB, the server has no real memory</li>
                     </ul>
                 </article>
             </div>
@@ -1042,16 +1044,16 @@
         <section id="runtime">
             <div class="section-head">
                 <div>
-                    <h2>Runtime MCP, paso por paso</h2>
+                    <h2>MCP runtime, step by step</h2>
                 </div>
-                <p>Cambia de pestaña para seguir el recorrido interno del subprocess desde que VS Code lo levanta hasta
-                    que termina.</p>
+                <p>Switch tabs to follow the subprocess's internal path from the moment VS Code launches it until it
+                    ends.</p>
             </div>
             <div class="runtime-board">
                 <div class="runtime-flow">
-                    <div class="runtime-tabs" role="tablist" aria-label="Etapas del runtime MCP">
+                    <div class="runtime-tabs" role="tablist" aria-label="MCP runtime stages">
                         <button class="runtime-tab" role="tab" aria-selected="true" aria-controls="stage-1"
-                            id="tab-1">1. Arranque</button>
+                            id="tab-1">1. Startup</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-2"
                             id="tab-2">2. Settings</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-3"
@@ -1059,150 +1061,152 @@
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-4"
                             id="tab-4">4. Tool call</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-5"
-                            id="tab-5">5. Persistencia</button>
+                            id="tab-5">5. Persistence</button>
                         <button class="runtime-tab" role="tab" aria-selected="false" aria-controls="stage-6"
-                            id="tab-6">6. Cierre</button>
+                            id="tab-6">6. Shutdown</button>
                     </div>
                     <div>
                         <article class="runtime-stage active" id="stage-1" role="tabpanel" aria-labelledby="tab-1">
-                            <h3>El editor ejecuta <span class="mono">olinkb mcp</span></h3>
-                            <p>VS Code no llama funciones Python directamente. Ejecuta un proceso del sistema operativo
-                                y habla con él por stdio. Esa es la frontera MCP real.</p>
+                            <h3>The editor executes <span class="mono">olinkb mcp</span></h3>
+                            <p>VS Code does not call Python functions directly. It executes an operating-system
+                                process and talks to it over stdio. That is the real MCP boundary.</p>
                             <div class="mini-grid">
                                 <div class="mini-panel">
                                     <h3>Visible</h3>
-                                    <p>No suele verse nada en pantalla. Solo “funciona” cuando el agente decide usar
-                                        memoria.</p>
+                                    <p>Nothing usually appears on screen. It simply "works" when the agent decides to
+                                        use memory.</p>
                                 </div>
                                 <div class="mini-panel">
-                                    <h3>Interno</h3>
-                                    <p>El entrypoint CLI reconoce <span class="mono">mcp</span> o <span
-                                            class="mono">serve</span> y delega a <span class="mono">run_server()</span>.
+                                    <h3>Internal</h3>
+                                    <p>The CLI entrypoint recognizes <span class="mono">mcp</span> or <span
+                                            class="mono">serve</span> and delegates to <span
+                                            class="mono">run_server()</span>.
                                     </p>
                                 </div>
                             </div>
                         </article>
 
                         <article class="runtime-stage" id="stage-2" role="tabpanel" aria-labelledby="tab-2">
-                            <h3>Se leen variables de entorno</h3>
-                            <p>El proceso construye <span class="mono">Settings</span> a partir de <span
+                            <h3>Environment variables are read</h3>
+                            <p>The process builds <span class="mono">Settings</span> from <span
                                     class="mono">OLINKB_PG_URL</span>, <span class="mono">OLINKB_TEAM</span>, <span
-                                    class="mono">OLINKB_USER</span> y opcionalmente <span
+                                    class="mono">OLINKB_USER</span>, and optionally <span
                                     class="mono">OLINKB_PROJECT</span>.</p>
                             <div class="stack">
-                                <div class="stack-item"><strong>Obligatorio</strong><span><span
+                                <div class="stack-item"><strong>Required</strong><span><span
                                             class="mono">OLINKB_PG_URL</span> y <span
                                             class="mono">OLINKB_TEAM</span></span></div>
                                 <div class="stack-item"><strong>Fallback</strong><span>Si no existe <span
-                                            class="mono">OLINKB_USER</span>, usa <span class="mono">USER</span> o <span
-                                            class="mono">USERNAME</span>.</span></div>
-                                <div class="stack-item"><strong>Opcional</strong><span>Project por defecto y parámetros
-                                        del cache TTL.</span></div>
+                                            class="mono">OLINKB_USER</span>, it uses <span class="mono">USER</span>
+                                        or <span class="mono">USERNAME</span>.</span></div>
+                                <div class="stack-item"><strong>Optional</strong><span>Default project and cache TTL
+                                        parameters.</span></div>
                             </div>
                         </article>
 
                         <article class="runtime-stage" id="stage-3" role="tabpanel" aria-labelledby="tab-3">
-                            <h3>El SDK MCP publica las tools</h3>
-                            <p>El servidor low-level del SDK oficial registra funciones como <span
+                            <h3>The MCP SDK publishes the tools</h3>
+                            <p>The low-level server from the official SDK registers functions such as <span
                                     class="mono">boot_session</span>, <span class="mono">remember</span>, <span
-                                    class="mono">save_memory</span>, <span class="mono">end_session</span> y <span
+                                    class="mono">save_memory</span>, <span class="mono">end_session</span>, and <span
                                     class="mono">forget</span>.</p>
                             <div class="runtime-grid">
                                 <div class="runtime-card">
                                     <h3>boot_session</h3>
-                                    <p>Arranca sesión y precarga memoria relevante.</p>
+                                    <p>Starts a session and preloads relevant memory.</p>
                                 </div>
                                 <div class="runtime-card">
                                     <h3>remember</h3>
-                                    <p>Busca memorias por trigram similarity y puede devolver payload lean.</p>
+                                    <p>Searches memories by trigram similarity and can return a lean payload.</p>
                                 </div>
                                 <div class="runtime-card">
                                     <h3>save_memory</h3>
-                                    <p>Persiste memoria con deduplicación por hash y metadata opcional.</p>
+                                    <p>Persists memory with hash-based deduplication and optional metadata.</p>
                                 </div>
                             </div>
                         </article>
 
                         <article class="runtime-stage" id="stage-4" role="tabpanel" aria-labelledby="tab-4">
-                            <h3>La tool entra en <span class="mono">OlinKBApp</span></h3>
-                            <p>Aquí se conectan reglas de negocio, caché y acceso a base. Este es el cerebro operativo
-                                del subprocess.</p>
+                            <h3>The tool enters <span class="mono">OlinKBApp</span></h3>
+                            <p>This is where business rules, cache, and database access come together. This is the
+                                subprocess's operational brain.</p>
                             <div class="mini-grid">
                                 <div class="mini-panel">
                                     <h3>ReadCache</h3>
-                                    <p>Evita repetir lecturas costosas en el mismo proceso. TTL por defecto: 300
-                                        segundos.</p>
+                                    <p>Avoids repeating expensive reads in the same process. Default TTL: 300
+                                        seconds.</p>
                                 </div>
                                 <div class="mini-panel">
                                     <h3>SessionManager</h3>
-                                    <p>Guarda estado de la sesión activa solo en memoria del proceso.</p>
+                                    <p>Keeps active-session state only in process memory.</p>
                                 </div>
                             </div>
                             <div class="mini-panel">
-                                <h3>Ejemplo mental</h3>
-                                <p><span class="mono">remember</span> intenta cache, si falla consulta PostgreSQL,
-                                    mezcla resultados, toca contadores y devuelve contexto al agente.</p>
+                                <h3>Mental model</h3>
+                                <p><span class="mono">remember</span> tries the cache, falls back to PostgreSQL on a
+                                    miss, combines results, updates counters, and returns context to the agent.</p>
                             </div>
                         </article>
 
                         <article class="runtime-stage" id="stage-5" role="tabpanel" aria-labelledby="tab-5">
-                            <h3>La DB hace el trabajo persistente</h3>
-                            <p>PostgreSQL no es un accesorio. Es la fuente de verdad del sistema: membresía, memorias,
-                                sesiones y trazabilidad.</p>
+                            <h3>The DB does the persistent work</h3>
+                            <p>PostgreSQL is not an accessory. It is the system's source of truth: membership,
+                                memories, sessions, and traceability.</p>
                             <div class="facts">
                                 <div class="fact-card">
                                     <h3>pg_trgm</h3>
-                                    <p>Permite similarity y matching difuso para <span class="mono">remember</span>.</p>
+                                    <p>Enables similarity and fuzzy matching for <span class="mono">remember</span>.</p>
                                 </div>
                                 <div class="fact-card">
                                     <h3>audit_log</h3>
-                                    <p>Guarda trail de acciones y forgets. Sirve para trazabilidad.</p>
+                                    <p>Stores an action trail and forgets. Used for traceability.</p>
                                 </div>
                                 <div class="fact-card">
                                     <h3>sessions</h3>
-                                    <p>Permite cerrar sesiones y persistir summaries más allá del proceso actual.</p>
+                                    <p>Makes it possible to close sessions and persist summaries beyond the current
+                                        process.</p>
                                 </div>
                             </div>
                         </article>
 
                         <article class="runtime-stage" id="stage-6" role="tabpanel" aria-labelledby="tab-6">
-                            <h3>La conexión termina y el proceso muere</h3>
-                            <p>Al cerrarse la conexión MCP, el subprocess termina. Lo que estaba en cache o en session
-                                manager desaparece. Lo que estaba en PostgreSQL queda.</p>
+                            <h3>The connection ends and the process dies</h3>
+                            <p>When the MCP connection closes, the subprocess ends. Whatever lived in cache or the
+                                session manager disappears. Whatever lived in PostgreSQL remains.</p>
                             <div class="check-grid">
                                 <div class="check-list">
-                                    <h3>Se conserva</h3>
+                                    <h3>Retained</h3>
                                     <div class="check-row"><span class="badge yes">+</span>
                                         <div><strong>Memories</strong>
-                                            <p>Persisten en la tabla correspondiente.</p>
+                                            <p>Persist in the corresponding table.</p>
                                         </div>
                                     </div>
                                     <div class="check-row"><span class="badge yes">+</span>
                                         <div><strong>Audit trail</strong>
-                                            <p>Queda en <span class="mono">audit_log</span>.</p>
+                                            <p>Remains in <span class="mono">audit_log</span>.</p>
                                         </div>
                                     </div>
                                     <div class="check-row"><span class="badge yes">+</span>
-                                        <div><strong>Sessions cerradas</strong>
-                                            <p>Sobreviven al reinicio del editor.</p>
+                                        <div><strong>Closed sessions</strong>
+                                            <p>Survive editor restarts.</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="check-list">
-                                    <h3>Se pierde</h3>
+                                    <h3>Lost</h3>
                                     <div class="check-row"><span class="badge no">−</span>
                                         <div><strong>ReadCache</strong>
-                                            <p>Es solo RAM del proceso actual.</p>
+                                            <p>It is only RAM in the current process.</p>
                                         </div>
                                     </div>
                                     <div class="check-row"><span class="badge no">−</span>
-                                        <div><strong>SessionManager vivo</strong>
-                                            <p>No sobrevive al cierre del subprocess.</p>
+                                        <div><strong>Live SessionManager</strong>
+                                            <p>Does not survive subprocess shutdown.</p>
                                         </div>
                                     </div>
                                     <div class="check-row"><span class="badge no">−</span>
-                                        <div><strong>Estado efímero del boot</strong>
-                                            <p>Se recalcula al arrancar un nuevo proceso.</p>
+                                        <div><strong>Ephemeral boot state</strong>
+                                            <p>Is recalculated when a new process starts.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1216,57 +1220,57 @@
         <section id="installed">
             <div class="section-head">
                 <div>
-                    <h2>Qué sí se instala y qué no</h2>
+                    <h2>What is installed and what is not</h2>
                 </div>
-                <p>Este es el punto que más confunde: instalar la CLI no equivale a instalar toda la plataforma
-                    alrededor.</p>
+                <p>This is the most confusing point: installing the CLI is not the same as installing the whole
+                    surrounding platform.</p>
             </div>
             <div class="check-grid">
                 <article class="check-list">
-                    <h3>Lo que OlinKB sí deja listo</h3>
+                    <h3>What OlinKB does leave ready</h3>
                     <div class="check-row"><span class="badge yes">+</span>
                         <div><strong>CLI local</strong>
-                            <p>El comando <span class="mono">olinkb</span> queda utilizable desde terminal y por VS
-                                Code.</p>
+                            <p>The <span class="mono">olinkb</span> command becomes usable from the terminal and by
+                                VS Code.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge yes">+</span>
-                        <div><strong>Dependencias Python</strong>
+                        <div><strong>Python dependencies</strong>
                             <p><span class="mono">mcp</span> para protocolo MCP y <span class="mono">asyncpg</span>
-                                para hablar con PostgreSQL.</p>
+                                to talk to PostgreSQL.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge yes">+</span>
-                        <div><strong>Registro MCP</strong>
-                            <p>La integración con VS Code queda configurada por archivo JSON.</p>
+                        <div><strong>MCP registry</strong>
+                            <p>The integration with VS Code is configured through a JSON file.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge yes">+</span>
-                        <div><strong>Protocolo del repo</strong>
-                            <p>El agente aprende cuándo debe usar memoria automáticamente.</p>
+                        <div><strong>Repo protocol</strong>
+                            <p>The agent learns when it should use memory automatically.</p>
                         </div>
                     </div>
                 </article>
                 <article class="check-list">
-                    <h3>Lo que el developer debe tener o provisionar</h3>
+                    <h3>What the developer must already have or provision</h3>
                     <div class="check-row"><span class="badge no">−</span>
                         <div><strong>Python 3.11+</strong>
-                            <p>Precondición del paquete, no parte de OlinKB.</p>
+                            <p>Package precondition, not part of OlinKB.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge no">−</span>
                         <div><strong>pipx</strong>
-                            <p>Herramienta de instalación recomendada, externa a OlinKB.</p>
+                            <p>Recommended installation tool, external to OlinKB.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge no">−</span>
-                        <div><strong>PostgreSQL corriendo</strong>
-                            <p>Puede ser local con Docker o remoto; OlinKB no te lo provisiona por sí mismo.</p>
+                        <div><strong>Running PostgreSQL</strong>
+                            <p>It can be local with Docker or remote; OlinKB does not provision it for you.</p>
                         </div>
                     </div>
                     <div class="check-row"><span class="badge no">−</span>
                         <div><strong>VS Code + Copilot</strong>
-                            <p>El cliente que invoca MCP ya debe existir y estar operativo.</p>
+                            <p>The client that invokes MCP must already exist and be operational.</p>
                         </div>
                     </div>
                 </article>
@@ -1276,26 +1280,24 @@
         <section>
             <div class="section-head">
                 <div>
-                    <h2>Resumen operativo</h2>
+                    <h2>Operational summary</h2>
                 </div>
-                <p>Si tuvieras que contárselo a otro developer en 20 segundos, esta sería la versión correcta.</p>
+                <p>If you had to explain it to another developer in 20 seconds, this would be the correct version.</p>
             </div>
             <div class="hero-card">
                 <p>
-                    <strong>OlinKB instala un comando local, no un servicio residente.</strong> Ese comando registra un
-                    servidor MCP en VS Code,
-                    usa variables de entorno para saber a qué PostgreSQL conectarse, y el editor lo arranca como
-                    subprocess por demanda.
-                    PostgreSQL guarda la memoria duradera; el proceso MCP solo aporta routing, caché efímera y
-                    coordinación de tools.
+                    <strong>OlinKB installs a local command, not a resident service.</strong> That command registers an
+                    MCP server in VS Code, uses environment variables to know which PostgreSQL instance to connect to,
+                    and the editor starts it as an on-demand subprocess. PostgreSQL stores durable memory; the MCP
+                    process only contributes routing, ephemeral cache, and tool coordination.
                 </p>
             </div>
         </section>
 
         <footer class="footer-note">
-            <strong>Tip de lectura</strong>
-            <span>Si quieres recorrerlo como onboarding: primero mira Timeline, luego Mapa de máquina y finalmente
-                Runtime MCP.</span>
+            <strong>Reading tip</strong>
+            <span>If you want to walk through it as onboarding: first look at Timeline, then Machine map, and finally
+                MCP runtime.</span>
         </footer>
     </div>
 

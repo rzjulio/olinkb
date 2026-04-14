@@ -159,7 +159,7 @@ def test_render_template_mcp_does_not_require_settings_when_args_are_explicit(mo
             "--pg-url",
             "postgresql://olinkb:olinkb@localhost:5433/olinkb",
             "--team",
-            "mi-equipo",
+            "example-team",
         ]
     )
 
@@ -297,6 +297,7 @@ def test_add_project_member_prints_project_assignment(monkeypatch, capsys) -> No
 def test_bootstrap_workspace_preserves_existing_servers_and_is_idempotent(tmp_path) -> None:
     vscode_dir = tmp_path / ".vscode"
     github_dir = tmp_path / ".github"
+    skill_path = tmp_path / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
     vscode_dir.mkdir()
     github_dir.mkdir()
     (vscode_dir / "mcp.json").write_text(
@@ -318,21 +319,23 @@ def test_bootstrap_workspace_preserves_existing_servers_and_is_idempotent(tmp_pa
     bootstrap.bootstrap_workspace(
         workspace_path=tmp_path,
         pg_url="postgresql://user:pass@db.example.com:5432/olinkb",
-        team="mi-equipo",
+        team="example-team",
     )
     bootstrap.bootstrap_workspace(
         workspace_path=tmp_path,
         pg_url="postgresql://user:pass@db.example.com:5432/olinkb",
-        team="mi-equipo",
+        team="example-team",
     )
 
     mcp_config = json.loads((vscode_dir / "mcp.json").read_text(encoding="utf-8"))
     instructions = (github_dir / "copilot-instructions.md").read_text(encoding="utf-8")
+    skill_text = skill_path.read_text(encoding="utf-8")
 
     assert "engram" in mcp_config["servers"]
     assert "olinkb" in mcp_config["servers"]
     assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_PROJECT"] == tmp_path.name
     assert instructions.count("## OlinKB Memory Protocol") == 1
+    assert "name: memory-relevance-triage" in skill_text
 
 
 def test_bootstrap_workspace_updates_existing_olinkb_protocol_block(tmp_path) -> None:
@@ -356,7 +359,7 @@ Keep this section.
     bootstrap.bootstrap_workspace(
         workspace_path=tmp_path,
         pg_url="postgresql://user:pass@db.example.com:5432/olinkb",
-        team="mi-equipo",
+        team="example-team",
     )
 
     instructions = (github_dir / "copilot-instructions.md").read_text(encoding="utf-8")
@@ -368,9 +371,81 @@ Keep this section.
     assert "call `save_memory`." not in instructions
 
 
+@pytest.mark.parametrize(
+    ("platform_name", "os_name", "expected_suffix"),
+    [
+        ("darwin", "posix", Path("Library") / "Application Support" / "Code" / "User" / "mcp.json"),
+        ("linux", "posix", Path(".config") / "Code" / "User" / "mcp.json"),
+    ],
+)
+def test_get_global_mcp_config_path_uses_expected_unix_locations(
+    monkeypatch, tmp_path, platform_name: str, os_name: str, expected_suffix: Path
+) -> None:
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+
+    monkeypatch.setattr(bootstrap.sys, "platform", platform_name)
+    monkeypatch.setattr(bootstrap.os, "name", os_name, raising=False)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.delenv("APPDATA", raising=False)
+
+    assert bootstrap.get_global_mcp_config_path() == fake_home / expected_suffix
+
+
+def test_get_global_mcp_config_path_uses_appdata_on_windows(monkeypatch, tmp_path) -> None:
+    appdata_root = tmp_path / "roaming"
+    appdata_root.mkdir()
+
+    monkeypatch.setattr(bootstrap.sys, "platform", "win32")
+    monkeypatch.setattr(bootstrap.os, "name", "nt", raising=False)
+    monkeypatch.delenv("HOME", raising=False)
+    monkeypatch.delenv("USERPROFILE", raising=False)
+    monkeypatch.setenv("APPDATA", str(appdata_root))
+
+    assert bootstrap.get_global_mcp_config_path() == appdata_root / "Code" / "User" / "mcp.json"
+
+
+@pytest.mark.parametrize("appdata_value", [None, "", "   "])
+def test_get_global_mcp_config_path_falls_back_when_windows_appdata_is_missing_or_blank(
+    monkeypatch, tmp_path, appdata_value: str | None
+) -> None:
+    userprofile_root = tmp_path / "profile"
+    userprofile_root.mkdir()
+
+    monkeypatch.setattr(bootstrap.sys, "platform", "win32")
+    monkeypatch.setattr(bootstrap.os, "name", "nt", raising=False)
+    monkeypatch.delenv("HOME", raising=False)
+    monkeypatch.setenv("USERPROFILE", str(userprofile_root))
+    if appdata_value is None:
+        monkeypatch.delenv("APPDATA", raising=False)
+    else:
+        monkeypatch.setenv("APPDATA", appdata_value)
+
+    assert bootstrap.get_global_mcp_config_path() == userprofile_root / "AppData" / "Roaming" / "Code" / "User" / "mcp.json"
+
+
+def test_get_global_instructions_path_uses_user_home(monkeypatch, tmp_path) -> None:
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+
+    monkeypatch.setenv("HOME", str(fake_home))
+
+    assert bootstrap.get_global_instructions_path() == fake_home / ".copilot" / "instructions.md"
+
+
+def test_get_global_skill_path_uses_user_home(monkeypatch, tmp_path) -> None:
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+
+    monkeypatch.setenv("HOME", str(fake_home))
+
+    assert bootstrap.get_global_skill_path() == fake_home / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
+
+
 def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -> None:
     parser = build_parser()
     args = parser.parse_args(["--init", "--workspace-path", str(tmp_path)])
+    repo_skill_path = tmp_path / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
 
     prompts: list[str] = []
 
@@ -381,7 +456,7 @@ def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
         if prompt.startswith("Team"):
-            return "mi-equipo"
+            return "example-team"
         raise AssertionError(f"Unexpected prompt: {prompt}")
 
     monkeypatch.setattr(cli, "_get_optional_settings", lambda: None)
@@ -392,8 +467,9 @@ def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -
     assert exit_code == 0
     mcp_config = json.loads((tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8"))
     assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_PG_URL"] == "postgresql://user:pass@db.example.com:5432/olinkb"
-    assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "mi-equipo"
+    assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "example-team"
     assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_PROJECT"] == tmp_path.name
+    assert repo_skill_path.exists()
     assert prompts == [
         "Install scope [1 repository / 2 global] [1]: ",
         "PostgreSQL URL: ",
@@ -405,16 +481,20 @@ def test_run_init_workspace_supports_global_scope(tmp_path, monkeypatch) -> None
     parser = build_parser()
     args = parser.parse_args(["--init", "--workspace-path", str(tmp_path), "--scope", "global"])
     global_mcp_path = tmp_path / "user-mcp.json"
+    global_instructions_path = tmp_path / "user-home" / ".copilot" / "instructions.md"
+    global_skill_path = tmp_path / "user-home" / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
 
     def fake_input(prompt: str) -> str:
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
         if prompt.startswith("Team"):
-            return "mi-equipo"
+            return "example-team"
         raise AssertionError(f"Unexpected prompt: {prompt}")
 
     monkeypatch.setattr(cli, "_get_optional_settings", lambda: None)
     monkeypatch.setattr(bootstrap, "get_global_mcp_config_path", lambda: global_mcp_path)
+    monkeypatch.setattr(bootstrap, "get_global_instructions_path", lambda: global_instructions_path)
+    monkeypatch.setattr(bootstrap, "get_global_skill_path", lambda: global_skill_path)
     monkeypatch.setattr("builtins.input", fake_input)
 
     exit_code = cli.run_init_workspace(args)
@@ -422,6 +502,48 @@ def test_run_init_workspace_supports_global_scope(tmp_path, monkeypatch) -> None
     assert exit_code == 0
     mcp_config = json.loads(global_mcp_path.read_text(encoding="utf-8"))
     assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_PG_URL"] == "postgresql://user:pass@db.example.com:5432/olinkb"
-    assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "mi-equipo"
+    assert mcp_config["servers"]["olinkb"]["env"]["OLINKB_TEAM"] == "example-team"
     assert "OLINKB_PROJECT" not in mcp_config["servers"]["olinkb"]["env"]
+    assert global_instructions_path.exists()
+    assert global_skill_path.exists()
+    assert "## OlinKB Memory Protocol" in global_instructions_path.read_text(encoding="utf-8")
+    assert "name: memory-relevance-triage" in global_skill_path.read_text(encoding="utf-8")
     assert not (tmp_path / ".github" / "copilot-instructions.md").exists()
+
+
+def test_run_init_workspace_global_scope_leaves_repo_instruction_files_untouched(tmp_path, monkeypatch) -> None:
+    parser = build_parser()
+    args = parser.parse_args(["--init", "--workspace-path", str(tmp_path), "--scope", "global"])
+    global_mcp_path = tmp_path / "user-mcp.json"
+    global_instructions_path = tmp_path / "user-home" / ".copilot" / "instructions.md"
+    global_skill_path = tmp_path / "user-home" / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
+    github_dir = tmp_path / ".github"
+    copilot_dir = tmp_path / ".copilot"
+    github_dir.mkdir()
+    copilot_dir.mkdir()
+
+    github_instructions = github_dir / "copilot-instructions.md"
+    github_instructions.write_text("# Repo Rules\n", encoding="utf-8")
+    copilot_instructions = copilot_dir / "instructions.md"
+    copilot_instructions.write_text("# Local Tooling Rules\n", encoding="utf-8")
+
+    def fake_input(prompt: str) -> str:
+        if prompt.startswith("PostgreSQL URL"):
+            return "postgresql://user:pass@db.example.com:5432/olinkb"
+        if prompt.startswith("Team"):
+            return "example-team"
+        raise AssertionError(f"Unexpected prompt: {prompt}")
+
+    monkeypatch.setattr(cli, "_get_optional_settings", lambda: None)
+    monkeypatch.setattr(bootstrap, "get_global_mcp_config_path", lambda: global_mcp_path)
+    monkeypatch.setattr(bootstrap, "get_global_instructions_path", lambda: global_instructions_path)
+    monkeypatch.setattr(bootstrap, "get_global_skill_path", lambda: global_skill_path)
+    monkeypatch.setattr("builtins.input", fake_input)
+
+    exit_code = cli.run_init_workspace(args)
+
+    assert exit_code == 0
+    assert global_instructions_path.exists()
+    assert global_skill_path.exists()
+    assert github_instructions.read_text(encoding="utf-8") == "# Repo Rules\n"
+    assert copilot_instructions.read_text(encoding="utf-8") == "# Local Tooling Rules\n"

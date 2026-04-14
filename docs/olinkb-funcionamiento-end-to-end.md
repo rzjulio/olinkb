@@ -1,90 +1,90 @@
-# OlinKB: Funcionamiento End-to-End
+# OlinKB: End-to-End Operation
 
-Esta guía explica cómo funciona OlinKB de punta a punta: instalación, bootstrap, arranque del servidor MCP, ciclo de vida de sesión, recuperación y actualización de memorias, propuestas de promoción y flujo de documentación técnica o de negocio desde el viewer.
+This guide explains how OlinKB works end to end: installation, bootstrap, MCP server startup, session lifecycle, memory retrieval and updates, promotion proposals, and the flow for technical or business documentation through the viewer.
 
-La intención de este documento es ser visual y operativo. No describe solo la idea del sistema, sino el comportamiento real que hoy implementa el código.
+The goal of this document is to be visual and operational. It does not describe only the idea of the system, but the real behavior the code currently implements.
 
-## 1. Qué es OlinKB
+## 1. What OlinKB Is
 
-OlinKB es un servidor MCP local escrito en Python que usa PostgreSQL como almacenamiento persistente para memorias compartidas entre desarrolladores, equipos y proyectos. Se integra con VS Code a través de `stdio`, y además incluye un viewer HTTP opcional para exploración visual y autoría guiada de documentación.
+OlinKB is a local MCP server written in Python that uses PostgreSQL as persistent storage for shared memories across developers, teams, and projects. It integrates with VS Code through `stdio`, and also includes an optional HTTP viewer for visual exploration and guided documentation authoring.
 
-En términos prácticos, el sistema está compuesto por cinco piezas:
+In practical terms, the system is composed of five pieces:
 
-1. Un CLI llamado `olinkb` que instala, inicializa y arranca las superficies del sistema.
-2. Un servidor MCP que expone herramientas como `boot_session`, `remember`, `save_memory` y `review_memory_proposal`.
-3. Una capa de aplicación que valida permisos, coordina sesiones, aplica deduplicación y mantiene caché de lectura.
-4. Una base PostgreSQL que persiste memorias, sesiones, miembros, membresías de proyecto y auditoría.
-5. Un viewer HTTP opcional que permite explorar la memoria y, con autenticación, subir documentación técnica o de negocio.
+1. A CLI called `olinkb` that installs, initializes, and starts the system surfaces.
+2. An MCP server that exposes tools such as `boot_session`, `remember`, `save_memory`, and `review_memory_proposal`.
+3. An application layer that validates permissions, coordinates sessions, applies deduplication, and maintains a read cache.
+4. A PostgreSQL database that persists memories, sessions, members, project memberships, and audit data.
+5. An optional HTTP viewer that allows memory exploration and, with authentication, uploading technical or business documentation.
 
-## 2. Mapa Rápido del Sistema
+## 2. Quick System Map
 
-| Capa | Responsabilidad | Archivos principales |
+| Layer | Responsibility | Main files |
 | --- | --- | --- |
-| CLI y bootstrap | Inicialización de workspace, comandos operativos, viewer | [src/olinkb/cli.py](../src/olinkb/cli.py), [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py) |
-| MCP server | Exposición de herramientas sobre `stdio` | [src/olinkb/server.py](../src/olinkb/server.py) |
-| Aplicación | Orquestación, permisos, caché, sesiones | [src/olinkb/app.py](../src/olinkb/app.py), [src/olinkb/session.py](../src/olinkb/session.py) |
-| Dominio | Tipos, scopes, URIs, tags, reglas de validación | [src/olinkb/domain.py](../src/olinkb/domain.py) |
-| Persistencia | Pool PostgreSQL, queries, auditoría, búsquedas | [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py) |
-| Caché | LRU con TTL y limpieza por prefijo | [src/olinkb/storage/cache.py](../src/olinkb/storage/cache.py) |
-| Viewer HTTP | API visual, login del viewer, subida de documentación | [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py), [src/olinkb/viewer.py](../src/olinkb/viewer.py) |
-| Configuración | Variables `OLINKB_*` y defaults | [src/olinkb/config.py](../src/olinkb/config.py) |
-| Esquema SQL | Tablas, índices y evolución de schema | [src/olinkb/storage/migrations](../src/olinkb/storage/migrations) |
+| CLI and bootstrap | Workspace initialization, operational commands, viewer | [src/olinkb/cli.py](../src/olinkb/cli.py), [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py) |
+| MCP server | Tool exposure over `stdio` | [src/olinkb/server.py](../src/olinkb/server.py) |
+| Application | Orchestration, permissions, cache, sessions | [src/olinkb/app.py](../src/olinkb/app.py), [src/olinkb/session.py](../src/olinkb/session.py) |
+| Domain | Types, scopes, URIs, tags, validation rules | [src/olinkb/domain.py](../src/olinkb/domain.py) |
+| Persistence | PostgreSQL pool, queries, audit, searches | [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py) |
+| Cache | LRU with TTL and prefix-based cleanup | [src/olinkb/storage/cache.py](../src/olinkb/storage/cache.py) |
+| HTTP viewer | Visual API, viewer login, documentation upload | [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py), [src/olinkb/viewer.py](../src/olinkb/viewer.py) |
+| Configuration | `OLINKB_*` variables and defaults | [src/olinkb/config.py](../src/olinkb/config.py) |
+| SQL schema | Tables, indexes, and schema evolution | [src/olinkb/storage/migrations](../src/olinkb/storage/migrations) |
 
-## 3. Arquitectura Visual
+## 3. Visual Architecture
 
-### 3.1 C4 Nivel 1: Contexto
+### 3.1 C4 Level 1: Context
 
 ```mermaid
 flowchart LR
-    dev[Desarrollador]
-    ide[VS Code + agente MCP]
+    dev[Developer]
+    ide[VS Code + MCP agent]
     mcp[OlinKB MCP Server\nPython + MCP Python SDK]
-    viewer[OlinKB Viewer HTTP\nexploración + autoría guiada]
+    viewer[OlinKB Viewer HTTP\nexploration + guided authoring]
     pg[(PostgreSQL)]
 
     dev --> ide
-    ide -->|invoca tools MCP por stdio| mcp
-    dev -->|abre en navegador| viewer
-    mcp -->|lee y escribe memorias| pg
-    viewer -->|consulta y publica memorias| pg
+    ide -->|invokes MCP tools over stdio| mcp
+    dev -->|opens in browser| viewer
+    mcp -->|reads and writes memories| pg
+    viewer -->|queries and publishes memories| pg
 ```
 
-### 3.2 C4 Nivel 2: Contenedores
+### 3.2 C4 Level 2: Containers
 
 ```mermaid
 flowchart LR
-    subgraph workstation[Máquina del desarrollador]
-        cli[CLI olinkb]
-        mcp[Servidor MCP]
-        http[Viewer HTTP]
+    subgraph workstation[Developer machine]
+        cli[olinkb CLI]
+        mcp[MCP server]
+        http[HTTP viewer]
         cache[ReadCache]
         sessions[SessionManager]
     end
 
-    vscode[VS Code / cliente MCP]
-    browser[Navegador]
+    vscode[VS Code / MCP client]
+    browser[Browser]
     pg[(PostgreSQL)]
 
     vscode -->|stdio| mcp
     browser -->|HTTP| http
-    cli -->|arranca o configura| mcp
-    cli -->|arranca| http
+    cli -->|starts or configures| mcp
+    cli -->|starts| http
     mcp --> cache
     mcp --> sessions
     mcp --> pg
     http --> pg
 ```
 
-### 3.3 C4 Nivel 3: Componentes del Servidor MCP
+### 3.3 C4 Level 3: MCP Server Components
 
 ```mermaid
 flowchart TB
     tools[MCP tools\nboot_session\nremember\nsave_memory\npropose_memory_promotion\nlist_pending_approvals\nreview_memory_proposal\nend_session\nforget]
     app[OlinKBApp]
     perms[Permission + scope checks]
-    domain[Normalización de URIs\ny tags de dominio]
-    cache[ReadCache\nTTL + invalidación por prefijo]
-    session[SessionManager\nsesión activa en memoria]
+    domain[URI normalization\nand domain tags]
+    cache[ReadCache\nTTL + prefix invalidation]
+    session[SessionManager\nactive in-memory session]
     storage[PostgresStorage\nasyncpg + SQL]
     pg[(PostgreSQL)]
 
@@ -97,21 +97,21 @@ flowchart TB
     storage --> pg
 ```
 
-## 4. Instalación e Inicialización
+## 4. Installation and Initialization
 
-Hay dos caminos habituales para usar OlinKB.
+There are two common ways to use OlinKB.
 
-### 4.1 Instalación desde release
+### 4.1 Installation from a release
 
-Si se usa como herramienta instalada para VS Code, el entrypoint publicado es `olinkb` y está definido en [pyproject.toml](../pyproject.toml).
+If it is used as an installed tool for VS Code, the published entrypoint is `olinkb` and it is defined in [pyproject.toml](../pyproject.toml).
 
 ```bash
 pipx install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb-0.1.0-py3-none-any.whl
 ```
 
-### 4.2 Instalación desde el repositorio
+### 4.2 Installation from the repository
 
-Para desarrollo local del proyecto:
+For local project development:
 
 ```bash
 python -m venv .venv
@@ -119,67 +119,67 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-El script de consola registrado es:
+The registered console script is:
 
 ```toml
 [project.scripts]
 olinkb = "olinkb.cli:main"
 ```
 
-### 4.3 Base de datos local
+### 4.3 Local database
 
-El repositorio incluye ayuda para levantar PostgreSQL localmente:
+The repository includes help for bringing up local PostgreSQL:
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-Luego se necesitan al menos estas variables:
+At minimum, these variables are then required:
 
 ```bash
 export OLINKB_PG_URL='postgresql://...'
-export OLINKB_TEAM='mi-equipo'
-export OLINKB_USER='tu-usuario'
+export OLINKB_TEAM='my-team'
+export OLINKB_USER='your-username'
 ```
 
-Opcionales útiles:
+Useful optional ones:
 
 - `OLINKB_PROJECT`
 - `OLINKB_CACHE_TTL_SECONDS`
 - `OLINKB_CACHE_MAX_ENTRIES`
 - `OLINKB_PG_POOL_MAX_SIZE`
 
-### 4.4 Bootstrap del workspace
+### 4.4 Workspace bootstrap
 
-El bootstrap interactivo se hace con:
+Interactive bootstrap is done with:
 
 ```bash
 olinkb --init
 ```
 
-Ese flujo pasa por [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py) y genera o actualiza la configuración MCP de VS Code.
+That flow goes through [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py) and generates or updates the VS Code MCP configuration.
 
-Dependiendo del scope elegido:
+Depending on the selected scope:
 
-- `repository`: escribe `.vscode/mcp.json` y `.github/copilot-instructions.md`.
-- `global`: escribe la configuración global de VS Code.
+- `repository`: writes `.vscode/mcp.json` and `.github/copilot-instructions.md`.
+- `global`: writes global VS Code configuration.
 
-Además, el CLI deja preparado el directorio `olinkb-viewer/` para el viewer.
+In addition, the CLI prepares the `olinkb-viewer/` directory for the viewer.
 
-### 4.5 Migraciones y membresías
+### 4.5 Migrations and memberships
 
-Antes de trabajar en serio, el esquema debe existir y los miembros deben estar cargados:
+Before serious work begins, the schema must exist and members must be loaded:
 
 ```bash
 olinkb migrate
 olinkb add-member --username rzjulio --role admin
 ```
 
-La parte importante de este paso es que OlinKB no solo necesita una base, también necesita saber quién pertenece al equipo y con qué rol.
+The important part of this step is that OlinKB does not only need a database; it also needs to know who belongs to the team and with which role.
 
-## 5. Qué Arranca Realmente el CLI
+## 5. What the CLI Actually Starts
 
-El CLI expone varios modos en [src/olinkb/cli.py](../src/olinkb/cli.py):
+The CLI exposes several modes in [src/olinkb/cli.py](../src/olinkb/cli.py):
 
 - `olinkb serve`
 - `olinkb mcp`
@@ -189,21 +189,21 @@ El CLI expone varios modos en [src/olinkb/cli.py](../src/olinkb/cli.py):
 - `olinkb viewer build`
 - `olinkb template mcp`
 
-Los más importantes para entender el sistema son:
+The most important ones for understanding the system are:
 
-- `olinkb mcp`: arranca el servidor MCP sobre `stdio`.
-- `olinkb viewer`: arranca el viewer HTTP vivo, por defecto en `127.0.0.1:8123`.
-- `olinkb viewer build`: exporta un snapshot estático a `olinkb-viewer/index.html`.
+- `olinkb mcp`: starts the MCP server over `stdio`.
+- `olinkb viewer`: starts the live HTTP viewer, by default on `127.0.0.1:8123`.
+- `olinkb viewer build`: exports a static snapshot to `olinkb-viewer/index.html`.
 
-## 6. Cómo Empieza a Trabajar el MCP
+## 6. How MCP Starts Working
 
-Cuando VS Code detecta el servidor en `mcp.json`, no habla con PostgreSQL directamente. Lo que hace es lanzar el comando `olinkb mcp` como subproceso local.
+When VS Code detects the server in `mcp.json`, it does not talk to PostgreSQL directly. What it does is launch the `olinkb mcp` command as a local subprocess.
 
-Ese proceso carga [src/olinkb/server.py](../src/olinkb/server.py), registra las tools del SDK oficial de MCP y delega el comportamiento real a una instancia de `OlinKBApp`.
+That process loads [src/olinkb/server.py](../src/olinkb/server.py), registers tools from the official MCP SDK, and delegates real behavior to an `OlinKBApp` instance.
 
-### 6.1 Herramientas MCP expuestas hoy
+### 6.1 MCP tools exposed today
 
-El código actual expone estas herramientas públicas:
+The current code exposes these public tools:
 
 1. `boot_session`
 2. `remember`
@@ -214,9 +214,9 @@ El código actual expone estas herramientas públicas:
 7. `end_session`
 8. `forget`
 
-Es importante remarcar algo: hoy no existen herramientas MCP específicas llamadas `create_managed_memory`, `update_managed_memory`, `list_managed_memories` o `archive_managed_memory`. La documentación gestionada se crea usando `save_memory` con tipos especiales o a través del viewer HTTP.
+It is important to call out one thing: today there are no specific MCP tools called `create_managed_memory`, `update_managed_memory`, `list_managed_memories`, or `archive_managed_memory`. Managed documentation is created through `save_memory` with special types or through the HTTP viewer.
 
-### 6.2 Secuencia de arranque MCP
+### 6.2 MCP startup sequence
 
 ```mermaid
 sequenceDiagram
@@ -237,19 +237,19 @@ sequenceDiagram
     MCP-->>VSCode: tool response
 ```
 
-## 7. Flujo Completo: Desde Instalar hasta Tener Contexto Útil
+## 7. Complete Flow: From Installation to Useful Context
 
-### 7.1 Secuencia de instalación e inicialización
+### 7.1 Installation and initialization sequence
 
 ```mermaid
 sequenceDiagram
-    participant Dev as Desarrollador
+    participant Dev as Developer
     participant CLI as olinkb CLI
     participant Boot as bootstrap_workspace
     participant VSCode as VS Code config
     participant PG as PostgreSQL
 
-    Dev->>CLI: pipx install o pip install -e .
+    Dev->>CLI: pipx install or pip install -e .
     Dev->>CLI: olinkb migrate
     CLI->>PG: apply migrations
     Dev->>CLI: olinkb add-member --username ... --role ...
@@ -257,55 +257,55 @@ sequenceDiagram
     Dev->>CLI: olinkb --init
     CLI->>Boot: bootstrap_workspace(...)
     Boot->>VSCode: write mcp.json and instructions
-    Dev->>VSCode: abre workspace
-    VSCode->>CLI: arranca olinkb mcp cuando lo necesita
+    Dev->>VSCode: open workspace
+    VSCode->>CLI: starts olinkb mcp when needed
 ```
 
-### 7.2 Qué pasa después de `boot_session`
+### 7.2 What happens after `boot_session`
 
-`boot_session` es el punto donde el sistema deja de ser solo infraestructura y pasa a entregar contexto útil al usuario o al agente.
+`boot_session` is the point where the system stops being only infrastructure and starts delivering useful context to the user or the agent.
 
-## 8. `boot_session`: Cómo Se Inicializa una Sesión de Trabajo
+## 8. `boot_session`: How a Work Session Is Initialized
 
-La lógica vive principalmente en [src/olinkb/app.py](../src/olinkb/app.py) y [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py).
+The logic lives mainly in [src/olinkb/app.py](../src/olinkb/app.py) and [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py).
 
-El flujo real es:
+The real flow is:
 
-1. Resolver `author`, `team` y `project` usando parámetros explícitos o defaults de configuración.
-2. Asegurar que el miembro existe en `team_members`.
-3. Crear la sesión en la tabla `sessions`.
-4. Registrar la sesión activa en memoria con `SessionManager`.
-5. Si hay proyecto, asegurar la membresía en `project_members`.
-6. Buscar en caché las memorias de bootstrap.
-7. Si no están en caché, cargar memorias desde PostgreSQL.
-8. Si el rol es `lead` o `admin`, cargar también propuestas pendientes para review.
+1. Resolve `author`, `team`, and `project` using explicit parameters or configuration defaults.
+2. Ensure the member exists in `team_members`.
+3. Create the session in the `sessions` table.
+4. Register the active session in memory with `SessionManager`.
+5. If there is a project, ensure membership in `project_members`.
+6. Look up bootstrap memories in cache.
+7. If they are not in cache, load memories from PostgreSQL.
+8. If the role is `lead` or `admin`, also load pending proposals for review.
 
-### 8.1 Qué memorias carga hoy el boot
+### 8.1 Which memories boot loads today
 
-El código actual de [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py) carga por prefijos de URI, en este orden:
+The current code in [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py) loads by URI prefixes, in this order:
 
 1. `system://%`
 2. `team://conventions/%`
 3. `project://{project}/%`
 4. `personal://{username}/%`
 
-Luego ordena por prioridad de prefijo y por `updated_at DESC`.
+It then sorts by prefix priority and by `updated_at DESC`.
 
-### 8.2 Punto importante sobre el boot
+### 8.2 Important point about boot
 
-Aunque el README menciona una intención más selectiva para `development_standard`, el código actual no filtra por `memory_type` en `load_boot_memories`. Eso significa que la precarga hoy depende del prefijo URI y no del tipo de memoria.
+Although the README mentions a more selective intention for `development_standard`, the current code does not filter by `memory_type` in `load_boot_memories`. That means preload currently depends on URI prefix rather than memory type.
 
-En otras palabras:
+In other words:
 
-- Si una `documentation` vive bajo `project://...`, hoy puede entrar al boot.
-- Si una `business_documentation` vive bajo un prefijo que coincide, también puede entrar.
-- `development_standard` no tiene una ruta especial de prioridad en el código actual.
+- If a `documentation` memory lives under `project://...`, it can currently enter boot.
+- If a `business_documentation` memory lives under a matching prefix, it can also enter boot.
+- `development_standard` has no special priority path in the current code.
 
-### 8.3 Secuencia de boot
+### 8.3 Boot sequence
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Agente
+    participant Agent as Agent
     participant MCP as MCP tool
     participant App as OlinKBApp
     participant Session as SessionManager
@@ -331,24 +331,24 @@ sequenceDiagram
     MCP-->>Agent: boot payload
 ```
 
-## 9. `remember`: Cómo el Usuario Empieza a Recibir Memorias
+## 9. `remember`: How the User Starts Receiving Memories
 
-El usuario no recibe todas las memorias del sistema. OlinKB opera como una combinación de precarga inicial más recuperación bajo demanda.
+The user does not receive all memories in the system. OlinKB operates as a combination of initial preload plus on-demand retrieval.
 
-`remember` hace eso.
+`remember` does that.
 
-El flujo real es:
+The real flow is:
 
-1. Resolver el contexto de identidad desde `session_id` o configuración.
-2. Construir una clave de caché con query, scope e identidad.
-3. Consultar la caché.
-4. Si no hay hit, ejecutar búsqueda en PostgreSQL.
-5. Mezclar resultados de memorias con resúmenes de sesiones recientes.
-6. Marcar acceso a las memorias encontradas para incrementar `retrieval_count`.
+1. Resolve identity context from `session_id` or configuration.
+2. Build a cache key with query, scope, and identity.
+3. Check the cache.
+4. If there is no hit, run a PostgreSQL search.
+5. Merge memory results with recent session summaries.
+6. Mark access to found memories to increase `retrieval_count`.
 
-### 9.1 Cómo busca realmente
+### 9.1 How it actually searches
 
-La búsqueda no usa embeddings. Usa `pg_trgm` y similitud textual, con expansión de términos sobre:
+The search does not use embeddings. It uses `pg_trgm` and textual similarity, with term expansion across:
 
 - `title`
 - `content`
@@ -357,13 +357,13 @@ La búsqueda no usa embeddings. Usa `pg_trgm` y similitud textual, con expansió
 - `tags`
 - `metadata::text`
 
-Eso permite que preguntas naturales como “documentación técnica global” coincidan no solo por texto literal, sino también por tags enriquecidos o metadata serializada.
+That allows natural questions like "global technical documentation" to match not only by literal text, but also by enriched tags or serialized metadata.
 
-### 9.2 Secuencia de `remember`
+### 9.2 `remember` sequence
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Agente
+    participant Agent as Agent
     participant App as OlinKBApp
     participant Cache as ReadCache
     participant PG as PostgreSQL
@@ -383,45 +383,45 @@ sequenceDiagram
     App-->>Agent: merged search result
 ```
 
-## 10. `save_memory`: Crear o Actualizar una Memoria
+## 10. `save_memory`: Create or Update a Memory
 
-`save_memory` es el punto de entrada general para escribir memoria. Sirve tanto para crear como para actualizar.
+`save_memory` is the general entry point for writing memory. It serves both creation and update.
 
-La diferencia depende del URI:
+The difference depends on the URI:
 
-- Si el URI no existe, se inserta.
-- Si el URI ya existe, se actualiza.
-- Si el contenido nuevo produce el mismo hash y la misma metadata, devuelve `unchanged`.
+- If the URI does not exist, it inserts.
+- If the URI already exists, it updates.
+- If the new content produces the same hash and the same metadata, it returns `unchanged`.
 
-### 10.1 Qué valida antes de escribir
+### 10.1 What it validates before writing
 
-Antes de tocar PostgreSQL, la aplicación valida:
+Before touching PostgreSQL, the application validates:
 
-1. Que el `scope` coincida con el URI.
-2. Que el `memory_type` sea válido.
-3. Que el usuario tenga permisos para escribir ese scope y ese tipo.
-4. Que el namespace del URI sea consistente.
+1. That `scope` matches the URI.
+2. That `memory_type` is valid.
+3. That the user has permission to write that scope and type.
+4. That the URI namespace is consistent.
 
-### 10.2 Qué hace durante la escritura
+### 10.2 What it does during the write
 
-Después de la validación:
+After validation:
 
-1. Normaliza metadata.
-2. Extrae estructura útil de `content` si hace falta.
-3. Enriquece tags a partir de tipo y metadata.
-4. Calcula `content_hash` SHA256.
-5. Inserta o actualiza en `memories`.
-6. Inserta una fila en `audit_log`.
-7. Invalida cachés `boot:*` y `remember:*` relacionadas.
-8. Incrementa contadores de la sesión activa.
+1. Normalize metadata.
+2. Extract useful structure from `content` when needed.
+3. Enrich tags from type and metadata.
+4. Compute SHA256 `content_hash`.
+5. Insert or update in `memories`.
+6. Insert a row in `audit_log`.
+7. Invalidate related `boot:*` and `remember:*` caches.
+8. Increment active session counters.
 
-### 10.3 Secuencia de escritura
+### 10.3 Write sequence
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Agente
+    participant Agent as Agent
     participant App as OlinKBApp
-    participant Domain as Reglas de dominio
+    participant Domain as Domain rules
     participant PG as PostgreSQL
     participant Cache as ReadCache
 
@@ -436,46 +436,46 @@ sequenceDiagram
     App-->>Agent: create | update | unchanged
 ```
 
-## 11. Qué Permite Cada Rol
+## 11. What Each Role Can Do
 
-La autorización real vive en [src/olinkb/app.py](../src/olinkb/app.py).
+Real authorization lives in [src/olinkb/app.py](../src/olinkb/app.py).
 
-| Acción | Developer | Lead | Admin | Viewer |
+| Action | Developer | Lead | Admin | Viewer |
 | --- | --- | --- | --- | --- |
-| Guardar memoria personal propia | Sí | Sí | Sí | No |
-| Guardar memoria de proyecto regular | Sí | Sí | Sí | No |
-| Guardar `documentation` de proyecto | Sí | Sí | Sí | No |
-| Guardar `development_standard` de proyecto | Sí | Sí | Sí | No |
-| Guardar `business_documentation` | No | No | Sí | No |
-| Guardar `convention` directamente en proyecto | No | Sí | Sí | No |
-| Revisar propuestas pendientes | No | Sí | Sí | No |
+| Save own personal memory | Yes | Yes | Yes | No |
+| Save regular project memory | Yes | Yes | Yes | No |
+| Save project `documentation` | Yes | Yes | Yes | No |
+| Save project `development_standard` | Yes | Yes | Yes | No |
+| Save `business_documentation` | No | No | Yes | No |
+| Save `convention` directly in project | No | Yes | Yes | No |
+| Review pending proposals | No | Yes | Yes | No |
 
-### 11.1 Matiz importante
+### 11.1 Important nuance
 
-En la superficie MCP genérica, un contribuyente de proyecto puede guardar `documentation` o `development_standard` bajo scope `project` si tiene permisos de escritura de proyecto. En cambio, el viewer HTTP actual restringe la autoría visual a `lead` y `admin`.
+On the generic MCP surface, a project contributor can save `documentation` or `development_standard` under `project` scope if they have project write permission. By contrast, the current HTTP viewer restricts visual authoring to `lead` and `admin`.
 
-Eso quiere decir que hoy existen dos superficies con reglas cercanas, pero no idénticas:
+That means there are currently two surfaces with similar but not identical rules:
 
-- MCP genérico: más flexible para `project` scope.
-- Viewer HTTP: explícitamente curado para autoría aprobadora.
+- Generic MCP: more flexible for `project` scope.
+- HTTP viewer: explicitly curated for approval-capable authoring.
 
-## 12. `propose_memory_promotion`: Sugerir que una Memoria Sea Revisada
+## 12. `propose_memory_promotion`: Suggest That a Memory Be Reviewed
 
-Esta herramienta no convierte una memoria en documentación técnica. Su propósito real es enviar una memoria de proyecto existente a revisión para promoción.
+This tool does not turn a memory into technical documentation. Its real purpose is to send an existing project memory into review for promotion.
 
-### 12.1 Qué hace hoy
+### 12.1 What it does today
 
-1. Toma una memoria existente por `uri`.
-2. Exige que sea una memoria de `project`.
-3. Marca la memoria como `pending`.
-4. Guarda quién propuso el cambio y por qué.
-5. La deja lista para review por un `lead` o `admin`.
+1. Takes an existing memory by `uri`.
+2. Requires it to be a `project` memory.
+3. Marks the memory as `pending`.
+4. Stores who proposed the change and why.
+5. Leaves it ready for review by a `lead` or `admin`.
 
-### 12.2 Restricción importante
+### 12.2 Important restriction
 
-Aunque el mensaje de error menciona “convention or standard”, el normalizador actual colapsa `standard` en `convention`. Es decir: el flujo de promoción actual es un flujo práctico hacia `convention`, no hacia `documentation` ni hacia un `development_standard` separado.
+Although the error message mentions "convention or standard", the current normalizer collapses `standard` into `convention`. In other words, the current promotion flow is practically a flow toward `convention`, not toward `documentation` or a separate `development_standard`.
 
-### 12.3 Secuencia de propuesta y review
+### 12.3 Proposal and review sequence
 
 ```mermaid
 sequenceDiagram
@@ -502,98 +502,98 @@ sequenceDiagram
     PG-->>Lead: final review result
 ```
 
-## 13. Cómo Se Actualiza una Memoria Existente
+## 13. How an Existing Memory Is Updated
 
-Actualizar una memoria no requiere una API distinta. OlinKB usa el mismo `save_memory` y considera actualización cuando el URI ya existe.
+Updating a memory does not require a different API. OlinKB uses the same `save_memory` and considers it an update when the URI already exists.
 
-La semántica es esta:
+The semantics are:
 
-1. Mismo URI.
-2. Nuevo contenido o nueva metadata.
-3. Se conserva la identidad conceptual de la memoria.
-4. Se genera auditoría con `old_content` y `new_content`.
+1. Same URI.
+2. New content or new metadata.
+3. The conceptual identity of the memory is preserved.
+4. Audit data is generated with `old_content` and `new_content`.
 
-Esto es importante porque el modelo mental correcto en OlinKB no es “editar por id interno”, sino “volver a guardar la memoria de la misma dirección lógica”.
+This matters because the correct mental model in OlinKB is not "edit by internal id", but "save the memory again at the same logical address".
 
-## 14. Documentación Gestionada: Qué Es y Cómo Funciona Hoy
+## 14. Managed Documentation: What It Is and How It Works Today
 
-OlinKB usa estos tipos relevantes para documentación gestionada:
+OlinKB uses these relevant types for managed documentation:
 
-- `documentation`: documentación técnica o de ingeniería.
-- `business_documentation`: documentación de negocio, restringida a admins.
-- `development_standard`: estándar de ingeniería persistente.
+- `documentation`: technical or engineering documentation.
+- `business_documentation`: business documentation, restricted to admins.
+- `development_standard`: persistent engineering standard.
 
-### 14.1 Qué significa “gestionada” en la práctica
+### 14.1 What "managed" means in practice
 
-Hoy “managed memory” significa principalmente tres cosas:
+Today, "managed memory" mainly means three things:
 
-1. Tiene un `memory_type` especial.
-2. Lleva metadata estructurada como `documentation_scope`, `applicable_projects` y `content_format`.
-3. Se le enriquecen tags automáticamente para mejorar su descubrimiento.
+1. It has a special `memory_type`.
+2. It carries structured metadata such as `documentation_scope`, `applicable_projects`, and `content_format`.
+3. Its tags are enriched automatically to improve discovery.
 
-No significa todavía que exista una API MCP dedicada completa o una tabla de targets activamente poblada y usada en cada flujo.
+It does not yet mean that there is a full dedicated MCP API or a target table actively populated and used in every flow.
 
-### 14.2 Cómo se crean hoy estas memorias
+### 14.2 How these memories are created today
 
-Hay dos caminos reales:
+There are two real paths:
 
-1. `save_memory(...)` desde MCP, usando `memory_type=documentation`, `business_documentation` o `development_standard`.
-2. El viewer HTTP, que permite subir un archivo Markdown y crear una memoria curada.
+1. `save_memory(...)` from MCP, using `memory_type=documentation`, `business_documentation`, or `development_standard`.
+2. The HTTP viewer, which lets you upload a Markdown file and create a curated memory.
 
-## 15. Cómo Admins y Leads Suben Documentación Técnica o de Negocio en el Viewer
+## 15. How Admins and Leads Upload Technical or Business Documentation in the Viewer
 
-La superficie visual vive en [src/olinkb/viewer.py](../src/olinkb/viewer.py) y [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py).
+The visual surface lives in [src/olinkb/viewer.py](../src/olinkb/viewer.py) and [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py).
 
-### 15.1 Qué ofrece hoy el viewer
+### 15.1 What the viewer offers today
 
-El viewer vivo (`olinkb viewer`) habilita lectura pública y autoría autenticada.
+The live viewer (`olinkb viewer`) enables public reading and authenticated authoring.
 
-En la UI actual:
+In the current UI:
 
-- Hay botón de `Sign in`.
-- El composer se habilita solo si la sesión del viewer puede gestionar documentación.
-- El formulario permite elegir:
+- There is a `Sign in` button.
+- The composer is enabled only if the viewer session can manage documentation.
+- The form lets you choose:
   - `Title`
-  - `Scope`: `Global` o `By repo`
-  - `Documentation type`: `Technical documentation` o `Business documentation`
-  - Archivo Markdown a subir
-- Si el scope es `By repo`, se eligen uno o varios repos aplicables.
+  - `Scope`: `Global` or `By repo`
+  - `Documentation type`: `Technical documentation` or `Business documentation`
+  - Markdown file to upload
+- If the scope is `By repo`, one or more applicable repositories are selected.
 
-### 15.2 Qué tipos permite el viewer
+### 15.2 Which types the viewer allows
 
-El viewer actual permite crear únicamente:
+The current viewer allows creating only:
 
 - `documentation`
 - `business_documentation`
 
-No expone creación visual de `development_standard`.
+It does not expose visual creation of `development_standard`.
 
-### 15.3 Cómo normaliza el viewer la memoria
+### 15.3 How the viewer normalizes the memory
 
-Antes de llamar a `save_memory`, el backend HTTP:
+Before calling `save_memory`, the HTTP backend:
 
-1. Valida título, contenido, tipo y target scope.
-2. Rechaza `business_documentation` si el rol no es `admin`.
-3. Decide el scope persistido:
-   - `global` se guarda como scope `org` con clave `shared`.
-   - `repo` con un único proyecto se guarda como scope `project`.
-   - `repo` con varios proyectos mantiene memoria compartida con metadata de aplicabilidad.
-4. Construye metadata como:
+1. Validates title, content, type, and target scope.
+2. Rejects `business_documentation` if the role is not `admin`.
+3. Decides the persisted scope:
+   - `global` is stored as `org` scope with key `shared`.
+   - `repo` with a single project is stored as `project` scope.
+   - `repo` with several projects keeps shared memory with applicability metadata.
+4. Builds metadata such as:
    - `managed: true`
    - `authoring_surface: viewer`
    - `content_format: markdown`
    - `documentation_scope: global|repo`
    - `applicable_projects: [...]`
-   - `source_file_name` si se sube archivo
-5. Genera un URI a partir del título y el scope.
+   - `source_file_name` if a file is uploaded
+5. Generates a URI from the title and scope.
 
-### 15.4 Secuencia de autoría en el viewer
+### 15.4 Viewer authoring sequence
 
 ```mermaid
 sequenceDiagram
-    participant Browser as Navegador
+    participant Browser as Browser
     participant Viewer as Viewer HTTP
-    participant Auth as Sesión del viewer
+    participant Auth as Viewer session
     participant App as OlinKBApp
     participant PG as PostgreSQL
 
@@ -611,96 +611,96 @@ sequenceDiagram
     Viewer-->>Browser: success payload
 ```
 
-### 15.5 Diferencia entre documentación técnica y de negocio
+### 15.5 Difference between technical and business documentation
 
-La diferencia actual no es solo semántica, también es de permisos:
+The current difference is not only semantic, but also about permissions:
 
-- `documentation`: disponible en el viewer para `lead` y `admin`.
-- `business_documentation`: disponible solo para `admin`.
+- `documentation`: available in the viewer for `lead` and `admin`.
+- `business_documentation`: available only for `admin`.
 
-## 16. Qué Pasa con `development_standard`
+## 16. What Happens with `development_standard`
 
-`development_standard` existe como `memory_type` válido y puede persistirse con `save_memory`, pero hoy no tiene una superficie visual dedicada en el viewer.
+`development_standard` exists as a valid `memory_type` and can be persisted with `save_memory`, but today it does not have a dedicated visual surface in the viewer.
 
-Por eso conviene pensar su flujo actual así:
+So it is better to think of its current flow like this:
 
-- Se crea principalmente por MCP o por flujos internos de aplicación.
-- Puede vivir como memoria durable y ser recuperado por `remember`.
-- El boot actual no lo trata con una prioridad especial en SQL, aunque documentos más viejos lo describan así.
+- It is created mainly through MCP or internal application flows.
+- It can live as durable memory and be retrieved by `remember`.
+- Current boot does not give it special priority in SQL, even if older documents describe it that way.
 
-## 17. Diferencia Entre “Sugerir una Memoria” y “Crear Documentación Técnica”
+## 17. Difference Between "Suggesting a Memory" and "Creating Technical Documentation"
 
-Este punto es clave para evitar confusiones de uso.
+This point is key to avoid usage confusion.
 
-### 17.1 Sugerir una memoria
+### 17.1 Suggesting a memory
 
-Se hace con `propose_memory_promotion`.
+This is done with `propose_memory_promotion`.
 
-Sirve para:
+It serves to:
 
-- tomar una memoria existente de proyecto,
-- enviarla a review,
-- y eventualmente promoverla a una convención aprobada.
+- take an existing project memory,
+- send it to review,
+- and eventually promote it to an approved convention.
 
-No sirve hoy para convertir una memoria cualquiera en `documentation` ni para subir documentación de negocio.
+It does not currently serve to convert an arbitrary memory into `documentation` or to upload business documentation.
 
-### 17.2 Crear documentación técnica o de negocio
+### 17.2 Creating technical or business documentation
 
-Se hace hoy por:
+Today this is done through:
 
-- `save_memory` con `memory_type` especial, o
-- el viewer HTTP autenticado.
+- `save_memory` with a special `memory_type`, or
+- the authenticated HTTP viewer.
 
-Eso significa que “promoción” y “documentación gestionada” son flujos distintos en el código actual.
+That means "promotion" and "managed documentation" are distinct flows in the current code.
 
-## 18. Modelo de Datos Persistente
+## 18. Persistent Data Model
 
-Las tablas más importantes son:
+The most important tables are:
 
-| Tabla | Propósito |
+| Table | Purpose |
 | --- | --- |
-| `team_members` | identidad y rol del usuario |
-| `project_members` | rol del usuario dentro de un proyecto |
-| `memories` | unidad principal de conocimiento |
-| `sessions` | historial de sesiones de trabajo |
-| `audit_log` | trazabilidad de cambios |
-| `schema_migrations` | control de migraciones |
-| `managed_memory_targets` | tabla pensada para targets gestionados |
+| `team_members` | user identity and role |
+| `project_members` | user's role within a project |
+| `memories` | main unit of knowledge |
+| `sessions` | history of work sessions |
+| `audit_log` | change traceability |
+| `schema_migrations` | migration control |
+| `managed_memory_targets` | table intended for managed targets |
 
-### 18.1 Qué guarda `memories`
+### 18.1 What `memories` stores
 
-`memories` concentra lo esencial:
+`memories` concentrates the essentials:
 
-- URI lógica
-- título
-- contenido
-- tipo de memoria
+- logical URI
+- title
+- content
+- memory type
 - scope
 - namespace
-- autor
+- author
 - tags
 - `content_hash`
-- metadata JSONB
+- JSONB metadata
 - timestamps
 - soft delete
 
-### 18.2 Auditoría
+### 18.2 Audit
 
-Cada cambio importante deja rastro en `audit_log`. Eso permite reconstruir quién creó, actualizó, olvidó o propuso una memoria.
+Each important change leaves a trace in `audit_log`. That makes it possible to reconstruct who created, updated, forgot, or proposed a memory.
 
-## 19. `end_session`: Cómo se Cierra el Trabajo
+## 19. `end_session`: How Work Is Closed
 
-Cuando termina una sesión relevante, `end_session`:
+When a relevant session ends, `end_session`:
 
-1. Cierra la sesión activa en `SessionManager`.
-2. Actualiza `sessions` en PostgreSQL con resumen, `ended_at`, contadores de lectura y escritura.
-3. Dependiendo del contenido del resumen, puede persistir también el resumen como memoria de tipo `event`.
+1. Closes the active session in `SessionManager`.
+2. Updates `sessions` in PostgreSQL with summary, `ended_at`, and read/write counters.
+3. Depending on the summary content, may also persist the summary as an `event` memory.
 
-### 19.1 Secuencia de cierre
+### 19.1 Closing sequence
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Agente
+    participant Agent as Agent
     participant App as OlinKBApp
     participant Session as SessionManager
     participant PG as PostgreSQL
@@ -715,79 +715,79 @@ sequenceDiagram
     App-->>Agent: final session stats
 ```
 
-## 20. Limitaciones y Gaps Importantes del Estado Actual
+## 20. Important Limitations and Gaps in the Current State
 
-Este documento debe dejar claro qué existe y qué todavía no está completo.
+This document should make clear what exists and what is still incomplete.
 
-### 20.1 Superficies MCP faltantes para memoria gestionada
+### 20.1 Missing MCP surfaces for managed memory
 
-Hoy no hay herramientas MCP dedicadas para:
+Today there are no dedicated MCP tools for:
 
-- crear memoria gestionada,
-- actualizarla,
-- listarla,
-- archivarla.
+- creating managed memory,
+- updating it,
+- listing it,
+- archiving it.
 
-El sistema usa `save_memory` genérico para creación/actualización y `forget` para archivado lógico.
+The system uses generic `save_memory` for creation and updates, and `forget` for logical archiving.
 
-### 20.2 `managed_memory_targets` existe, pero no gobierna el flujo principal
+### 20.2 `managed_memory_targets` exists, but does not govern the main flow
 
-La migración [src/olinkb/storage/migrations/005_add_managed_memory_support.sql](../src/olinkb/storage/migrations/005_add_managed_memory_support.sql) define `managed_memory_targets`, pero la ruta principal de escritura actual sigue descansando sobre `memory_type`, metadata y tags enriquecidos.
+The migration [src/olinkb/storage/migrations/005_add_managed_memory_support.sql](../src/olinkb/storage/migrations/005_add_managed_memory_support.sql) defines `managed_memory_targets`, but the current main write path still relies on `memory_type`, metadata, and enriched tags.
 
-Por lo tanto, la forma real de entender la aplicabilidad hoy es:
+Therefore, the real way to understand applicability today is:
 
 - metadata: `documentation_scope`
 - metadata: `applicable_projects`
-- tags derivados
+- derived tags
 
-y no una resolución fuerte desde una API MCP de targets gestionados.
+and not a strong resolution through an MCP API for managed targets.
 
-### 20.3 Divergencia entre documentación y código
+### 20.3 Divergence between documentation and code
 
-Hay documentos del repositorio que describen una visión más pulida del flujo de managed memory. El código actual, en cambio, conserva una realidad más simple:
+Some repository documents describe a more polished managed-memory flow. The current code, by contrast, keeps a simpler reality:
 
-- promoción hacia convención por un lado,
-- documentación gestionada por `save_memory` o viewer por otro,
-- y boot todavía basado en prefijos URI.
+- promotion toward convention on one side,
+- managed documentation through `save_memory` or viewer on the other,
+- and boot still based on URI prefixes.
 
-Cuando haya duda, este documento prioriza el comportamiento implementado hoy.
+When there is doubt, this document prioritizes currently implemented behavior.
 
-## 21. Mapa Mental de Uso Correcto
+## 21. Correct-Use Mental Map
 
-Si un usuario quiere hacer esto, la ruta real es esta:
+If a user wants to do one of these things, the real path is this:
 
-| Necesidad | Flujo recomendado hoy |
+| Need | Recommended flow today |
 | --- | --- |
-| Iniciar sesión de trabajo y cargar contexto | `boot_session` |
-| Buscar memorias relevantes | `remember` |
-| Guardar hallazgo, decisión o bugfix | `save_memory` |
-| Actualizar una memoria existente | `save_memory` con el mismo URI |
-| Sugerir que una memoria del proyecto sea revisada | `propose_memory_promotion` |
-| Aprobar o rechazar la sugerencia | `review_memory_proposal` |
-| Subir documentación técnica en forma visual | `olinkb viewer` + login + composer |
-| Subir documentación de negocio | viewer con `admin`, o `save_memory` con `business_documentation` |
-| Cerrar la sesión de trabajo | `end_session` |
+| Start a work session and load context | `boot_session` |
+| Search for relevant memories | `remember` |
+| Save a finding, decision, or bugfix | `save_memory` |
+| Update an existing memory | `save_memory` with the same URI |
+| Suggest that a project memory be reviewed | `propose_memory_promotion` |
+| Approve or reject the suggestion | `review_memory_proposal` |
+| Upload technical documentation visually | `olinkb viewer` + login + composer |
+| Upload business documentation | viewer as `admin`, or `save_memory` with `business_documentation` |
+| Close the work session | `end_session` |
 
-## 22. Archivos Clave para Seguir Profundizando
+## 22. Key Files for Going Deeper
 
-- [src/olinkb/cli.py](../src/olinkb/cli.py): comandos reales y entrypoints.
-- [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py): bootstrap del workspace y configuración MCP.
-- [src/olinkb/server.py](../src/olinkb/server.py): definición exacta de tools MCP.
-- [src/olinkb/app.py](../src/olinkb/app.py): reglas de autorización y orquestación principal.
-- [src/olinkb/domain.py](../src/olinkb/domain.py): tipos válidos, scopes, roles y tags automáticos.
-- [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py): SQL real de boot, search, save, forget y proposals.
-- [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py): login del viewer y publicación de documentación.
-- [src/olinkb/viewer.py](../src/olinkb/viewer.py): interfaz visual, composer y recorrido de autoría.
-- [docs/DEVELOPER-GUIDE.md](./DEVELOPER-GUIDE.md): setup operativo complementario.
-- [docs/olinkb-arquitectura-c4.md](./olinkb-arquitectura-c4.md): material arquitectónico ya existente.
+- [src/olinkb/cli.py](../src/olinkb/cli.py): real commands and entrypoints.
+- [src/olinkb/bootstrap.py](../src/olinkb/bootstrap.py): workspace bootstrap and MCP configuration.
+- [src/olinkb/server.py](../src/olinkb/server.py): exact definition of MCP tools.
+- [src/olinkb/app.py](../src/olinkb/app.py): authorization rules and main orchestration.
+- [src/olinkb/domain.py](../src/olinkb/domain.py): valid types, scopes, roles, and automatic tags.
+- [src/olinkb/storage/postgres.py](../src/olinkb/storage/postgres.py): the real SQL for boot, search, save, forget, and proposals.
+- [src/olinkb/viewer_server.py](../src/olinkb/viewer_server.py): viewer login and documentation publishing.
+- [src/olinkb/viewer.py](../src/olinkb/viewer.py): visual interface, composer, and authoring flow.
+- [docs/DEVELOPER-GUIDE.md](./DEVELOPER-GUIDE.md): complementary operational setup.
+- [docs/olinkb-arquitectura-c4.md](./olinkb-arquitectura-c4.md): existing architectural material.
 
-## 23. Resumen Ejecutivo
+## 23. Executive Summary
 
-OlinKB funciona hoy como una combinación de servidor MCP local, caché de lectura, capa de aplicación y PostgreSQL como fuente de verdad. La experiencia del usuario se construye sobre dos momentos:
+OlinKB currently operates as a combination of a local MCP server, read cache, application layer, and PostgreSQL as the source of truth. The user experience is built around two moments:
 
-1. `boot_session`, que abre el contexto inicial y precarga memorias por prefijo de URI.
-2. `remember`, que recupera memoria bajo demanda con ranking textual, tags y metadata.
+1. `boot_session`, which opens initial context and preloads memories by URI prefix.
+2. `remember`, which retrieves memory on demand using textual ranking, tags, and metadata.
 
-Para escritura, `save_memory` sigue siendo la pieza central. Para promoción, existe un flujo de propuesta y revisión. Para documentación técnica o de negocio, la subida más visual y controlada ocurre hoy en el viewer HTTP, con login y formulario Markdown para `lead` y `admin`, y restricción adicional a `admin` para documentación de negocio.
+For writing, `save_memory` remains the central piece. For promotion, there is a proposal-and-review flow. For technical or business documentation, the most visual and controlled upload path currently happens in the HTTP viewer, with login and a Markdown form for `lead` and `admin`, plus an additional `admin` restriction for business documentation.
 
-La arquitectura ya es suficientemente funcional para operar, pero todavía conserva diferencias entre lo idealizado en algunos documentos y lo que hoy implementa el código. Precisamente por eso este documento debe servir como referencia de operación real.
+The architecture is already functional enough to operate, but it still preserves differences between what some documents idealize and what the code currently implements. That is precisely why this document should serve as a reference for real operation.
