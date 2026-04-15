@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from argparse import Namespace
 from pathlib import Path
 import subprocess
 import sys
@@ -168,6 +169,66 @@ def test_cli_parser_accepts_init_mode() -> None:
     args = parser.parse_args(["--init", "--mode", "cli"])
 
     assert args.mode == "cli"
+
+
+def test_run_init_workspace_prompts_for_sqlite_backend(monkeypatch, tmp_path, capsys) -> None:
+    args = Namespace(scope=None, mode=None, workspace_path=str(tmp_path))
+    prompts = iter(["repository", "sqlite"])
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(cli, "_get_optional_settings", lambda: None)
+    monkeypatch.setattr(cli, "_prompt_choice", lambda *_args, **_kwargs: next(prompts))
+    monkeypatch.setattr(
+        cli,
+        "_prompt_required_value",
+        lambda label, default=None: "example-team" if label == "Team" else str(default),
+    )
+    monkeypatch.setattr(cli, "resolve_bootstrap_mode", lambda explicit_mode=None: "cli")
+
+    def fake_bootstrap_workspace(**kwargs):
+        captured.update(kwargs)
+        return {
+            "scope": kwargs["scope"],
+            "mode": kwargs["mode"],
+            "storage_backend": kwargs["storage_backend"],
+            "project": tmp_path.name,
+            "mcp_path": None,
+            "instructions_path": str(tmp_path / ".github" / "copilot-instructions.md"),
+            "prompt_path": None,
+            "skill_path": str(tmp_path / ".copilot" / "skills" / "memory-relevance-triage" / "SKILL.md"),
+            "settings_path": "/tmp/settings.json",
+            "shell_env_path": "/tmp/env.sh",
+            "command_wrapper_path": "/tmp/olinkb",
+            "windows_user_path_status": "skipped",
+            "shell_profile_paths": [],
+        }
+
+    monkeypatch.setattr(cli, "bootstrap_workspace", fake_bootstrap_workspace)
+
+    exit_code = cli.run_init_workspace(args)
+
+    assert exit_code == 0
+    assert captured["storage_backend"] == "sqlite"
+    assert captured["sqlite_path"] == tmp_path / ".olinkb" / "olinkb.db"
+    assert captured["team"] == "example-team"
+
+
+def test_environment_document_supports_sqlite_backend(tmp_path) -> None:
+    sqlite_path = tmp_path / ".olinkb" / "olinkb.db"
+
+    document = bootstrap._environment_document(
+        storage_backend="sqlite",
+        team="example-team",
+        sqlite_path=sqlite_path,
+        project="olinkb",
+    )
+
+    assert document == {
+        "OLINKB_STORAGE_BACKEND": "sqlite",
+        "OLINKB_SQLITE_PATH": str(sqlite_path),
+        "OLINKB_TEAM": "example-team",
+        "OLINKB_PROJECT": "olinkb",
+    }
 
 
 def test_cli_parser_accepts_uninstall_command() -> None:
@@ -657,6 +718,8 @@ def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -
         prompts.append(prompt)
         if prompt.startswith("Install scope"):
             return "1"
+        if prompt.startswith("Storage backend"):
+            return "1"
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
         if prompt.startswith("Team"):
@@ -676,6 +739,7 @@ def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -
     assert "olinkb tool boot_session --json" in instructions
     assert prompts == [
         "Install scope [1 repository / 2 global] [1]: ",
+        "Storage backend [1 postgres / 2 sqlite] [1]: ",
         "PostgreSQL URL: ",
         "Team: ",
     ]
@@ -690,6 +754,8 @@ def test_run_init_workspace_auto_selects_mcp_when_addon_is_installed(tmp_path, m
     def fake_input(prompt: str) -> str:
         prompts.append(prompt)
         if prompt.startswith("Install scope"):
+            return "1"
+        if prompt.startswith("Storage backend"):
             return "1"
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
@@ -708,6 +774,7 @@ def test_run_init_workspace_auto_selects_mcp_when_addon_is_installed(tmp_path, m
     assert mcp_config["servers"]["olinkb"]["args"] == ["mcp"]
     assert prompts == [
         "Install scope [1 repository / 2 global] [1]: ",
+        "Storage backend [1 postgres / 2 sqlite] [1]: ",
         "PostgreSQL URL: ",
         "Team: ",
     ]
@@ -726,6 +793,8 @@ def test_run_init_workspace_supports_global_scope(tmp_path, monkeypatch) -> None
     zshrc_path = tmp_path / "user-home" / ".zshrc"
 
     def fake_input(prompt: str) -> str:
+        if prompt.startswith("Storage backend"):
+            return "1"
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
         if prompt.startswith("Team"):
@@ -1012,6 +1081,8 @@ def test_run_init_workspace_global_scope_leaves_repo_instruction_files_untouched
     copilot_instructions.write_text("# Local Tooling Rules\n", encoding="utf-8")
 
     def fake_input(prompt: str) -> str:
+        if prompt.startswith("Storage backend"):
+            return "1"
         if prompt.startswith("PostgreSQL URL"):
             return "postgresql://user:pass@db.example.com:5432/olinkb"
         if prompt.startswith("Team"):

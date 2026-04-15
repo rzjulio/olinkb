@@ -12,6 +12,9 @@ class SettingsError(ValueError):
     pass
 
 
+ALLOWED_STORAGE_BACKENDS = {"postgres", "sqlite"}
+
+
 def _get_windows_roaming_path() -> Path:
     appdata = (os.environ.get("APPDATA") or "").strip()
     if appdata:
@@ -61,6 +64,22 @@ def _get_required_env(name: str, env: dict[str, str]) -> str:
     raise SettingsError(f"Missing required environment variable: {name}")
 
 
+def _get_storage_backend(env: dict[str, str]) -> str:
+    raw_value = (env.get("OLINKB_STORAGE_BACKEND") or "postgres").strip().lower()
+    if raw_value == "postgresql":
+        raw_value = "postgres"
+    if raw_value not in ALLOWED_STORAGE_BACKENDS:
+        raise SettingsError(f"Unsupported storage backend: {raw_value}")
+    return raw_value
+
+
+def _get_optional_path(name: str, env: dict[str, str]) -> Path | None:
+    value = (env.get(name) or "").strip()
+    if not value:
+        return None
+    return Path(value).expanduser()
+
+
 def _get_int(name: str, default: int, env: dict[str, str]) -> int:
     value = env.get(name)
     if value is None:
@@ -73,13 +92,15 @@ def _get_int(name: str, default: int, env: dict[str, str]) -> int:
 
 @dataclass(frozen=True)
 class Settings:
-    pg_url: str
+    pg_url: str | None
     user: str
     team: str
     default_project: str | None
     cache_ttl_seconds: int
     cache_max_entries: int
     pg_pool_max_size: int = 5
+    storage_backend: str = "postgres"
+    sqlite_path: Path | None = None
     server_name: str = "OlinKB"
 
     @classmethod
@@ -97,15 +118,27 @@ class Settings:
         team = values.get("OLINKB_TEAM") or ""
         if require_team and not team:
             raise SettingsError("Missing required environment variable: OLINKB_TEAM")
+        storage_backend = _get_storage_backend(values)
+
+        pg_url: str | None = None
+        sqlite_path: Path | None = None
+        if storage_backend == "postgres":
+            pg_url = _get_required_env("OLINKB_PG_URL", values)
+        else:
+            sqlite_path = _get_optional_path("OLINKB_SQLITE_PATH", values)
+            if sqlite_path is None:
+                raise SettingsError("Missing required environment variable: OLINKB_SQLITE_PATH")
 
         return cls(
-            pg_url=_get_required_env("OLINKB_PG_URL", values),
+            pg_url=pg_url,
             user=user or "",
             team=team,
             default_project=values.get("OLINKB_PROJECT"),
             cache_ttl_seconds=_get_int("OLINKB_CACHE_TTL_SECONDS", 300, values),
             cache_max_entries=_get_int("OLINKB_CACHE_MAX_ENTRIES", 256, values),
             pg_pool_max_size=_get_int("OLINKB_PG_POOL_MAX_SIZE", 5, values),
+            storage_backend=storage_backend,
+            sqlite_path=sqlite_path,
             server_name=values.get("OLINKB_SERVER_NAME", "OlinKB"),
         )
 

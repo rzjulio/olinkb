@@ -16,6 +16,7 @@ from olinkb.app import OlinKBApp
 from olinkb.config import Settings, get_viewer_settings
 from olinkb.domain import APPROVER_MEMBER_ROLES, is_managed_memory_type
 from olinkb.storage.postgres import PostgresStorage
+from olinkb.storage.sqlite import SqliteStorage
 from olinkb.viewer import build_empty_viewer_payload, build_viewer_payload, render_viewer_html
 
 
@@ -41,6 +42,18 @@ class ViewerAuthenticationError(PermissionError):
 
 class ViewerAuthorizationError(PermissionError):
     pass
+
+
+def _build_storage(
+    *,
+    storage_backend: str,
+    pg_url: str | None,
+    sqlite_path: Any = None,
+    pool_max_size: int = 5,
+):
+    if storage_backend == "sqlite":
+        return SqliteStorage(sqlite_path)
+    return PostgresStorage(pg_url, pool_max_size=pool_max_size)
 
 
 class _LiveViewerHTTPServer(ThreadingHTTPServer):
@@ -96,6 +109,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                         username=self.server.settings.user or None,
                         team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
+                        storage_backend=self.server.settings.storage_backend,
+                        sqlite_path=self.server.settings.sqlite_path,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
                 )
@@ -120,6 +135,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                         password=login_payload["password"],
                         team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
+                        storage_backend=self.server.settings.storage_backend,
+                        sqlite_path=self.server.settings.sqlite_path,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
                 )
@@ -161,6 +178,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                     role=str(session.get("role") or ""),
                     team=str(session.get("team") or self.server.settings.team or ""),
                     project=session.get("project") or self.server.settings.default_project,
+                    storage_backend=self.server.settings.storage_backend,
+                    sqlite_path=self.server.settings.sqlite_path,
                     pool_max_size=self.server.settings.pg_pool_max_size,
                 )
             )
@@ -190,6 +209,8 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
                         username=self.server.settings.user or None,
                         team=self.server.settings.team or None,
                         project=self.server.settings.default_project,
+                        storage_backend=self.server.settings.storage_backend,
+                        sqlite_path=self.server.settings.sqlite_path,
                         pool_max_size=self.server.settings.pg_pool_max_size,
                     )
                 )
@@ -264,15 +285,22 @@ class _LiveViewerRequestHandler(BaseHTTPRequestHandler):
 
 
 async def _load_viewer_payload(
-    pg_url: str,
+    pg_url: str | None,
     *,
     params: dict[str, list[str]],
     username: str | None,
     team: str | None,
     project: str | None,
+    storage_backend: str = "postgres",
+    sqlite_path: Any = None,
     pool_max_size: int = 5,
 ) -> dict[str, Any]:
-    storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
+    storage = _build_storage(
+        storage_backend=storage_backend,
+        pg_url=pg_url,
+        sqlite_path=sqlite_path,
+        pool_max_size=pool_max_size,
+    )
     await storage.connect()
     try:
         query = _sanitize_query(_first_param(params, "q"))
@@ -482,13 +510,15 @@ def _build_memory_uri(*, scope: str, scope_key: str, title: str) -> str:
 
 
 async def _create_memory_payload(
-    pg_url: str,
+    pg_url: str | None,
     *,
     payload: dict[str, Any],
     username: str | None,
     role: str | None,
     team: str | None,
     project: str | None,
+    storage_backend: str = "postgres",
+    sqlite_path: Any = None,
     pool_max_size: int = 5,
 ) -> dict[str, Any]:
     normalized = _normalize_create_memory_payload(
@@ -506,10 +536,17 @@ async def _create_memory_payload(
             cache_ttl_seconds=300,
             cache_max_entries=256,
             pg_pool_max_size=pool_max_size,
+            storage_backend=storage_backend,
+            sqlite_path=sqlite_path,
             server_name="OlinKB",
         )
     )
-    app.storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
+    app.storage = _build_storage(
+        storage_backend=storage_backend,
+        pg_url=pg_url,
+        sqlite_path=sqlite_path,
+        pool_max_size=pool_max_size,
+    )
     try:
         return await app.save_memory(
             uri=_build_memory_uri(
@@ -530,12 +567,14 @@ async def _create_memory_payload(
 
 
 async def _login_viewer_session(
-    pg_url: str,
+    pg_url: str | None,
     *,
     username: str,
     password: str,
     team: str | None,
     project: str | None,
+    storage_backend: str = "postgres",
+    sqlite_path: Any = None,
     pool_max_size: int = 5,
 ) -> dict[str, Any]:
     account = VIEWER_LOGIN_ACCOUNTS.get(username)
@@ -544,7 +583,12 @@ async def _login_viewer_session(
 
     normalized_team = team or VIEWER_FALLBACK_TEAM
     role = str(account["role"])
-    storage = PostgresStorage(pg_url, pool_max_size=pool_max_size)
+    storage = _build_storage(
+        storage_backend=storage_backend,
+        pg_url=pg_url,
+        sqlite_path=sqlite_path,
+        pool_max_size=pool_max_size,
+    )
     try:
         member = await storage.create_or_update_member(
             username=username,
@@ -619,7 +663,7 @@ def run_live_viewer_server(host: str = "127.0.0.1", port: int = 8123, title: str
     server = _LiveViewerHTTPServer((host, port), title=title)
     try:
         print(f"Live viewer running at http://{host}:{port}")
-        print("PostgreSQL-backed live search is the primary path for large datasets")
+        print(f"Storage backend: {server.settings.storage_backend}")
         server.serve_forever()
     except KeyboardInterrupt:
         pass

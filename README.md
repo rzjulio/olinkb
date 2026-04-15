@@ -1,6 +1,6 @@
 # OlinKB
 
-OlinKB is a PostgreSQL-backed shared memory runtime for development agents.
+OlinKB is a shared memory runtime for development agents with SQLite or PostgreSQL storage.
 
 The base package is CLI-first. MCP support is optional and shipped as a separate addon package.
 
@@ -78,7 +78,12 @@ pipx install --pip-args="-v --prefer-binary" https://github.com/rzjulio/olinkb/r
 
 ## What `--init` does
 
-`olinkb --init` asks for the PostgreSQL URL and team, then sets up the runtime for future terminals.
+`olinkb --init` asks which storage backend to use, then persists the backend-specific configuration and team for future terminals.
+
+Storage options:
+
+- `SQLite`: local file-backed setup for single-user or lightweight workflows
+- `PostgreSQL`: server-backed setup for shared multi-user workflows
 
 Mode selection is inferred automatically:
 
@@ -92,7 +97,7 @@ Scope selection:
 - `repository`: writes workspace-local VS Code and Copilot files
 - `global`: writes user-level VS Code and Copilot files
 
-It also persists runtime configuration so the user does not have to keep re-entering `OLINKB_PG_URL` and `OLINKB_TEAM`.
+It also persists runtime configuration so the user does not have to keep re-entering storage settings and `OLINKB_TEAM`.
 
 macOS/Linux files:
 
@@ -177,7 +182,7 @@ The viewer also supports managed Markdown records for curated documentation and 
 
 OlinKB currently focuses on the foundation layer:
 
-- PostgreSQL storage
+- SQLite and PostgreSQL storage
 - session boot and retrieval
 - CLI and optional MCP transport
 - viewer and managed-memory flow

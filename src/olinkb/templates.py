@@ -5,16 +5,28 @@ import json
 
 def render_mcp_template(
     *,
-    pg_url: str,
     team: str,
+    storage_backend: str = "postgres",
+    pg_url: str | None = None,
+    sqlite_path: str | None = None,
     user_env: str = "${env:USER}",
     project: str | None = None,
 ) -> str:
     env = {
-        "OLINKB_PG_URL": pg_url,
+        "OLINKB_STORAGE_BACKEND": storage_backend,
         "OLINKB_TEAM": team,
         "OLINKB_USER": user_env,
     }
+    if storage_backend == "postgres":
+        if not pg_url:
+            raise ValueError("PostgreSQL MCP template requires pg_url")
+        env["OLINKB_PG_URL"] = pg_url
+    elif storage_backend == "sqlite":
+        if not sqlite_path:
+            raise ValueError("SQLite MCP template requires sqlite_path")
+        env["OLINKB_SQLITE_PATH"] = sqlite_path
+    else:
+        raise ValueError(f"Unsupported storage backend: {storage_backend}")
     if project:
         env["OLINKB_PROJECT"] = project
 

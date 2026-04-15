@@ -16,7 +16,7 @@ from olinkb.domain import (
     validate_uri_matches_scope,
 )
 from olinkb.session import SessionManager
-from olinkb.storage import PostgresStorage, ReadCache
+from olinkb.storage import PostgresStorage, ReadCache, SqliteStorage
 
 
 SESSION_SUMMARY_MEMORY_TAGS = ["session-summary", "end_session", "sessions"]
@@ -41,10 +41,13 @@ SESSION_SUMMARY_HEADING_MARKERS = (
 class OlinKBApp:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = PostgresStorage(
-            self.settings.pg_url,
-            pool_max_size=self.settings.pg_pool_max_size,
-        )
+        if self.settings.storage_backend == "sqlite":
+            self.storage = SqliteStorage(self.settings.sqlite_path)
+        else:
+            self.storage = PostgresStorage(
+                self.settings.pg_url,
+                pool_max_size=self.settings.pg_pool_max_size,
+            )
         self.cache = ReadCache(
             max_size=self.settings.cache_max_entries,
             ttl_seconds=self.settings.cache_ttl_seconds,

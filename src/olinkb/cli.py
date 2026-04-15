@@ -13,6 +13,7 @@ from olinkb.tool_handlers import TOOL_NAMES
 
 
 PostgresStorage = None
+SqliteStorage = None
 
 
 def bootstrap_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -84,6 +85,33 @@ def _get_postgres_storage_class():
     return PostgresStorage
 
 
+def _get_sqlite_storage_class():
+    global SqliteStorage
+    if SqliteStorage is None:
+        from olinkb.storage.sqlite import SqliteStorage as sqlite_storage_class
+
+        SqliteStorage = sqlite_storage_class
+    return SqliteStorage
+
+
+def _build_storage(settings: Any):
+    if getattr(settings, "storage_backend", "postgres") == "sqlite":
+        storage_class = _get_sqlite_storage_class()
+        return storage_class(getattr(settings, "sqlite_path", None))
+
+    storage_class = _get_postgres_storage_class()
+    return storage_class(
+        settings.pg_url,
+        pool_max_size=getattr(settings, "pg_pool_max_size", 5),
+    )
+
+
+def _default_sqlite_path(workspace_root: Path, scope: str) -> Path:
+    if scope == "repository":
+        return workspace_root / ".olinkb" / "olinkb.db"
+    return Path.home() / ".config" / "olinkb" / "olinkb.db"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="olinkb", description="OlinKB MCP server utilities")
     parser.add_argument(
@@ -106,7 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("serve", help="Run the OlinKB MCP server over stdio")
     subparsers.add_parser("mcp", help="Alias for serving the OlinKB MCP server over stdio")
-    subparsers.add_parser("migrate", help="Apply PostgreSQL migrations")
+    subparsers.add_parser("migrate", help="Apply storage migrations for the configured backend")
 
     benchmark = subparsers.add_parser("benchmark", help="Measure payload savings for lean and hybrid memory payloads")
     benchmark.add_argument("--sample-size", type=int, default=200)
@@ -142,7 +170,7 @@ def build_parser() -> argparse.ArgumentParser:
     viewer_build.add_argument("--title", default="OlinKB Viewer")
     viewer_serve = viewer_subparsers.add_parser(
         "serve",
-        help="Run the live HTTP viewer backed directly by PostgreSQL",
+        help="Run the live HTTP viewer using the configured storage backend",
     )
     viewer_serve.add_argument("--host", default="127.0.0.1")
     viewer_serve.add_argument("--port", type=int, default=8123)
@@ -237,11 +265,7 @@ def resolve_bootstrap_mode(explicit_mode: str | None = None) -> str:
 
 async def _run_admin_command(args: argparse.Namespace) -> int:
     settings = get_settings()
-    storage_class = _get_postgres_storage_class()
-    storage = storage_class(
-        settings.pg_url,
-        pool_max_size=getattr(settings, "pg_pool_max_size", 5),
-    )
+    storage = _build_storage(settings)
     await storage.connect()
     try:
         if args.command == "migrate":
@@ -322,16 +346,28 @@ def render_template_output(args: argparse.Namespace) -> str:
         return render_instructions_template(mode=args.mode)
 
     pg_url = getattr(args, "pg_url", None)
+    sqlite_path = getattr(args, "sqlite_path", None)
+    storage_backend = getattr(args, "storage_backend", None)
     team = getattr(args, "team", None)
     project = getattr(args, "project", None)
     user_env = getattr(args, "user_env", "${env:USER}")
 
+    if storage_backend is None:
+        if pg_url:
+            storage_backend = "postgres"
+        elif sqlite_path:
+            storage_backend = "sqlite"
+
     settings = None
-    if not pg_url or not team:
+    if (storage_backend == "postgres" and not pg_url) or (storage_backend == "sqlite" and not sqlite_path) or not team or storage_backend is None:
         settings = get_settings()
 
+    resolved_backend = storage_backend or settings.storage_backend
+
     return render_mcp_template(
-        pg_url=pg_url or settings.pg_url,
+        storage_backend=resolved_backend,
+        pg_url=pg_url or (settings.pg_url if settings is not None else None),
+        sqlite_path=sqlite_path or (str(settings.sqlite_path) if settings is not None and settings.sqlite_path is not None else None),
         team=team or settings.team,
         user_env=user_env,
         project=project if project is not None else (settings.default_project if settings is not None else None),
@@ -349,10 +385,32 @@ def run_init_workspace(args: argparse.Namespace) -> int:
     else:
         print("Initializing OlinKB for global VS Code usage")
 
-    pg_url = _prompt_required_value(
-        "PostgreSQL URL",
-        default=settings.pg_url if settings is not None else None,
+    default_backend = getattr(settings, "storage_backend", "postgres") if settings is not None else "postgres"
+    storage_backend = _prompt_choice(
+        "Storage backend",
+        ("postgres", "sqlite"),
+        default=default_backend,
     )
+
+    pg_url: str | None = None
+    sqlite_path: Path | None = None
+    if storage_backend == "postgres":
+        pg_url = _prompt_required_value(
+            "PostgreSQL URL",
+            default=settings.pg_url if settings is not None and settings.storage_backend == "postgres" else None,
+        )
+    else:
+        sqlite_path = Path(
+            _prompt_required_value(
+                "SQLite path",
+                default=str(
+                    settings.sqlite_path
+                    if settings is not None and settings.storage_backend == "sqlite" and settings.sqlite_path is not None
+                    else _default_sqlite_path(workspace_root, scope)
+                ),
+            )
+        ).expanduser()
+
     team = _prompt_required_value(
         "Team",
         default=settings.team if settings is not None else None,
@@ -361,13 +419,16 @@ def run_init_workspace(args: argparse.Namespace) -> int:
 
     result = bootstrap_workspace(
         workspace_path=workspace_root,
+        storage_backend=storage_backend,
         pg_url=pg_url,
+        sqlite_path=sqlite_path,
         team=team,
         scope=scope,
         mode=mode,
     )
     print(f"Initialization scope: {result['scope']}")
     print(f"- Mode: {result['mode']}")
+    print(f"- Storage backend: {result['storage_backend']}")
     if result["project"]:
         print(f"- Project: {result['project']}")
     if result["mcp_path"]:

@@ -1,5 +1,6 @@
 from dataclasses import replace
 from uuid import UUID, uuid4
+from pathlib import Path
 
 import pytest
 
@@ -128,6 +129,39 @@ class FakeStorage:
 
     async def get_session(self, session_id: str):
         return self.session_rows.get(session_id)
+
+
+@pytest.mark.asyncio
+async def test_sqlite_storage_roundtrip_save_and_remember(tmp_path) -> None:
+    settings = Settings(
+        pg_url=None,
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        storage_backend="sqlite",
+        sqlite_path=tmp_path / "olinkb.db",
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+
+    try:
+        boot = await app.boot_session(author="rzjulio", project="olinkb")
+        saved = await app.save_memory(
+            uri="project://olinkb/decisions/sqlite-backend",
+            title="SQLite backend",
+            content="What: Allow SQLite as a local backend.\nWhy: Local setup should not require a database server.",
+            memory_type="decision",
+            scope="project",
+        )
+        results = await app.remember("sqlite backend", scope="project", include_content=True)
+    finally:
+        await app.storage.close()
+
+    assert UUID(boot["session_id"])
+    assert saved["status"] in {"created", "create"}
+    assert any(result["uri"] == "project://olinkb/decisions/sqlite-backend" for result in results)
 
 
 @pytest.mark.asyncio
