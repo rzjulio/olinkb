@@ -57,6 +57,19 @@ Or inside the same Python environment:
 python -m pip install https://github.com/rzjulio/olinkb/releases/download/v0.1.0/olinkb_mcp-0.1.0-py3-none-any.whl
 ```
 
+If you are reinstalling a wheel while keeping the same version number during manual verification, force the reinstall or start from a clean environment. Otherwise `pip` or an existing wrapper can keep resolving an older installed package:
+
+```bash
+python -m pip install --force-reinstall ./olinkb-0.1.0-py3-none-any.whl
+```
+
+Quick check for the active command:
+
+```bash
+command -v olinkb
+python -m pip show olinkb
+```
+
 Windows note: if wheel installation looks idle for a while, use:
 
 ```bash

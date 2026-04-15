@@ -65,6 +65,12 @@ source .venv/bin/activate
 python -m pip install ./olinkb-0.1.0-py3-none-any.whl
 ```
 
+When verifying a rebuilt wheel with the same version number, use `--force-reinstall` or a clean environment. Otherwise the shell command can keep resolving an older installed package or wrapper:
+
+```bash
+python -m pip install --force-reinstall ./olinkb-0.1.0-py3-none-any.whl
+```
+
 Run bootstrap after install:
 
 ```bash
@@ -156,6 +162,15 @@ Useful variants:
 - `olinkb uninstall --skip-package-uninstall`
 
 Plain `pip uninstall olinkb` is not enough for a full teardown because generated files like shell hooks, wrappers, and persisted settings live outside the package-managed site-packages tree.
+
+If `olinkb --init` behaves like an older release, verify which command is active before debugging the source:
+
+```bash
+command -v olinkb
+python -m pip show olinkb
+```
+
+The most common cause is a wrapper such as `~/.local/bin/olinkb` still pointing at a previous virtual environment.
 
 ## Managed memories
 

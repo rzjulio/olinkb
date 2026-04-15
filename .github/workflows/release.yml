@@ -92,6 +92,19 @@ jobs:
           python -m build packages/olinkb-mcp
           cp packages/olinkb-mcp/dist/* dist/
 
+      - name: Verify base wheel stays CLI-only
+        shell: bash
+        run: |
+          tmpdir="$(mktemp -d)"
+          python -m venv "$tmpdir/venv"
+          "$tmpdir/venv/bin/python" -m pip install --upgrade pip
+          "$tmpdir/venv/bin/python" -m pip install dist/olinkb-${{ steps.release_version.outputs.version }}-py3-none-any.whl
+          if "$tmpdir/venv/bin/python" -m pip show mcp >/dev/null 2>&1; then
+            echo "The base OlinKB wheel unexpectedly installed mcp" >&2
+            exit 1
+          fi
+          "$tmpdir/venv/bin/python" -c "import importlib.metadata as md; print('Base wheel Requires-Dist:', md.metadata('olinkb').get_all('Requires-Dist') or [])"
+
       - name: Resolve release notes
         id: release_notes
         run: |
