@@ -419,6 +419,80 @@ async def test_save_memory_enriches_business_documentation_tags() -> None:
 
 
 @pytest.mark.asyncio
+async def test_capture_memory_auto_saves_high_confidence_bugfix() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.project_role = "developer"
+    app.storage = storage
+
+    result = await app.capture_memory(
+        content=(
+            "What: Fix invalid JSON handling in the CLI transport\n"
+            "Why: Tool input errors were hard to understand\n"
+            "Where: src/olinkb/tool_cli.py\n"
+            "Evidence: Invalid payloads raised confusing runtime errors\n"
+            "Learned: CLI-facing failures need explicit JSON validation"
+        ),
+        project="olinkb",
+        scope_hint="project",
+        source_surface="cli",
+        files=["src/olinkb/tool_cli.py", "tests/test_tool_cli.py"],
+        commands=["pytest -q tests/test_tool_cli.py"],
+    )
+
+    assert result["action"] == "save"
+    assert result["saved"] is True
+    assert result["suggested_memory_type"] == "bugfix"
+    assert storage.save_memory_calls[0]["memory_type"] == "bugfix"
+    assert storage.save_memory_calls[0]["uri"].startswith("project://olinkb/bugfixes/")
+
+
+@pytest.mark.asyncio
+async def test_capture_memory_suggests_org_documentation_when_permissions_block_save() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "developer"
+    app.storage = storage
+
+    result = await app.capture_memory(
+        content=(
+            "# OlinKB Architecture Guide\n\n"
+            "This document explains the shared CLI-first memory flow, setup steps, and architecture boundaries.\n\n"
+            "Decision: Keep CLI as the primary operator surface while preserving MCP compatibility."
+        ),
+        title="OlinKB architecture guide",
+        scope_hint="org",
+        source_surface="cli",
+        files=["README.md", "src/olinkb/cli.py"],
+        commands=["olinkb tool analyze_memory --json '{\"content\":\"# OlinKB Architecture Guide\"}'"],
+    )
+
+    assert result["action"] == "suggest"
+    assert result["saved"] is False
+    assert result["suggested_memory_type"] == "documentation"
+    assert result["documentation_candidate"] is True
+    assert storage.save_memory_calls == []
+
+
+@pytest.mark.asyncio
 async def test_propose_memory_promotion_uses_project_scope_and_returns_pending() -> None:
     settings = Settings(
         pg_url="postgresql://unused",

@@ -43,6 +43,10 @@ def _object_property(description: str) -> dict[str, Any]:
     return {"type": "object", "description": description, "additionalProperties": True}
 
 
+def _string_array_property(description: str) -> dict[str, Any]:
+    return {"type": "array", "description": description, "items": {"type": "string"}}
+
+
 def _tool_schema(
     *,
     properties: dict[str, dict[str, Any]],
@@ -53,6 +57,31 @@ def _tool_schema(
         "properties": properties,
         "required": required or [],
         "additionalProperties": False,
+    }
+
+
+def _automation_properties() -> dict[str, dict[str, Any]]:
+    return {
+        "content": _string_property("Content to analyze for relevance, type inference, and possible capture."),
+        "title": _string_property("Optional explicit title. When omitted, OlinKB infers one from the content."),
+        "project": _string_property("Optional project override used for project-scoped capture and URI generation."),
+        "scope_hint": {
+            "type": "string",
+            "enum": sorted(ALLOWED_SCOPES),
+            "description": "Optional scope hint used during classification and URI generation.",
+        },
+        "memory_type_hint": {
+            "type": "string",
+            "enum": sorted(ALLOWED_MEMORY_TYPES),
+            "description": "Optional hint to bias classification toward a specific memory type.",
+        },
+        "tags": _string_property("Optional comma-separated tags to seed the inferred memory tags."),
+        "metadata": _object_property("Optional metadata merged into the inferred structured metadata."),
+        "session_id": _string_property("Optional active session identifier."),
+        "author": _string_property("Optional username override for the actor."),
+        "source_surface": _string_property("Optional source label such as cli, editor, or review."),
+        "files": _string_array_property("Optional related file paths used as additional relevance signals."),
+        "commands": _string_array_property("Optional related commands used as additional relevance signals."),
     }
 
 
@@ -77,6 +106,25 @@ def _tool_definitions() -> list[Any]:
                     "team": _string_property("Optional team override for this session."),
                     "project": _string_property("Optional project override for this session."),
                 }
+            ),
+        ),
+        types.Tool(
+            name="analyze_memory",
+            description="Analyze content to decide whether it should become memory, which type it looks like, and whether it resembles documentation.",
+            inputSchema=_tool_schema(
+                properties=_automation_properties(),
+                required=["content"],
+            ),
+        ),
+        types.Tool(
+            name="capture_memory",
+            description="Analyze content and automatically persist it when confidence is high enough, otherwise return a structured suggestion.",
+            inputSchema=_tool_schema(
+                properties={
+                    **_automation_properties(),
+                    "auto_save": _boolean_property("Persist automatically when the analyzer returns a save action."),
+                },
+                required=["content"],
             ),
         ),
         types.Tool(

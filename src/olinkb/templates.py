@@ -37,6 +37,7 @@ def render_instructions_template(*, mode: str = "mcp") -> str:
 
     transport_intro = "You have access to OlinKB via MCP tools."
     session_start_line = "- On the first relevant interaction of a session, call `boot_session`."
+    automation_line = "- Before deciding whether something should become memory, call `analyze_memory(...)` for a dry run or `capture_memory(...)` to let OlinKB auto-save high-confidence results."
     remember_line = "- Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, call `remember`."
     save_line = "- When you make or discover an important decision, pattern, bugfix, or procedure, call `save_memory` with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`."
     approval_line = "- Project leads and admins should use `list_pending_approvals(...)` or the `review_queue` returned by `boot_session` to batch-review proposed conventions, then call `review_memory_proposal(...)` to approve or reject them."
@@ -45,6 +46,7 @@ def render_instructions_template(*, mode: str = "mcp") -> str:
     if mode == "cli":
         transport_intro = "You have access to OlinKB via the local OlinKB CLI transport."
         session_start_line = "- On the first relevant interaction of a session, run the corresponding `olinkb tool ...` command, for example `olinkb tool boot_session --json '{\"project\":\"example\"}'`."
+        automation_line = "- Before deciding whether something should become memory, run `olinkb tool analyze_memory --json ...` for a dry run or `olinkb tool capture_memory --json ...` to let OlinKB auto-save high-confidence results."
         remember_line = "- Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, run `olinkb tool remember --json '{\"query\":\"...\"}'` and inspect the JSON result."
         save_line = "- When you make or discover an important decision, pattern, bugfix, or procedure, run the matching `olinkb tool save_memory --json ...` command with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`."
         approval_line = "- Project leads and admins should run `olinkb tool list_pending_approvals --json ...` and `olinkb tool review_memory_proposal --json ...` to process proposals."
@@ -62,6 +64,7 @@ Use this as the default memory workflow across repositories unless the active re
 - If `boot_session` returns a non-empty `review_queue`, project leads and admins should review those proposals during the session instead of polling manually.
 
 ### During Work
+{automation_line}
 {remember_line}
 - If the user asks about a project, feature, workflow, prior decision, or "what did we do before", call `remember` before relying on guesswork.
 - Prefer `remember(..., include_content=false)` for lean recall; request full `content` only when the body is actually needed.

@@ -69,4 +69,6 @@ def test_render_cli_instructions_switches_transport_language() -> None:
     assert "via the local OlinKB CLI transport" in rendered
     assert "olinkb tool boot_session --json" in rendered
     assert "run the corresponding `olinkb tool ...` command" in rendered
+    assert "analyze_memory" in rendered
+    assert "capture_memory" in rendered
     assert "MCP tools" not in rendered

@@ -12,6 +12,14 @@ class FakeApp:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
 
+    async def analyze_memory(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"action": "suggest", "suggested_memory_type": "documentation"}
+
+    async def capture_memory(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"action": "save", "saved": True, "uri": "project://olinkb/bugfixes/cli-memory"}
+
     async def remember(self, **kwargs):
         self.calls.append(kwargs)
         return []
@@ -64,6 +72,28 @@ async def test_server_remember_exposes_include_content_flag(monkeypatch) -> None
     await server.remember(query="lean recall", scope="project", include_content=True)
 
     assert app.calls[0]["include_content"] is True
+
+
+@pytest.mark.asyncio
+async def test_server_analyze_memory_passes_content_to_app(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    result = await server.analyze_memory(content="# Architecture\n\nDecision: keep it CLI-first")
+
+    assert result["suggested_memory_type"] == "documentation"
+    assert app.calls[0]["content"] == "# Architecture\n\nDecision: keep it CLI-first"
+
+
+@pytest.mark.asyncio
+async def test_server_capture_memory_passes_auto_save_flag(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    result = await server.capture_memory(content="What: fix", auto_save=False)
+
+    assert result["saved"] is True
+    assert app.calls[0]["auto_save"] is False
 
 
 @pytest.mark.asyncio
@@ -131,6 +161,8 @@ def test_tool_definitions_expose_expected_names_and_remember_schema() -> None:
 
     assert set(tools) == {
         "boot_session",
+        "analyze_memory",
+        "capture_memory",
         "remember",
         "save_memory",
         "propose_memory_promotion",
@@ -141,6 +173,8 @@ def test_tool_definitions_expose_expected_names_and_remember_schema() -> None:
     }
     assert tools["remember"].inputSchema["required"] == ["query"]
     assert "include_content" in tools["remember"].inputSchema["properties"]
+    assert tools["analyze_memory"].inputSchema["required"] == ["content"]
+    assert tools["capture_memory"].inputSchema["required"] == ["content"]
 
 
 @pytest.mark.asyncio

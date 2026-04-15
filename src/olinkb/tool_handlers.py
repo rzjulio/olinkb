@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 TOOL_NAMES = (
     "boot_session",
+    "analyze_memory",
+    "capture_memory",
     "remember",
     "save_memory",
     "propose_memory_promotion",
@@ -32,6 +34,68 @@ def get_app() -> OlinKBApp:
 
 async def boot_session(author: str | None = None, team: str | None = None, project: str | None = None) -> dict:
     return await get_app().boot_session(author=author, team=team, project=project)
+
+
+async def analyze_memory(
+    content: str,
+    title: str | None = None,
+    project: str | None = None,
+    scope_hint: str | None = None,
+    memory_type_hint: str | None = None,
+    tags: str = "",
+    metadata: dict | None = None,
+    session_id: str | None = None,
+    author: str | None = None,
+    source_surface: str = "cli",
+    files: list[str] | None = None,
+    commands: list[str] | None = None,
+) -> dict:
+    return await get_app().analyze_memory(
+        content=content,
+        title=title,
+        project=project,
+        scope_hint=scope_hint,
+        memory_type_hint=memory_type_hint,
+        tags=tags,
+        metadata=metadata,
+        session_id=session_id,
+        author=author,
+        source_surface=source_surface,
+        files=files,
+        commands=commands,
+    )
+
+
+async def capture_memory(
+    content: str,
+    title: str | None = None,
+    project: str | None = None,
+    scope_hint: str | None = None,
+    memory_type_hint: str | None = None,
+    tags: str = "",
+    metadata: dict | None = None,
+    session_id: str | None = None,
+    author: str | None = None,
+    source_surface: str = "cli",
+    files: list[str] | None = None,
+    commands: list[str] | None = None,
+    auto_save: bool = True,
+) -> dict:
+    return await get_app().capture_memory(
+        content=content,
+        title=title,
+        project=project,
+        scope_hint=scope_hint,
+        memory_type_hint=memory_type_hint,
+        tags=tags,
+        metadata=metadata,
+        session_id=session_id,
+        author=author,
+        source_surface=source_surface,
+        files=files,
+        commands=commands,
+        auto_save=auto_save,
+    )
 
 
 async def remember(
@@ -125,6 +189,8 @@ async def forget(uri: str, reason: str, session_id: str | None = None, author: s
 async def dispatch_tool_call(name: str, arguments: dict[str, Any]) -> Any:
     handlers = {
         "boot_session": boot_session,
+        "analyze_memory": analyze_memory,
+        "capture_memory": capture_memory,
         "remember": remember,
         "save_memory": save_memory,
         "propose_memory_promotion": propose_memory_promotion,

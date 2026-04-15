@@ -14,10 +14,18 @@ The base package is CLI-first. MCP support is optional and shipped as a separate
 Core tool surface:
 
 - `boot_session`
+- `analyze_memory`
+- `capture_memory`
 - `remember`
 - `save_memory`
 - `end_session`
 - `forget`
+
+Preferred CLI-first memory flow:
+
+1. Use `analyze_memory` when you want a dry run.
+2. Use `capture_memory` when you want OlinKB to auto-save high-confidence memories.
+3. Use `save_memory` only when you already know the exact type, scope, and URI you want.
 
 ## Install
 
@@ -97,6 +105,8 @@ If you installed OlinKB inside a virtual environment, the generated wrapper poin
 ```bash
 olinkb --init
 olinkb uninstall
+olinkb tool analyze_memory --json '{"content":"# CLI Memory Automation\n\nDecision: keep CLI-first capture as the default surface"}'
+olinkb tool capture_memory --json '{"content":"What: Fix invalid JSON handling\nWhy: CLI users need clearer failures\nWhere: src/olinkb/tool_cli.py"}'
 olinkb tool remember --json '{"query":"bootstrap"}'
 olinkb mcp
 olinkb viewer
@@ -123,6 +133,18 @@ Useful variants:
 `pip uninstall olinkb` by itself cannot remove those generated files because Python package uninstall does not get a post-uninstall cleanup hook.
 
 ## Viewer and managed memories
+
+CLI users can now pre-triage content before opening the viewer:
+
+```bash
+olinkb tool analyze_memory --json '{"content":"# Architecture Guide\n\nThis document explains the CLI-first memory workflow."}'
+```
+
+And they can let OlinKB capture high-confidence items automatically:
+
+```bash
+olinkb tool capture_memory --json '{"content":"What: Fix CLI payload validation\nWhy: Invalid JSON produced confusing errors\nWhere: src/olinkb/tool_cli.py"}'
+```
 
 Use the live viewer as the main browsing surface:
 

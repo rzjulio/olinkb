@@ -5,6 +5,14 @@ from olinkb.app import OlinKBApp
 from olinkb import viewer_server
 
 
+@pytest.fixture(autouse=True)
+def isolate_persisted_settings(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(config, "get_persisted_settings_path", lambda: tmp_path / "settings.json")
+    config.clear_settings_cache()
+    yield
+    config.clear_settings_cache()
+
+
 class FakeViewerStorage:
     pending_limits: list[int] = []
 

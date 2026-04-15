@@ -60,6 +60,24 @@ def test_cli_parser_accepts_tool_transport_command() -> None:
     assert args.json_input == '{"query":"alpha"}'
 
 
+def test_cli_parser_accepts_analyze_memory_tool_command() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["tool", "analyze_memory", "--json", '{"content":"Decision: keep it CLI-first"}'])
+
+    assert args.command == "tool"
+    assert args.tool_name == "analyze_memory"
+
+
+def test_cli_parser_accepts_capture_memory_tool_command() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["tool", "capture_memory", "--json", '{"content":"What: fix"}'])
+
+    assert args.command == "tool"
+    assert args.tool_name == "capture_memory"
+
+
 def test_cli_parser_accepts_viewer_build_command() -> None:
     parser = build_parser()
 

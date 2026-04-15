@@ -27,6 +27,35 @@ def test_run_tool_command_prints_json_result(monkeypatch, capsys) -> None:
     assert json.loads(output) == [{"uri": "project://olinkb/decisions/alpha"}]
 
 
+def test_run_tool_command_prints_analyze_memory_result(monkeypatch, capsys) -> None:
+    args = argparse.Namespace(
+        tool_name="analyze_memory",
+        json_input='{"content":"# CLI Memory Automation\\n\\nDecision: keep it CLI-first"}',
+        input_file=None,
+    )
+
+    async def fake_invoke_tool(tool_name: str, payload: dict[str, object]) -> dict[str, object]:
+        assert tool_name == "analyze_memory"
+        assert payload["content"] == "# CLI Memory Automation\n\nDecision: keep it CLI-first"
+        return {
+            "action": "suggest",
+            "suggested_memory_type": "documentation",
+            "documentation_candidate": True,
+        }
+
+    monkeypatch.setattr(tool_cli, "invoke_tool", fake_invoke_tool)
+
+    exit_code = tool_cli.run_tool_command(args)
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert json.loads(output) == {
+        "action": "suggest",
+        "suggested_memory_type": "documentation",
+        "documentation_candidate": True,
+    }
+
+
 def test_load_payload_reads_json_file(tmp_path) -> None:
     payload_path = tmp_path / "payload.json"
     payload_path.write_text('{"query":"alpha","limit":2}', encoding="utf-8")

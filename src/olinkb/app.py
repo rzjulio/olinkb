@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from olinkb.config import Settings, get_settings
+from olinkb.automation import analyze_memory_candidate
 from olinkb.domain import (
     APPROVER_MEMBER_ROLES,
     enrich_memory_tags,
@@ -150,6 +151,95 @@ class OlinKBApp:
         if session_id:
             self.sessions.bump_reads(session_id, len(results))
         return results
+
+    async def analyze_memory(
+        self,
+        *,
+        content: str,
+        title: str | None = None,
+        project: str | None = None,
+        scope_hint: str | None = None,
+        memory_type_hint: str | None = None,
+        tags: str = "",
+        metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        author: str | None = None,
+        source_surface: str = "cli",
+        files: list[str] | None = None,
+        commands: list[str] | None = None,
+    ) -> dict[str, Any]:
+        effective_project = project or self._session_project(session_id) or self.settings.default_project
+        effective_author = author or self.settings.user
+        return analyze_memory_candidate(
+            content=content,
+            title=title,
+            project=effective_project,
+            scope_hint=scope_hint,
+            memory_type_hint=memory_type_hint,
+            tags=tags,
+            metadata=metadata,
+            source_surface=source_surface,
+            files=files,
+            commands=commands,
+            author=effective_author,
+        )
+
+    async def capture_memory(
+        self,
+        *,
+        content: str,
+        title: str | None = None,
+        project: str | None = None,
+        scope_hint: str | None = None,
+        memory_type_hint: str | None = None,
+        tags: str = "",
+        metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        author: str | None = None,
+        source_surface: str = "cli",
+        files: list[str] | None = None,
+        commands: list[str] | None = None,
+        auto_save: bool = True,
+    ) -> dict[str, Any]:
+        analysis = await self.analyze_memory(
+            content=content,
+            title=title,
+            project=project,
+            scope_hint=scope_hint,
+            memory_type_hint=memory_type_hint,
+            tags=tags,
+            metadata=metadata,
+            session_id=session_id,
+            author=author,
+            source_surface=source_surface,
+            files=files,
+            commands=commands,
+        )
+        analysis["saved"] = False
+
+        if not auto_save or analysis["action"] != "save":
+            return analysis
+
+        try:
+            result = await self.save_memory(
+                uri=analysis["suggested_uri"],
+                title=analysis["suggested_title"],
+                content=content,
+                memory_type=analysis["suggested_memory_type"],
+                scope=analysis["suggested_scope"],
+                tags=",".join(analysis["suggested_tags"]),
+                metadata=analysis["metadata"],
+                session_id=session_id,
+                author=author,
+            )
+        except PermissionError as exc:
+            analysis["action"] = "suggest"
+            analysis.setdefault("reasons", []).append(str(exc))
+            return analysis
+
+        analysis["saved"] = result.get("status") in {"create", "created", "update", "updated", "unchanged"}
+        analysis["memory"] = result
+        return analysis
 
     async def save_memory(
         self,
@@ -401,6 +491,14 @@ class OlinKBApp:
                 if scope in {"all", "project"}:
                     project_name = session.project
         return username, team_name, project_name
+
+    def _session_project(self, session_id: str | None) -> str | None:
+        if not session_id:
+            return None
+        session = self.sessions.get(session_id)
+        if session is None:
+            return None
+        return session.project
 
     @staticmethod
     def _remember_cache_key(

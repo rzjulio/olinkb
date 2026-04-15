@@ -116,6 +116,8 @@ olinkb --init
 olinkb uninstall
 olinkb migrate
 olinkb add-member --username rzjulio --role lead
+olinkb tool analyze_memory --json '{"content":"# CLI Memory Automation\n\nDecision: keep CLI-first capture as the default operator path"}'
+olinkb tool capture_memory --json '{"content":"What: Fix invalid JSON handling\nWhy: CLI users need explicit parse errors\nWhere: src/olinkb/tool_cli.py"}'
 olinkb tool remember --json '{"query":"bootstrap"}'
 olinkb mcp
 olinkb viewer
@@ -128,6 +130,8 @@ olinkb template instructions --mode cli
 Notes:
 
 - `olinkb tool ...` is the direct JSON transport
+- `olinkb tool analyze_memory ...` is the dry-run classifier for memory relevance and type inference
+- `olinkb tool capture_memory ...` is the preferred CLI entry point for near-automatic capture
 - `olinkb mcp` requires `olinkb-mcp`
 - `olinkb viewer build` exports a static snapshot to `olinkb-viewer/index.html`
 
