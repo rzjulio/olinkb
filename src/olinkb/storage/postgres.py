@@ -559,6 +559,32 @@ class PostgresStorage:
             return None
         return dict(row)
 
+    async def find_open_sessions(
+        self,
+        *,
+        author_username: str,
+        project: str | None,
+        limit: int = 2,
+    ) -> list[dict[str, Any]]:
+        await self.connect()
+        assert self._pool is not None
+
+        rows = await self._pool.fetch(
+            """
+            SELECT id::text AS id, author_username, project, summary, memories_read, memories_written, ended_at
+            FROM sessions
+            WHERE author_username = $1
+              AND project IS NOT DISTINCT FROM $2
+              AND ended_at IS NULL
+            ORDER BY started_at DESC
+            LIMIT $3
+            """,
+            author_username,
+            project,
+            limit,
+        )
+        return [dict(row) for row in rows]
+
     async def load_boot_memories(
         self,
         username: str,

@@ -247,33 +247,73 @@ class OlinKBApp:
     async def save_memory(
         self,
         *,
-        uri: str,
-        title: str,
+        uri: str | None = None,
+        title: str | None = None,
         content: str,
         memory_type: str,
-        scope: str = "personal",
+        scope: str | None = None,
         tags: str = "",
         metadata: dict[str, Any] | None = None,
         session_id: str | None = None,
         author: str | None = None,
+        project: str | None = None,
+        scope_hint: str | None = None,
+        source_surface: str = "cli",
+        files: list[str] | None = None,
+        commands: list[str] | None = None,
     ) -> dict[str, Any]:
-        validate_scope(scope)
+        effective_project = project or self._session_project(session_id) or self.settings.default_project
+        effective_metadata = dict(metadata or {})
+        effective_uri = (uri or "").strip() or None
+        if effective_uri is not None and effective_uri.startswith("file://"):
+            effective_metadata.setdefault("source_uri", effective_uri)
+            effective_uri = None
+
+        analysis = None
+        if effective_uri is None or title is None or scope is None:
+            analysis = analyze_memory_candidate(
+                content=content,
+                title=title,
+                project=effective_project,
+                scope_hint=scope or scope_hint,
+                memory_type_hint=memory_type,
+                tags=tags,
+                metadata=effective_metadata,
+                source_surface=source_surface,
+                files=files,
+                commands=commands,
+                author=author or self.settings.user,
+            )
+
+        effective_title = title or (analysis["suggested_title"] if analysis is not None else None)
+        if effective_title is None:
+            raise ValueError("title is required")
+
+        effective_scope = scope or (analysis["suggested_scope"] if analysis is not None else None)
+        if effective_scope is None:
+            raise ValueError("scope is required")
+
+        effective_uri = effective_uri or (analysis["suggested_uri"] if analysis is not None else None)
+        if effective_uri is None:
+            raise ValueError("uri is required")
+
+        validate_scope(effective_scope)
         validate_memory_type(memory_type)
-        validate_uri_matches_scope(uri, scope)
+        validate_uri_matches_scope(effective_uri, effective_scope)
 
         username = author or self.settings.user
         member = await self.storage.ensure_member(username=username, team=self.settings.team)
-        project_member = await self._project_member_for_uri(uri=uri, member=member, username=username)
-        self._authorize_memory_write(scope=scope, memory_type=memory_type, username=username, uri=uri, member=member, project_member=project_member)
-        resolved_tags = enrich_memory_tags(memory_type, parse_tags(tags), metadata)
+        project_member = await self._project_member_for_uri(uri=effective_uri, member=member, username=username)
+        self._authorize_memory_write(scope=effective_scope, memory_type=memory_type, username=username, uri=effective_uri, member=member, project_member=project_member)
+        resolved_tags = enrich_memory_tags(memory_type, parse_tags(tags), effective_metadata)
         result = await self.storage.save_memory(
-            uri=uri,
-            title=title,
+            uri=effective_uri,
+            title=effective_title,
             content=content,
             memory_type=memory_type,
-            scope=scope,
+            scope=effective_scope,
             tags=resolved_tags,
-            metadata=metadata,
+            metadata=effective_metadata,
             author_id=member["id"],
             author_username=username,
         )
@@ -380,9 +420,20 @@ class OlinKBApp:
             self.sessions.bump_writes(session_id)
         return result
 
-    async def end_session(self, session_id: str, summary: str) -> dict[str, Any]:
-        normalized_session_id, is_valid_session_id = self._normalize_session_id(session_id)
-        lookup_session_id = normalized_session_id or session_id.strip()
+    async def end_session(
+        self,
+        session_id: str | None,
+        summary: str,
+        author: str | None = None,
+        project: str | None = None,
+    ) -> dict[str, Any]:
+        lookup_session_id = await self._resolve_end_session_id(
+            session_id=session_id,
+            author=author,
+            project=project,
+        )
+        normalized_session_id, is_valid_session_id = self._normalize_session_id(lookup_session_id)
+        lookup_session_id = normalized_session_id or lookup_session_id.strip()
 
         active_session = self.sessions.get(lookup_session_id)
         if active_session is not None:
@@ -450,6 +501,44 @@ class OlinKBApp:
             "summary": stored_session["summary"] or summary,
             "status": "already_ended",
         }
+
+    async def _resolve_end_session_id(
+        self,
+        *,
+        session_id: str | None,
+        author: str | None,
+        project: str | None,
+    ) -> str:
+        if session_id and session_id.strip():
+            return session_id
+
+        active_session_ids = self.sessions.active_session_ids()
+        if len(active_session_ids) == 1:
+            return active_session_ids[0]
+        if len(active_session_ids) > 1:
+            preview = ", ".join(active_session_ids[:3])
+            suffix = "..." if len(active_session_ids) > 3 else ""
+            raise ValueError(
+                "session_id is required because multiple active sessions are open in this process: "
+                f"{preview}{suffix}."
+            )
+
+        effective_author = author or self.settings.user
+        effective_project = project if project is not None else self.settings.default_project
+        open_sessions = await self.storage.find_open_sessions(
+            author_username=effective_author,
+            project=effective_project,
+            limit=2,
+        )
+        if len(open_sessions) == 1:
+            return str(open_sessions[0]["id"])
+        if len(open_sessions) > 1:
+            raise ValueError(
+                "session_id is required because multiple persisted open sessions match the current author/project context."
+            )
+        raise ValueError(
+            "session_id is required because no active or persisted open session was found for the current author/project context."
+        )
 
     async def forget(
         self,

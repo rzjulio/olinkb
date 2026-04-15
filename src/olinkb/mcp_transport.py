@@ -150,25 +150,34 @@ def _tool_definitions() -> list[Any]:
             description="Create or update a memory entry with audit logging, optional metadata, and SHA256 deduplication.",
             inputSchema=_tool_schema(
                 properties={
-                    "uri": _string_property("Canonical memory URI, such as project://olinkb/decisions/example."),
-                    "title": _string_property("Human-readable title for the memory."),
+                    "uri": _string_property("Optional canonical memory URI. When omitted, OlinKB infers one from the content, project, and memory type."),
+                    "title": _string_property("Optional human-readable title for the memory. When omitted, OlinKB infers one from the content."),
                     "content": _string_property("Full memory body to persist."),
                     "memory_type": {
                         "type": "string",
                         "enum": sorted(ALLOWED_MEMORY_TYPES),
                         "description": "Memory classification used for validation and retrieval.",
                     },
+                    "project": _string_property("Optional project override used when inferring project-scoped memory URIs."),
                     "scope": {
                         "type": "string",
                         "enum": sorted(ALLOWED_SCOPES),
-                        "description": "Declared scope for the memory URI.",
+                        "description": "Optional declared scope. When omitted, OlinKB infers it from the project or URI.",
+                    },
+                    "scope_hint": {
+                        "type": "string",
+                        "enum": sorted(ALLOWED_SCOPES),
+                        "description": "Optional scope hint used during URI inference when uri is omitted.",
                     },
                     "tags": _string_property("Comma-separated tags to associate with the memory."),
                     "metadata": _object_property("Optional structured metadata stored alongside the memory."),
                     "session_id": _string_property("Optional active session identifier."),
                     "author": _string_property("Optional username override for the write actor."),
+                    "source_surface": _string_property("Optional source label such as cli, editor, or review."),
+                    "files": _string_array_property("Optional related file paths used as additional relevance signals."),
+                    "commands": _string_array_property("Optional related commands used as additional relevance signals."),
                 },
-                required=["uri", "title", "content", "memory_type"],
+                required=["content", "memory_type"],
             ),
         ),
         types.Tool(
@@ -223,10 +232,12 @@ def _tool_definitions() -> list[Any]:
             description="Close a working session and persist summary plus in-memory usage counters.",
             inputSchema=_tool_schema(
                 properties={
-                    "session_id": _string_property("Session identifier returned by boot_session."),
+                    "session_id": _string_property("Optional session identifier returned by boot_session. When omitted, OlinKB tries to resolve a single open session for the current author/project context."),
                     "summary": _string_property("Human summary captured when ending the session."),
+                    "author": _string_property("Optional username override used when resolving a missing session_id."),
+                    "project": _string_property("Optional project override used when resolving a missing session_id."),
                 },
-                required=["session_id", "summary"],
+                required=["summary"],
             ),
         ),
         types.Tool(

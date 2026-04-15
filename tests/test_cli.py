@@ -58,7 +58,36 @@ def test_cli_parser_accepts_tool_transport_command() -> None:
 
     assert args.command == "tool"
     assert args.tool_name == "remember"
-    assert args.json_input == '{"query":"alpha"}'
+    assert args.json_input == ['{"query":"alpha"}']
+
+
+def test_cli_parser_absorbs_multitoken_json_for_tool_transport() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "tool",
+            "save_memory",
+            "--json",
+            '{"project":"facturacion-electronica","memory_type":"bugfix","title":"PPCC',
+            'switch',
+            'sizing","content":"What:',
+            'Reduced',
+            'the',
+            'switch."}',
+        ]
+    )
+
+    assert args.command == "tool"
+    assert args.tool_name == "save_memory"
+    assert args.json_input == [
+        '{"project":"facturacion-electronica","memory_type":"bugfix","title":"PPCC',
+        'switch',
+        'sizing","content":"What:',
+        'Reduced',
+        'the',
+        'switch."}',
+    ]
 
 
 def test_cli_parser_accepts_analyze_memory_tool_command() -> None:

@@ -138,8 +138,37 @@ Notes:
 - `olinkb tool ...` is the direct JSON transport
 - `olinkb tool analyze_memory ...` is the dry-run classifier for memory relevance and type inference
 - `olinkb tool capture_memory ...` is the preferred CLI entry point for near-automatic capture
+- `olinkb tool save_memory ...` can infer `project`, canonical `uri`, `scope`, and `title` when they are omitted
+- `olinkb tool end_session ...` can omit `session_id` when exactly one matching open session exists for the current author/project context
 - `olinkb mcp` requires `olinkb-mcp`
 - `olinkb viewer build` exports a static snapshot to `olinkb-viewer/index.html`
+
+PowerShell-safe examples:
+
+```powershell
+$payload = @{ query = 'bootstrap' } | ConvertTo-Json -Compress
+olinkb tool remember --json $payload
+```
+
+```powershell
+$payload = @{
+  project = 'facturacion-electronica'
+  memory_type = 'bugfix'
+  title = 'PPCC switch sizing'
+  content = 'What: Reduced the PPCC dx-switch width in the GL code dialog.'
+} | ConvertTo-Json -Compress
+olinkb tool save_memory --json $payload
+```
+
+```powershell
+$path = Join-Path $env:TEMP 'olinkb-end-session.json'
+@'
+{"summary":"Adjusted the PPCC switch styling in CFDIWeb to make it less elongated and vertically centered in the GL code dialog."}
+'@ | Set-Content -Path $path -NoNewline
+olinkb tool end_session --input-file $path
+```
+
+Avoid bash-style escaping like `'{\"query\":\"bootstrap\"}'` in PowerShell. Use `ConvertTo-Json -Compress` or `--input-file` instead.
 
 ## Uninstall behavior
 

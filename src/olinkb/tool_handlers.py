@@ -115,15 +115,20 @@ async def remember(
 
 
 async def save_memory(
-    uri: str,
-    title: str,
     content: str,
     memory_type: str,
-    scope: str = "personal",
+    uri: str | None = None,
+    title: str | None = None,
+    scope: str | None = None,
     tags: str = "",
     metadata: dict | None = None,
     session_id: str | None = None,
     author: str | None = None,
+    project: str | None = None,
+    scope_hint: str | None = None,
+    source_surface: str = "cli",
+    files: list[str] | None = None,
+    commands: list[str] | None = None,
 ) -> dict:
     return await get_app().save_memory(
         uri=uri,
@@ -135,6 +140,11 @@ async def save_memory(
         metadata=metadata,
         session_id=session_id,
         author=author,
+        project=project,
+        scope_hint=scope_hint,
+        source_surface=source_surface,
+        files=files,
+        commands=commands,
     )
 
 
@@ -178,8 +188,13 @@ async def review_memory_proposal(
     )
 
 
-async def end_session(session_id: str, summary: str) -> dict:
-    return await get_app().end_session(session_id=session_id, summary=summary)
+async def end_session(
+    summary: str,
+    session_id: str | None = None,
+    author: str | None = None,
+    project: str | None = None,
+) -> dict:
+    return await get_app().end_session(session_id=session_id, summary=summary, author=author, project=project)
 
 
 async def forget(uri: str, reason: str, session_id: str | None = None, author: str | None = None) -> dict:

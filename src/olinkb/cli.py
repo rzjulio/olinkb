@@ -190,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     tool = subparsers.add_parser("tool", help="Run OlinKB through the direct CLI JSON transport")
     tool.add_argument("tool_name", choices=TOOL_NAMES)
-    tool.add_argument("--json", dest="json_input")
+    tool.add_argument("--json", dest="json_input", nargs="+")
     tool.add_argument("--input-file")
 
     uninstall = subparsers.add_parser("uninstall", help="Remove OlinKB bootstrap artifacts and uninstall Python packages")

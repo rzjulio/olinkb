@@ -82,6 +82,9 @@ def test_render_cli_instructions_switches_transport_language() -> None:
     assert "Treat these as mandatory checkpoints, not best-effort suggestions" in rendered
     assert "Do not begin project analysis, planning, or implementation before running `boot_session`" in rendered
     assert "`end_session` is mandatory session closure, but it never replaces earlier `capture_memory` or `save_memory` calls" in rendered
+    assert "On Windows PowerShell, do not use bash-style escaping" in rendered
+    assert "ConvertTo-Json -Compress" in rendered
+    assert "--input-file" in rendered
     assert "MCP tools" not in rendered
 
 
@@ -99,4 +102,5 @@ def test_render_cli_mandatory_prompt_template_enforces_olinkb_cli_workflow() -> 
     assert "If the result is clearly durable and was not persisted automatically, run `olinkb tool save_memory --json ...`" in rendered
     assert "Run `olinkb tool end_session --json ...`" in rendered
     assert "Do not substitute internal chat memory, `/memories/`, or a session summary for OlinKB" in rendered
+    assert "On Windows PowerShell, do not emit bash-style escaped JSON" in rendered
     assert "If any required OlinKB command fails, stop that workflow step, explain the failure, and ask whether to continue without OlinKB" in rendered

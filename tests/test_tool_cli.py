@@ -64,6 +64,33 @@ def test_load_payload_reads_json_file(tmp_path) -> None:
     assert tool_cli.load_payload(args) == {"query": "alpha", "limit": 2}
 
 
+def test_load_payload_joins_multitoken_json_input() -> None:
+    args = argparse.Namespace(
+        json_input=[
+            '{"project":"facturacion-electronica","memory_type":"bugfix","title":"PPCC',
+            'switch',
+            'sizing","content":"What:',
+            'Reduced',
+            'the',
+            'switch."}',
+        ],
+        input_file=None,
+    )
+
+    assert tool_cli.load_payload(args) == {
+        "project": "facturacion-electronica",
+        "memory_type": "bugfix",
+        "title": "PPCC switch sizing",
+        "content": "What: Reduced the switch.",
+    }
+
+
+def test_load_payload_accepts_shell_escaped_json_object() -> None:
+    args = argparse.Namespace(json_input='{\\"query\\":\\"alpha\\"}', input_file=None)
+
+    assert tool_cli.load_payload(args) == {"query": "alpha"}
+
+
 def test_load_payload_rejects_non_object_json() -> None:
     args = argparse.Namespace(json_input='["alpha"]', input_file=None)
 

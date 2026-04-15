@@ -25,7 +25,7 @@ Preferred CLI-first memory flow:
 
 1. Use `analyze_memory` when you want a dry run.
 2. Use `capture_memory` when you want OlinKB to auto-save high-confidence memories.
-3. Use `save_memory` only when you already know the exact type, scope, and URI you want.
+3. Use `save_memory` when you need an explicit save; OlinKB can infer the canonical URI, title, and scope from `project`, `memory_type`, and `content`.
 
 ## Install
 
@@ -131,6 +131,33 @@ olinkb viewer
 olinkb viewer build
 olinkb migrate
 ```
+
+PowerShell-safe CLI payload patterns:
+
+```powershell
+$payload = @{ query = 'bootstrap' } | ConvertTo-Json -Compress
+olinkb tool remember --json $payload
+```
+
+```powershell
+$payload = @{
+	project = 'facturacion-electronica'
+	memory_type = 'bugfix'
+	title = 'PPCC switch sizing'
+	content = 'What: Reduced the PPCC dx-switch width in the GL code dialog.'
+} | ConvertTo-Json -Compress
+olinkb tool save_memory --json $payload
+```
+
+```powershell
+$path = Join-Path $env:TEMP 'olinkb-save-memory.json'
+@'
+{"project":"facturacion-electronica","memory_type":"bugfix","title":"PPCC switch sizing","content":"What: Reduced the PPCC dx-switch width in the GL code dialog."}
+'@ | Set-Content -Path $path -NoNewline
+olinkb tool save_memory --input-file $path
+```
+
+Avoid bash-style escaping like `'{\"query\":\"bootstrap\"}'` in PowerShell.
 
 ## Uninstall
 

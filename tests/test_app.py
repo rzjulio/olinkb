@@ -130,6 +130,17 @@ class FakeStorage:
     async def get_session(self, session_id: str):
         return self.session_rows.get(session_id)
 
+    async def find_open_sessions(self, *, author_username: str, project: str | None, limit: int = 2):
+        matches = [
+            session
+            for session in self.session_rows.values()
+            if session.get("author_username") == author_username
+            and session.get("project") == project
+            and session.get("ended_at") is None
+        ]
+        matches.sort(key=lambda session: str(session.get("id", "")), reverse=True)
+        return matches[:limit]
+
 
 @pytest.mark.asyncio
 async def test_sqlite_storage_roundtrip_save_and_remember(tmp_path) -> None:
@@ -271,6 +282,58 @@ async def test_save_memory_accepts_bugfix_memory_type() -> None:
 
     assert result["status"] == "created"
     assert app.storage.save_memory_calls[0]["memory_type"] == "bugfix"
+
+
+@pytest.mark.asyncio
+async def test_save_memory_infers_project_uri_and_scope_when_omitted() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    app.storage = FakeStorage()
+
+    result = await app.save_memory(
+        title="PPCC switch sizing",
+        content="What: Reduced the PPCC dx-switch width in the GL code dialog.",
+        memory_type="bugfix",
+        project="facturacion-electronica",
+    )
+
+    assert result["status"] == "created"
+    assert app.storage.save_memory_calls[0]["scope"] == "project"
+    assert app.storage.save_memory_calls[0]["uri"] == "project://facturacion-electronica/bugfixes/ppcc-switch-sizing"
+
+
+@pytest.mark.asyncio
+async def test_save_memory_treats_file_uri_as_source_reference_and_infers_canonical_uri() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    app.storage = FakeStorage()
+
+    await app.save_memory(
+        uri="file:///c:/Julio%20C.%20Rodriguez/repositorios/facturacion-electronica/Aplicaciones/CFDIWeb/src/app/pages/glcodes/ppcc-glcode-dialog/ppcc-glcode-dialog.component.scss",
+        title="PPCC switch sizing",
+        content="What: Reduced the PPCC dx-switch width in the GL code dialog.",
+        memory_type="bugfix",
+        project="facturacion-electronica",
+    )
+
+    assert app.storage.save_memory_calls[0]["uri"] == "project://facturacion-electronica/bugfixes/ppcc-switch-sizing"
+    assert app.storage.save_memory_calls[0]["metadata"]["source_uri"] == "file:///c:/Julio%20C.%20Rodriguez/repositorios/facturacion-electronica/Aplicaciones/CFDIWeb/src/app/pages/glcodes/ppcc-glcode-dialog/ppcc-glcode-dialog.component.scss"
 
 
 @pytest.mark.asyncio
@@ -644,6 +707,38 @@ async def test_end_session_rejects_invalid_session_id_format() -> None:
 
     with pytest.raises(ValueError, match="Invalid session_id format"):
         await app.end_session("missing-session", "Nope")
+
+
+@pytest.mark.asyncio
+async def test_end_session_resolves_single_persisted_open_session_when_session_id_is_omitted() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="facturacion-electronica",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    app.storage = storage
+    session_id = str(uuid4())
+    storage.session_rows[session_id] = {
+        "id": session_id,
+        "author_username": "rzjulio",
+        "project": "facturacion-electronica",
+        "summary": None,
+        "memories_read": 0,
+        "memories_written": 0,
+        "ended_at": None,
+    }
+
+    result = await app.end_session(None, "Closed after styling verification.")
+
+    assert result["session_id"] == session_id
+    assert result["status"] == "recovered"
+    assert storage.end_session_calls[0]["session_id"] == session_id
 
 
 @pytest.mark.asyncio

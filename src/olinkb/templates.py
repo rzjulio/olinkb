@@ -59,6 +59,7 @@ Use this as the default memory workflow across repositories unless the active re
 - Do not use internal chat memory, `/memories/`, or session summaries as a substitute for OlinKB when this protocol applies.
 - Do not answer project-memory questions from guesswork when `olinkb tool remember --json ...` should be used first.
 - Do not claim a memory was persisted unless the corresponding `olinkb tool ...` command completed successfully.
+- On Windows PowerShell, do not use bash-style escaping like `\"...\"` inside `--json` payloads. Prefer `$payload = @{...} | ConvertTo-Json -Compress; olinkb tool ... --json $payload` or `--input-file` for multiline/long payloads.
 - If a required OlinKB CLI command fails, stop the normal workflow, state that persistence or recall is blocked, and ask the user whether to continue without OlinKB for that step.
 - If a durable discovery, decision, bugfix, or procedure is identified, persist it immediately with `olinkb tool capture_memory --json ...` or `olinkb tool save_memory --json ...`; do not defer persistence until the end of the session.
 - Failure policy:
@@ -106,6 +107,12 @@ Use this as the default memory workflow across repositories unless the active re
 ### Before Ending
 - Close the session with `olinkb tool end_session --json ...` and capture a brief summary of what was accomplished.
 - `end_session` is mandatory session closure, but it never replaces earlier `capture_memory` or `save_memory` calls.
+
+### PowerShell Notes
+- Prefer one-line payload variables built with `ConvertTo-Json -Compress` when using `--json` in PowerShell.
+- Prefer `--input-file` for multiline payloads, rich Markdown, or long `content` blocks.
+- `save_memory` can infer `project`, `scope`, `title`, and canonical memory `uri` when you omit them.
+- `end_session` can resolve `session_id` automatically when exactly one matching open session exists for the current author/project context.
 """
 
     transport_intro = "You have access to OlinKB via MCP tools."
@@ -184,6 +191,7 @@ Before ending the session:
 Rules:
 - Do not substitute internal chat memory, `/memories/`, or a session summary for OlinKB.
 - Do not claim anything was remembered or saved unless the CLI command succeeded.
+- On Windows PowerShell, do not emit bash-style escaped JSON like `'{\"query\":\"x\"}'`. Prefer `$payload = @{ ... } | ConvertTo-Json -Compress` or `--input-file`.
 - If any required OlinKB command fails, stop that workflow step, explain the failure, and ask whether to continue without OlinKB.
 - If `boot_session` fails, do not start project analysis, planning, or implementation unless the user explicitly approves continuing without OlinKB.
 - If `remember` fails for a question that depends on prior project context, do not answer from assumed memory; ask whether to continue with a best-effort answer.

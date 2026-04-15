@@ -40,6 +40,10 @@ class FakeApp:
         self.calls.append(kwargs)
         return {"status": kwargs["action"], "uri": kwargs["uri"]}
 
+    async def end_session(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"status": "recovered", "session_id": kwargs.get("session_id")}
+
 
 def test_importing_server_does_not_eagerly_import_mcp() -> None:
     src_path = Path(__file__).resolve().parents[1] / "src"
@@ -116,6 +120,33 @@ async def test_server_save_memory_passes_metadata_to_app(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_server_save_memory_accepts_project_without_explicit_uri(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    await server.save_memory(
+        title="PPCC switch sizing",
+        content="What: Reduced the PPCC dx-switch width in the GL code dialog.",
+        memory_type="bugfix",
+        project="facturacion-electronica",
+    )
+
+    assert app.calls[0]["project"] == "facturacion-electronica"
+    assert app.calls[0].get("uri") is None
+
+
+@pytest.mark.asyncio
+async def test_server_end_session_accepts_summary_without_explicit_session_id(monkeypatch) -> None:
+    app = FakeApp()
+    monkeypatch.setattr(server, "get_app", lambda: app)
+
+    await server.end_session(summary="Closed after styling verification.")
+
+    assert app.calls[0]["summary"] == "Closed after styling verification."
+    assert app.calls[0].get("session_id") is None
+
+
+@pytest.mark.asyncio
 async def test_server_propose_memory_promotion_passes_target_type(monkeypatch) -> None:
     app = FakeApp()
     monkeypatch.setattr(server, "get_app", lambda: app)
@@ -175,6 +206,9 @@ def test_tool_definitions_expose_expected_names_and_remember_schema() -> None:
     assert "include_content" in tools["remember"].inputSchema["properties"]
     assert tools["analyze_memory"].inputSchema["required"] == ["content"]
     assert tools["capture_memory"].inputSchema["required"] == ["content"]
+    assert tools["save_memory"].inputSchema["required"] == ["content", "memory_type"]
+    assert "project" in tools["save_memory"].inputSchema["properties"]
+    assert tools["end_session"].inputSchema["required"] == ["summary"]
 
 
 @pytest.mark.asyncio

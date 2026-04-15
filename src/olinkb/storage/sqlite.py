@@ -474,6 +474,43 @@ class SqliteStorage:
             return None
         return self._serialize_row(row)
 
+    async def find_open_sessions(
+        self,
+        *,
+        author_username: str,
+        project: str | None,
+        limit: int = 2,
+    ) -> list[dict[str, Any]]:
+        await self.connect()
+        connection = self._require_connection()
+        if project is None:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM sessions
+                WHERE author_username = ?
+                  AND project IS NULL
+                  AND ended_at IS NULL
+                ORDER BY started_at DESC
+                LIMIT ?
+                """,
+                (author_username, limit),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM sessions
+                WHERE author_username = ?
+                  AND project = ?
+                  AND ended_at IS NULL
+                ORDER BY started_at DESC
+                LIMIT ?
+                """,
+                (author_username, project, limit),
+            ).fetchall()
+        return [self._serialize_row(row) for row in rows]
+
     async def load_boot_memories(
         self,
         *,
