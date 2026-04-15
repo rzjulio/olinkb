@@ -35,6 +35,67 @@ def render_instructions_template(*, mode: str = "mcp") -> str:
     if mode not in {"mcp", "cli"}:
         raise ValueError(f"Unsupported instructions mode: {mode}")
 
+    if mode == "cli":
+        return """## OlinKB Memory Protocol
+
+You have access to OlinKB via the local OlinKB CLI transport.
+
+Use this as the default memory workflow across repositories unless the active repository provides more specific memory instructions.
+
+### Mandatory CLI Gate
+- OlinKB CLI usage is required for project memory workflows. Do not treat it as optional guidance.
+- Do not use internal chat memory, `/memories/`, or session summaries as a substitute for OlinKB when this protocol applies.
+- Do not answer project-memory questions from guesswork when `olinkb tool remember --json ...` should be used first.
+- Do not claim a memory was persisted unless the corresponding `olinkb tool ...` command completed successfully.
+- If a required OlinKB CLI command fails, stop the normal workflow, state that persistence or recall is blocked, and ask the user whether to continue without OlinKB for that step.
+- If a durable discovery, decision, bugfix, or procedure is identified, persist it immediately with `olinkb tool capture_memory --json ...` or `olinkb tool save_memory --json ...`; do not defer persistence until the end of the session.
+- Failure policy:
+    1. If `boot_session` fails, do not start project analysis, planning, or implementation until the user explicitly approves continuing without OlinKB.
+    2. If `remember` fails for a question that depends on prior project context, do not answer from assumed memory; ask whether to continue with a best-effort answer.
+    3. If `capture_memory` or `save_memory` fails for a durable result, stop and tell the user that the result is not yet persisted.
+    4. If `end_session` fails, report that session closure was not recorded.
+
+### On Session Start
+- On the first relevant interaction of a session, run the corresponding `olinkb tool ...` command, for example `olinkb tool boot_session --json '{"project":"example"}'`.
+- Treat the first project-related request in a session as relevant even if the user did not explicitly ask about memory.
+- If `boot_session` returns a non-empty `review_queue`, project leads and admins should review those proposals during the session instead of polling manually.
+- Do not begin project analysis, planning, or implementation before running `boot_session` for the active project; if it cannot be run successfully, ask the user whether to proceed without OlinKB.
+
+### During Work
+- Before deciding whether something should become memory, run `olinkb tool analyze_memory --json ...` for a dry run or `olinkb tool capture_memory --json ...` to let OlinKB auto-save high-confidence results.
+- Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, run `olinkb tool remember --json '{"query":"..."}'` and inspect the JSON result.
+- If the user asks about a project, feature, workflow, prior decision, or "what did we do before", run `olinkb tool remember --json ...` before relying on guesswork.
+- Prefer `olinkb tool remember --json '{"query":"...","include_content":false}'` for lean recall; request full `content` only when the body is actually needed.
+- When you make or discover an important decision, pattern, bugfix, or procedure, run the matching `olinkb tool save_memory --json ...` command with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`.
+- Treat these as mandatory checkpoints, not best-effort suggestions:
+    1. `olinkb tool remember --json ...` before answering project-history or convention questions.
+    2. `olinkb tool analyze_memory --json ...` or `olinkb tool capture_memory --json ...` before deciding not to persist a potentially durable result.
+    3. `olinkb tool save_memory --json ...` immediately when a durable result is clear and auto-capture is insufficient or skipped.
+- A memory only enters convention review when the developer explicitly runs `olinkb tool propose_memory_promotion --json ...`. Saving a normal project memory never queues it automatically.
+- Do not save `convention` directly unless you are acting as a project lead or admin. Contributors should save the underlying project memory first and then use `olinkb tool propose_memory_promotion --json ...` when they believe it should become a standard or convention.
+- Project leads and admins should run `olinkb tool list_pending_approvals --json ...` and `olinkb tool review_memory_proposal --json ...` to process proposals.
+- Save important discoveries as soon as you make them; do not defer them until after unrelated edits, tests, or long explanations.
+- Do not wait until `end_session` to persist important discoveries, decisions, procedures, or bugfixes. `end_session` is a closure summary, not the primary durable memory channel.
+- Do not save a one-line summary if future work would still require re-reading code or reconstructing the situation from scratch.
+- Prefer richer context blocks with real operational depth so retrieved memories stay reusable weeks later.
+- If a specialized repository skill exists for planning, brainstorming, or verification, use it in addition to this protocol rather than replacing the memory workflow.
+- Effective memory format:
+    What: [2-3 sentences with the concrete action, behavior change, or discovery, including specific examples when useful]
+    Why: [root cause, motivation, impact, and why simpler or naive approaches were not enough]
+    Where: [relevant file paths, modules, commands, surfaces, or boundaries where the change lives]
+    Learned: [non-obvious pattern, gotcha, or rule that should transfer to similar future work]
+- Add these when they help turn the note into a reusable artifact instead of a summary:
+    Context: [surrounding constraints, prior failed attempts, deadlines, environment details, or product pressure]
+    Decision: [what was chosen over which alternatives, and why]
+    Evidence: [error messages, observed symptoms, example inputs/outputs, reproduced commands, or data points]
+    Next Steps: [unfinished work, verification still needed, rollout notes, or adjacent follow-up]
+- Aim to save enough detail that a later agent can continue the work without reopening every touched file first.
+
+### Before Ending
+- Close the session with `olinkb tool end_session --json ...` and capture a brief summary of what was accomplished.
+- `end_session` is mandatory session closure, but it never replaces earlier `capture_memory` or `save_memory` calls.
+"""
+
     transport_intro = "You have access to OlinKB via MCP tools."
     session_start_line = "- On the first relevant interaction of a session, call `boot_session`."
     automation_line = "- Before deciding whether something should become memory, call `analyze_memory(...)` for a dry run or `capture_memory(...)` to let OlinKB auto-save high-confidence results."
@@ -42,15 +103,6 @@ def render_instructions_template(*, mode: str = "mcp") -> str:
     save_line = "- When you make or discover an important decision, pattern, bugfix, or procedure, call `save_memory` with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`."
     approval_line = "- Project leads and admins should use `list_pending_approvals(...)` or the `review_queue` returned by `boot_session` to batch-review proposed conventions, then call `review_memory_proposal(...)` to approve or reject them."
     ending_line = "- Call `end_session` with a brief summary of what was accomplished."
-
-    if mode == "cli":
-        transport_intro = "You have access to OlinKB via the local OlinKB CLI transport."
-        session_start_line = "- On the first relevant interaction of a session, run the corresponding `olinkb tool ...` command, for example `olinkb tool boot_session --json '{\"project\":\"example\"}'`."
-        automation_line = "- Before deciding whether something should become memory, run `olinkb tool analyze_memory --json ...` for a dry run or `olinkb tool capture_memory --json ...` to let OlinKB auto-save high-confidence results."
-        remember_line = "- Before answering questions about project context, team conventions, past decisions, known bugs, or procedures, run `olinkb tool remember --json '{\"query\":\"...\"}'` and inspect the JSON result."
-        save_line = "- When you make or discover an important decision, pattern, bugfix, or procedure, run the matching `olinkb tool save_memory --json ...` command with a compatible `memory_type` such as `decision`, `discovery`, `bugfix`, or `procedure`."
-        approval_line = "- Project leads and admins should run `olinkb tool list_pending_approvals --json ...` and `olinkb tool review_memory_proposal --json ...` to process proposals."
-        ending_line = "- Close the session with `olinkb tool end_session --json ...` and capture a brief summary of what was accomplished."
 
     return f"""## OlinKB Memory Protocol
 
@@ -91,6 +143,41 @@ Use this as the default memory workflow across repositories unless the active re
 
 ### Before Ending
 {ending_line}
+"""
+
+
+def render_cli_mandatory_prompt_template() -> str:
+    return """---
+mode: agent
+description: Start a session with mandatory OlinKB CLI memory workflow.
+---
+
+Use OlinKB CLI as a mandatory workflow, not optional guidance.
+
+These are blocking checkpoints. Use the exact `olinkb tool ...` workflow instead of relying on internal chat memory, `/memories/`, or assumptions.
+
+Before any project analysis, planning, implementation, or project-context answer:
+1. Run `olinkb tool boot_session --json ...`
+
+Before answering anything about prior work, conventions, decisions, bugs, procedures, or project history:
+2. Run `olinkb tool remember --json ...`
+
+When a durable decision, discovery, bugfix, or procedure appears:
+3. Run `olinkb tool analyze_memory --json ...` or `olinkb tool capture_memory --json ...`
+4. If the result is clearly durable and was not persisted automatically, run `olinkb tool save_memory --json ...`
+
+Before ending the session:
+5. Run `olinkb tool end_session --json ...`
+
+Rules:
+- Do not substitute internal chat memory, `/memories/`, or a session summary for OlinKB.
+- Do not claim anything was remembered or saved unless the CLI command succeeded.
+- If any required OlinKB command fails, stop that workflow step, explain the failure, and ask whether to continue without OlinKB.
+- If `boot_session` fails, do not start project analysis, planning, or implementation unless the user explicitly approves continuing without OlinKB.
+- If `remember` fails for a question that depends on prior project context, do not answer from assumed memory; ask whether to continue with a best-effort answer.
+- If `capture_memory` or `save_memory` fails for a durable result, tell the user the result is not yet persisted.
+- If `end_session` fails, report that the session closure was not recorded.
+- Do not defer durable memory saves until the end of the session.
 """
 
 

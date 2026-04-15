@@ -510,6 +510,40 @@ def test_get_global_instructions_path_uses_user_home(monkeypatch, tmp_path) -> N
     assert bootstrap.get_global_instructions_path() == fake_home / ".copilot" / "instructions" / bootstrap.INSTRUCTIONS_FILENAME
 
 
+@pytest.mark.parametrize(
+    ("platform_name", "os_name", "expected_suffix"),
+    [
+        ("darwin", "posix", Path("Library") / "Application Support" / "Code" / "User" / "prompts"),
+        ("linux", "posix", Path(".config") / "Code" / "User" / "prompts"),
+    ],
+)
+def test_get_global_prompts_dir_uses_expected_unix_locations(
+    monkeypatch, tmp_path, platform_name: str, os_name: str, expected_suffix: Path
+) -> None:
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+
+    monkeypatch.setattr(bootstrap.sys, "platform", platform_name)
+    monkeypatch.setattr(bootstrap.os, "name", os_name, raising=False)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.delenv("APPDATA", raising=False)
+
+    assert bootstrap.get_global_prompts_dir() == fake_home / expected_suffix
+
+
+def test_get_global_prompts_dir_uses_appdata_on_windows(monkeypatch, tmp_path) -> None:
+    appdata_root = tmp_path / "roaming"
+    appdata_root.mkdir()
+
+    monkeypatch.setattr(bootstrap.sys, "platform", "win32")
+    monkeypatch.setattr(bootstrap.os, "name", "nt", raising=False)
+    monkeypatch.delenv("HOME", raising=False)
+    monkeypatch.delenv("USERPROFILE", raising=False)
+    monkeypatch.setenv("APPDATA", str(appdata_root))
+
+    assert bootstrap.get_global_prompts_dir() == appdata_root / "Code" / "User" / "prompts"
+
+
 def test_get_global_skill_path_uses_user_home(monkeypatch, tmp_path) -> None:
     fake_home = tmp_path / "home"
     fake_home.mkdir()
@@ -580,6 +614,7 @@ def test_persist_windows_user_path_adds_wrapper_dir_once(monkeypatch, tmp_path) 
 def test_run_init_workspace_supports_global_scope_on_windows_updates_user_path(tmp_path, monkeypatch) -> None:
     global_mcp_path = tmp_path / "user-mcp.json"
     global_instructions_path = tmp_path / "user-home" / ".copilot" / "instructions.md"
+    global_prompts_dir = tmp_path / "user-home" / "AppData" / "Roaming" / "Code" / "User" / "prompts"
     global_skill_path = tmp_path / "user-home" / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
     global_shell_env_path = tmp_path / "user-home" / ".config" / "olinkb" / "env.sh"
     global_wrapper_path = tmp_path / "user-home" / "AppData" / "Local" / "olinkb" / "bin" / "olinkb.cmd"
@@ -588,6 +623,7 @@ def test_run_init_workspace_supports_global_scope_on_windows_updates_user_path(t
 
     monkeypatch.setattr(bootstrap, "get_global_mcp_config_path", lambda: global_mcp_path)
     monkeypatch.setattr(bootstrap, "get_global_instructions_path", lambda: global_instructions_path)
+    monkeypatch.setattr(bootstrap, "get_global_prompts_dir", lambda: global_prompts_dir)
     monkeypatch.setattr(bootstrap, "get_global_skill_path", lambda: global_skill_path)
     monkeypatch.setattr(bootstrap, "get_global_shell_env_path", lambda: global_shell_env_path)
     monkeypatch.setattr(bootstrap, "get_global_command_wrapper_path", lambda: global_wrapper_path)
@@ -605,6 +641,9 @@ def test_run_init_workspace_supports_global_scope_on_windows_updates_user_path(t
 
     assert result["windows_user_path_status"] == "updated"
     assert path_updates == [str(global_wrapper_path.parent)]
+    prompt_path = global_prompts_dir / bootstrap.OLINKB_CLI_MANDATORY_PROMPT_FILENAME
+    assert result["prompt_path"] == str(prompt_path)
+    assert prompt_path.read_text(encoding="utf-8") == bootstrap.render_cli_mandatory_prompt_template().rstrip() + "\n"
 
 
 def test_run_init_workspace_prompts_and_detects_project(tmp_path, monkeypatch) -> None:

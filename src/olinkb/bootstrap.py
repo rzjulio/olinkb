@@ -10,6 +10,7 @@ from typing import Any
 
 from olinkb.config import clear_settings_cache, get_persisted_settings_path
 from olinkb.templates import (
+    render_cli_mandatory_prompt_template,
     render_instructions_template,
     render_mcp_template,
     render_memory_relevance_skill_template,
@@ -26,6 +27,7 @@ PROTOCOL_BLOCK_PATTERN = re.compile(
 )
 
 INSTRUCTIONS_FILENAME = "olinkb-memory.instructions.md"
+OLINKB_CLI_MANDATORY_PROMPT_FILENAME = "olinkb-cli-mandatory.prompt.md"
 LEGACY_GLOBAL_INSTRUCTIONS_FILENAME = "instructions.md"
 ENVIRONMENT_BLOCK_MARKER = "# >>> OlinKB environment >>>"
 ENVIRONMENT_BLOCK_END_MARKER = "# <<< OlinKB environment <<<"
@@ -110,11 +112,25 @@ def get_global_mcp_config_path() -> Path:
     home = _NATIVE_PATH_CLASS.home()
     return home / ".config" / "Code" / "User" / "mcp.json"
 
+
+def get_global_prompts_dir() -> Path:
+    if sys.platform == "darwin":
+        home = _NATIVE_PATH_CLASS.home()
+        return home / "Library" / "Application Support" / "Code" / "User" / "prompts"
+    if os.name == "nt":
+        return _get_windows_roaming_path() / "Code" / "User" / "prompts"
+    home = _NATIVE_PATH_CLASS.home()
+    return home / ".config" / "Code" / "User" / "prompts"
+
 def get_global_instructions_path() -> Path:
     return _NATIVE_PATH_CLASS.home() / ".copilot" / "instructions" / INSTRUCTIONS_FILENAME
 
 def get_global_skill_path() -> Path:
     return _NATIVE_PATH_CLASS.home() / ".copilot" / "skills" / MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
+
+
+def get_global_cli_mandatory_prompt_path() -> Path:
+    return get_global_prompts_dir() / OLINKB_CLI_MANDATORY_PROMPT_FILENAME
 
 def bootstrap_workspace(
     *,
@@ -138,6 +154,7 @@ def bootstrap_workspace(
 
     mcp_path = get_global_mcp_config_path() if scope == "global" else workspace_root / ".vscode" / "mcp.json"
     instructions_path = get_global_instructions_path() if scope == "global" else workspace_root / ".github" / "copilot-instructions.md"
+    prompt_path = get_global_cli_mandatory_prompt_path() if scope == "global" else None
     skill_path = get_global_skill_path() if scope == "global" else workspace_root / ".copilot" / "skills" / MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
 
     mcp_document, mcp_status = merge_mcp_document(
@@ -152,6 +169,10 @@ def bootstrap_workspace(
     instructions_status = "skipped"
     if instructions_path is not None:
         instructions_text, instructions_status = merge_instructions_document(instructions_path, mode=mode)
+    prompt_text = None
+    prompt_status = "skipped"
+    if prompt_path is not None:
+        prompt_text, prompt_status = merge_prompt_document(prompt_path)
     skill_text, skill_status = merge_skill_document(skill_path)
 
     if mcp_document is not None:
@@ -161,6 +182,10 @@ def bootstrap_workspace(
     if instructions_path is not None and instructions_text is not None:
         instructions_path.parent.mkdir(parents=True, exist_ok=True)
         instructions_path.write_text(instructions_text, encoding="utf-8")
+
+    if prompt_path is not None and prompt_text is not None:
+        prompt_path.parent.mkdir(parents=True, exist_ok=True)
+        prompt_path.write_text(prompt_text, encoding="utf-8")
 
     skill_path.parent.mkdir(parents=True, exist_ok=True)
     skill_path.write_text(skill_text, encoding="utf-8")
@@ -184,9 +209,11 @@ def bootstrap_workspace(
         "project": resolved_project,
         "mcp_path": str(mcp_path) if mode == "mcp" else None,
         "instructions_path": str(instructions_path) if instructions_path is not None else None,
+        "prompt_path": str(prompt_path) if prompt_path is not None else None,
         "skill_path": str(skill_path),
         "mcp_status": mcp_status,
         "instructions_status": instructions_status,
+        "prompt_status": prompt_status,
         "legacy_global_instructions_status": legacy_instructions_status,
         "skill_status": skill_status,
         "settings_path": str(get_global_settings_path()),
@@ -516,6 +543,17 @@ def merge_skill_document(skill_path: str | Path) -> tuple[str, str]:
     return skill_text, "updated"
 
 
+def merge_prompt_document(prompt_path: str | Path) -> tuple[str, str]:
+    destination = Path(prompt_path)
+    prompt_text = render_cli_mandatory_prompt_template().rstrip() + "\n"
+    if not destination.exists():
+        return prompt_text, "created"
+    existing = destination.read_text(encoding="utf-8")
+    if existing == prompt_text:
+        return prompt_text, "unchanged"
+    return prompt_text, "updated"
+
+
 def remove_protocol_block(instructions_path: str | Path) -> str:
     destination = Path(instructions_path)
     if not destination.exists():
@@ -537,6 +575,10 @@ def remove_protocol_block(instructions_path: str | Path) -> str:
 
 def remove_skill_document(skill_path: str | Path) -> str:
     return delete_file_if_exists(skill_path, prune_parent=True)
+
+
+def remove_prompt_document(prompt_path: str | Path) -> str:
+    return delete_file_if_exists(prompt_path)
 
 
 def _default_viewer_readme() -> str:
@@ -589,6 +631,7 @@ def cleanup_global_bootstrap() -> dict[str, Any]:
     return {
         "mcp_status": remove_olinkb_mcp_server(get_global_mcp_config_path()),
         "instructions_status": remove_protocol_block(get_global_instructions_path()),
+        "prompt_status": remove_prompt_document(get_global_cli_mandatory_prompt_path()),
         "legacy_instructions_status": cleanup_legacy_global_instructions(get_legacy_global_instructions_path()),
         "skill_status": remove_skill_document(get_global_skill_path()),
         "settings_status": delete_file_if_exists(get_global_settings_path()),

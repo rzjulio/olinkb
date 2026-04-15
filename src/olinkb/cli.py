@@ -378,6 +378,10 @@ def run_init_workspace(args: argparse.Namespace) -> int:
         print(f"- Instructions: {result['instructions_path']}")
     else:
         print("- Instructions: skipped for global install")
+    if result.get("prompt_path"):
+        print(f"- Prompt: {result['prompt_path']}")
+    else:
+        print("- Prompt: skipped")
     print(f"- Skill: {result['skill_path']}")
     print(f"- Persisted settings: {result['settings_path']}")
     print(f"- Shell env script: {result['shell_env_path']}")
