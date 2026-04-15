@@ -61,3 +61,12 @@ def test_render_memory_relevance_skill_template_contains_triage_contract() -> No
     assert "## Output Contract" in rendered
     assert "SAVE" in rendered
     assert "SKIP" in rendered
+
+
+def test_render_cli_instructions_switches_transport_language() -> None:
+    rendered = render_instructions_template(mode="cli")
+
+    assert "via the local OlinKB CLI transport" in rendered
+    assert "olinkb tool boot_session --json" in rendered
+    assert "run the corresponding `olinkb tool ...` command" in rendered
+    assert "MCP tools" not in rendered

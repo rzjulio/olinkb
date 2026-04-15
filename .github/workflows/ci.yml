@@ -21,7 +21,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && python -m pip install .[dev]
+        run: python -m pip install --upgrade pip && python -m pip install .[dev] build
 
       - name: Run test suite
         run: pytest
+
+      - name: Build base and MCP addon packages
+        run: |
+          python -m build
+          python -m build packages/olinkb-mcp

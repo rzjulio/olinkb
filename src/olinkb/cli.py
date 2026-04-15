@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 from olinkb.config import SettingsError, get_settings
+from olinkb.tool_handlers import TOOL_NAMES
 
 
 PostgresStorage = None
@@ -17,16 +21,22 @@ def bootstrap_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return bootstrap_workspace_impl(*args, **kwargs)
 
 
+def uninstall_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    from olinkb.bootstrap import uninstall_workspace as uninstall_workspace_impl
+
+    return uninstall_workspace_impl(*args, **kwargs)
+
+
 def run_server() -> None:
     from olinkb.server import run_server as run_server_impl
 
     run_server_impl()
 
 
-def render_instructions_template() -> str:
+def render_instructions_template(*args: Any, **kwargs: Any) -> str:
     from olinkb.templates import render_instructions_template as render_instructions_template_impl
 
-    return render_instructions_template_impl()
+    return render_instructions_template_impl(*args, **kwargs)
 
 
 def render_mcp_template(*args: Any, **kwargs: Any) -> str:
@@ -59,6 +69,12 @@ def run_live_viewer_server(*args: Any, **kwargs: Any) -> None:
     run_live_viewer_server_impl(*args, **kwargs)
 
 
+def run_tool_command(*args: Any, **kwargs: Any) -> int:
+    from olinkb.tool_cli import run_tool_command as run_tool_command_impl
+
+    return run_tool_command_impl(*args, **kwargs)
+
+
 def _get_postgres_storage_class():
     global PostgresStorage
     if PostgresStorage is None:
@@ -79,6 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--scope",
         choices=["repository", "global"],
         help="Install OlinKB for the current repository or globally in VS Code",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["mcp", "cli"],
+        help="Choose MCP transport or the direct CLI transport during bootstrap",
     )
     parser.add_argument("--workspace-path", default=".", help=argparse.SUPPRESS)
     subparsers = parser.add_subparsers(dest="command")
@@ -136,7 +157,18 @@ def build_parser() -> argparse.ArgumentParser:
     template_mcp.add_argument("--user-env", default="${env:USER}")
     template_mcp.add_argument("--project")
 
-    template_subparsers.add_parser("instructions", help="Render repository instructions for automatic OlinKB usage")
+    template_instructions = template_subparsers.add_parser("instructions", help="Render repository instructions for automatic OlinKB usage")
+    template_instructions.add_argument("--mode", choices=["mcp", "cli"], default="mcp")
+
+    tool = subparsers.add_parser("tool", help="Run OlinKB through the direct CLI JSON transport")
+    tool.add_argument("tool_name", choices=TOOL_NAMES)
+    tool.add_argument("--json", dest="json_input")
+    tool.add_argument("--input-file")
+
+    uninstall = subparsers.add_parser("uninstall", help="Remove OlinKB bootstrap artifacts and uninstall Python packages")
+    uninstall.add_argument("--scope", choices=["repository", "global", "all"], default="all")
+    uninstall.add_argument("--workspace-path", default=".")
+    uninstall.add_argument("--skip-package-uninstall", action="store_true")
 
     return parser
 
@@ -191,6 +223,16 @@ def _prompt_choice(label: str, choices: tuple[str, ...], default: str) -> str:
         if value in allowed:
             return allowed[value]
         print(f"Choose one of: {', '.join(indexed_choices.keys())}")
+
+
+def _mcp_addon_installed() -> bool:
+    return importlib.util.find_spec("olinkb_mcp") is not None
+
+
+def resolve_bootstrap_mode(explicit_mode: str | None = None) -> str:
+    if explicit_mode is not None:
+        return explicit_mode
+    return "mcp" if _mcp_addon_installed() else "cli"
 
 
 async def _run_admin_command(args: argparse.Namespace) -> int:
@@ -277,7 +319,7 @@ async def _run_admin_command(args: argparse.Namespace) -> int:
 
 def render_template_output(args: argparse.Namespace) -> str:
     if args.template_name == "instructions":
-        return render_instructions_template()
+        return render_instructions_template(mode=args.mode)
 
     pg_url = getattr(args, "pg_url", None)
     team = getattr(args, "team", None)
@@ -315,22 +357,78 @@ def run_init_workspace(args: argparse.Namespace) -> int:
         "Team",
         default=settings.team if settings is not None else None,
     )
+    mode = resolve_bootstrap_mode(args.mode)
 
     result = bootstrap_workspace(
         workspace_path=workspace_root,
         pg_url=pg_url,
         team=team,
         scope=scope,
+        mode=mode,
     )
     print(f"Initialization scope: {result['scope']}")
+    print(f"- Mode: {result['mode']}")
     if result["project"]:
         print(f"- Project: {result['project']}")
-    print(f"- MCP config: {result['mcp_path']}")
+    if result["mcp_path"]:
+        print(f"- MCP config: {result['mcp_path']}")
+    else:
+        print("- MCP config: skipped")
     if result["instructions_path"]:
         print(f"- Instructions: {result['instructions_path']}")
     else:
         print("- Instructions: skipped for global install")
     print(f"- Skill: {result['skill_path']}")
+    print(f"- Persisted settings: {result['settings_path']}")
+    print(f"- Shell env script: {result['shell_env_path']}")
+    print(f"- Global command wrapper: {result['command_wrapper_path']}")
+    if result["windows_user_path_status"] != "skipped":
+        print(f"- Windows user PATH: {result['windows_user_path_status']}")
+        print("- Open a new terminal to pick up the global command from the updated user PATH.")
+    if result["shell_profile_paths"]:
+        print("- Shell profiles updated:")
+        for profile_path in result["shell_profile_paths"]:
+            print(f"  - {profile_path}")
+        print("- Open a new terminal to pick up the global command and exported environment variables.")
+    return 0
+
+
+def uninstall_python_packages() -> dict[str, str]:
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "-y", "olinkb", "olinkb-mcp"],
+        capture_output=True,
+        text=True,
+    )
+    details = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip()).strip()
+    if result.returncode == 0:
+        return {"status": "uninstalled", "details": details}
+    return {"status": "failed", "details": details or f"pip exited with status {result.returncode}"}
+
+
+def run_uninstall_command(args: argparse.Namespace) -> int:
+    workspace_root = Path(args.workspace_path).resolve()
+    result = uninstall_workspace(workspace_path=workspace_root, scope=args.scope)
+
+    print(f"Uninstall scope: {result['scope']}")
+    for scope_name in ("repository", "global"):
+        scope_result = result.get(scope_name)
+        if not scope_result:
+            continue
+        print(f"- {scope_name.title()} cleanup:")
+        for key, value in scope_result.items():
+            if key.endswith("_paths") or key.endswith("_statuses"):
+                continue
+            print(f"  - {key}: {value}")
+
+    if args.skip_package_uninstall:
+        print("Python packages: skipped")
+        return 0
+
+    package_result = uninstall_python_packages()
+    print(f"Python packages: {package_result['status']}")
+    if package_result["status"] == "failed" and package_result["details"]:
+        print(package_result["details"], file=sys.stderr)
+        return 1
     return 0
 
 
@@ -376,7 +474,11 @@ def main() -> int:
         parser.error("a command or --init is required")
 
     if args.command in {"serve", "mcp"}:
-        run_server()
+        try:
+            run_server()
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         return 0
 
     if args.command == "viewer" and args.viewer_command == "serve":
@@ -386,6 +488,12 @@ def main() -> int:
     if args.command == "template":
         print(render_template_output(args))
         return 0
+
+    if args.command == "tool":
+        return run_tool_command(args)
+
+    if args.command == "uninstall":
+        return run_uninstall_command(args)
 
     return asyncio.run(_run_admin_command(args))
 

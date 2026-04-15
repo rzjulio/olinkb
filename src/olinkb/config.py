@@ -1,12 +1,57 @@
 from __future__ import annotations
 
+import json
 import os
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 
 class SettingsError(ValueError):
     pass
+
+
+def _get_windows_roaming_path() -> Path:
+    appdata = (os.environ.get("APPDATA") or "").strip()
+    if appdata:
+        return Path(appdata)
+
+    userprofile = (os.environ.get("USERPROFILE") or "").strip()
+    if userprofile:
+        return Path(userprofile) / "AppData" / "Roaming"
+
+    return Path.home() / "AppData" / "Roaming"
+
+
+def get_global_config_dir() -> Path:
+    if os.name == "nt":
+        return _get_windows_roaming_path() / "olinkb"
+    return Path.home() / ".config" / "olinkb"
+
+
+def get_persisted_settings_path() -> Path:
+    return get_global_config_dir() / "settings.json"
+
+
+def load_persisted_environment() -> dict[str, str]:
+    path = get_persisted_settings_path()
+    if not path.exists():
+        return {}
+
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    if not isinstance(document, dict):
+        return {}
+
+    return {
+        key: value
+        for key, value in document.items()
+        if isinstance(key, str) and isinstance(value, str) and value
+    }
 
 
 def _get_required_env(name: str, env: dict[str, str]) -> str:
@@ -45,7 +90,7 @@ class Settings:
         require_user: bool = True,
         require_team: bool = True,
     ) -> "Settings":
-        values = env or dict(os.environ)
+        values = {**load_persisted_environment(), **(env or dict(os.environ))}
         user = values.get("OLINKB_USER") or values.get("USER") or values.get("USERNAME")
         if require_user and not user:
             raise SettingsError("Missing OLINKB_USER and no OS user fallback was found")
@@ -73,3 +118,8 @@ def get_settings() -> Settings:
 @lru_cache(maxsize=1)
 def get_viewer_settings() -> Settings:
     return Settings.from_env(require_user=False, require_team=False)
+
+
+def clear_settings_cache() -> None:
+    get_settings.cache_clear()
+    get_viewer_settings.cache_clear()

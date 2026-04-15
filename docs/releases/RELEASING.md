@@ -1,6 +1,6 @@
 # Releasing OlinKB
 
-This repository is prepared so the maintainer only needs to update versioned notes, push `main`, and tag a release.
+This repository is prepared so the maintainer only needs to update versioned notes, push `main`, and tag a release. The release workflow derives the package version from the pushed tag and applies it to both the base package and the MCP addon during the build.
 
 ## Exact Commit Message
 
@@ -18,24 +18,23 @@ git commit -m "Prepare vX.Y.Z release"
 
 ## Pre-Push Checklist
 
-1. Confirm the package version is correct in `pyproject.toml` and `src/olinkb/__init__.py`.
-2. Update `docs/CHANGELOG.md` with the new version entry.
-3. Add or update `docs/releases/vX.Y.Z.md`.
-4. Run the local test suite:
+1. Update `docs/CHANGELOG.md` with the new version entry.
+2. Add or update `docs/releases/vX.Y.Z.md`.
+3. Run the local test suite:
 
 ```bash
 python -m pytest
 ```
 
-5. Check the repository status and confirm only intended files changed:
+4. Check the repository status and confirm only intended files changed:
 
 ```bash
 git status --short
 ```
 
-6. Commit the release prep changes.
-7. Push `main`.
-8. Create and push the tag.
+5. Commit the release prep changes.
+6. Push `main`.
+7. Create and push the tag.
 
 ## Exact Initial Release Commands
 
@@ -57,6 +56,8 @@ git push origin v0.1.0
 After the tag is pushed, GitHub Actions will:
 
 1. Run tests.
-2. Build the wheel and source tarball.
-3. Create the GitHub Release.
-4. Upload the artifacts as downloadable assets.
+2. Normalize the tag, for example `v0.1.3` -> `0.1.3`, and sync that version into the base package metadata and the MCP addon metadata for the workflow build.
+3. Build the base `olinkb` wheel and source tarball.
+4. Build the optional `olinkb-mcp` addon wheel and source tarball with the same version and matching `olinkb==...` dependency.
+5. Create the GitHub Release.
+6. Upload the artifacts as downloadable assets.

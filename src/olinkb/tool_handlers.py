@@ -1,12 +1,33 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from olinkb import tool_handlers
+if TYPE_CHECKING:
+    from olinkb.app import OlinKBApp
 
 
-def get_app():
-    return tool_handlers.get_app()
+TOOL_NAMES = (
+    "boot_session",
+    "remember",
+    "save_memory",
+    "propose_memory_promotion",
+    "list_pending_approvals",
+    "review_memory_proposal",
+    "end_session",
+    "forget",
+)
+
+
+_app: OlinKBApp | None = None
+
+
+def get_app() -> OlinKBApp:
+    global _app
+    if _app is None:
+        from olinkb.app import OlinKBApp as OlinKBAppImpl
+
+        _app = OlinKBAppImpl()
+    return _app
 
 
 async def boot_session(author: str | None = None, team: str | None = None, project: str | None = None) -> dict:
@@ -101,15 +122,7 @@ async def forget(uri: str, reason: str, session_id: str | None = None, author: s
     return await get_app().forget(uri=uri, reason=reason, session_id=session_id, author=author)
 
 
-def _tool_definitions() -> list[Any]:
-    from olinkb.mcp_transport import _tool_definitions as transport_tool_definitions
-
-    return transport_tool_definitions()
-
-
-async def _dispatch_tool_call(name: str, arguments: dict[str, Any]) -> Any:
-    from olinkb.mcp_transport import _json_content
-
+async def dispatch_tool_call(name: str, arguments: dict[str, Any]) -> Any:
     handlers = {
         "boot_session": boot_session,
         "remember": remember,
@@ -123,18 +136,4 @@ async def _dispatch_tool_call(name: str, arguments: dict[str, Any]) -> Any:
     handler = handlers.get(name)
     if handler is None:
         raise ValueError(f"Unknown tool: {name}")
-
-    result = await handler(**arguments)
-    if isinstance(result, dict):
-        return result
-    return (_json_content(result), {"result": result})
-
-
-def run_server() -> None:
-    from olinkb.mcp_transport import run_server as run_mcp_server
-
-    run_mcp_server()
-
-
-if __name__ == "__main__":
-    run_server()
+    return await handler(**arguments)
