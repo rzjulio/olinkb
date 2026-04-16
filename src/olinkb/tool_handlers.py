@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -217,4 +218,18 @@ async def dispatch_tool_call(name: str, arguments: dict[str, Any]) -> Any:
     handler = handlers.get(name)
     if handler is None:
         raise ValueError(f"Unknown tool: {name}")
+
+    sig = inspect.signature(handler)
+    missing = [
+        param_name
+        for param_name, param in sig.parameters.items()
+        if param.default is inspect.Parameter.empty and param_name not in arguments
+    ]
+    if missing:
+        raise ValueError(f"Tool '{name}' missing required arguments: {', '.join(missing)}")
+
+    unexpected = set(arguments) - set(sig.parameters)
+    if unexpected:
+        raise ValueError(f"Tool '{name}' received unexpected arguments: {', '.join(sorted(unexpected))}")
+
     return await handler(**arguments)

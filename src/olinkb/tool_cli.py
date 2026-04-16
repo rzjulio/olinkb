@@ -67,8 +67,6 @@ def load_payload(args: Any) -> dict[str, Any]:
     if payload is None:
         raise ValueError("Tool input must be valid JSON") from decode_error
 
-    if payload is None:
-        return {}
     if not isinstance(payload, dict):
         raise ValueError("Tool input must decode to a JSON object")
     return payload

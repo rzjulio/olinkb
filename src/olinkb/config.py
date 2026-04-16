@@ -69,7 +69,10 @@ def _get_storage_backend(env: dict[str, str]) -> str:
     if raw_value == "postgresql":
         raw_value = "postgres"
     if raw_value not in ALLOWED_STORAGE_BACKENDS:
-        raise SettingsError(f"Unsupported storage backend: {raw_value}")
+        raise SettingsError(
+            f"Unsupported storage backend: {raw_value!r}. "
+            f"Valid values: {', '.join(sorted(ALLOWED_STORAGE_BACKENDS))}"
+        )
     return raw_value
 
 
@@ -114,10 +117,16 @@ class Settings:
         values = {**load_persisted_environment(), **(env or dict(os.environ))}
         user = values.get("OLINKB_USER") or values.get("USER") or values.get("USERNAME")
         if require_user and not user:
-            raise SettingsError("Missing OLINKB_USER and no OS user fallback was found")
+            raise SettingsError(
+                "Missing OLINKB_USER and no OS user fallback was found. "
+                "Set OLINKB_USER in your environment or run 'olinkb --init' to configure."
+            )
         team = values.get("OLINKB_TEAM") or ""
         if require_team and not team:
-            raise SettingsError("Missing required environment variable: OLINKB_TEAM")
+            raise SettingsError(
+                "Missing required environment variable: OLINKB_TEAM. "
+                "Set OLINKB_TEAM to your team identifier or run 'olinkb --init' to configure."
+            )
         storage_backend = _get_storage_backend(values)
 
         pg_url: str | None = None
@@ -127,7 +136,11 @@ class Settings:
         else:
             sqlite_path = _get_optional_path("OLINKB_SQLITE_PATH", values)
             if sqlite_path is None:
-                raise SettingsError("Missing required environment variable: OLINKB_SQLITE_PATH")
+                raise SettingsError(
+                    "Missing required environment variable: OLINKB_SQLITE_PATH. "
+                    "Set it to the path where OlinKB should store its SQLite database, "
+                    "e.g. OLINKB_SQLITE_PATH=~/.olinkb/olinkb.db"
+                )
 
         return cls(
             pg_url=pg_url,

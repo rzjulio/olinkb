@@ -290,7 +290,11 @@ def _get_mcp_server() -> Any:
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> Any:
-        return await _dispatch_tool_call(name, arguments)
+        try:
+            return await _dispatch_tool_call(name, arguments)
+        except Exception as exc:
+            error_type = type(exc).__name__
+            return _json_content({"error": {"type": error_type, "message": str(exc)}})
 
     mcp = server
     return mcp

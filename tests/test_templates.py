@@ -29,6 +29,7 @@ def test_render_instructions_mentions_boot_and_end_session() -> None:
     assert "remember" in rendered
     assert "save_memory" in rendered
     assert "end_session" in rendered
+    assert "forget" in rendered
 
 
 def test_render_instructions_encourages_richer_context_blocks() -> None:
@@ -53,6 +54,55 @@ def test_render_instructions_encourages_richer_context_blocks() -> None:
     assert "specialized repository skill exists" in rendered
 
 
+def test_render_instructions_mcp_has_mandatory_gate() -> None:
+    rendered = render_instructions_template(mode="mcp")
+
+    assert "### Mandatory Gate" in rendered
+    assert "Do not use internal chat memory" in rendered
+    assert "Do not answer project-memory questions from guesswork" in rendered
+    assert "Do not claim a memory was persisted unless" in rendered
+    assert "Failure policy:" in rendered
+    assert "If `boot_session` fails" in rendered
+    assert "If `remember` fails" in rendered
+    assert "If `capture_memory` or `save_memory` fails" in rendered
+    assert "If `end_session` fails" in rendered
+    assert "Do not begin project analysis, planning, or implementation before calling `boot_session`" in rendered
+
+
+def test_render_instructions_includes_memory_type_guide() -> None:
+    for mode in ("mcp", "cli"):
+        rendered = render_instructions_template(mode=mode)
+
+        assert "### Memory Type Selection" in rendered
+        assert "`decision`" in rendered
+        assert "`discovery`" in rendered
+        assert "`bugfix`" in rendered
+        assert "`procedure`" in rendered
+        assert "`convention`" in rendered
+        assert "`constraint`" in rendered
+        assert "`failure_pattern`" in rendered
+        assert "`tool_affordance`" in rendered
+        assert "`fact`" in rendered
+
+
+def test_render_instructions_includes_scope_guide() -> None:
+    for mode in ("mcp", "cli"):
+        rendered = render_instructions_template(mode=mode)
+
+        assert "### Scope Selection" in rendered
+        assert "`personal`" in rendered
+        assert "`project`" in rendered
+        assert "`team`" in rendered
+
+
+def test_render_instructions_mentions_forget() -> None:
+    for mode in ("mcp", "cli"):
+        rendered = render_instructions_template(mode=mode)
+
+        assert "forget" in rendered
+        assert "soft-delete" in rendered
+
+
 def test_render_memory_relevance_skill_template_contains_triage_contract() -> None:
     rendered = render_memory_relevance_skill_template()
 
@@ -62,6 +112,16 @@ def test_render_memory_relevance_skill_template_contains_triage_contract() -> No
     assert "## Output Contract" in rendered
     assert "SAVE" in rendered
     assert "SKIP" in rendered
+    assert "## How to Persist" in rendered
+    assert "save_memory" in rendered
+    assert "capture_memory" in rendered
+    assert "forget" in rendered
+    assert "## Memory Type Selection" in rendered
+    assert "`decision`" in rendered
+    assert "`bugfix`" in rendered
+    assert "## Scope Selection" in rendered
+    assert "`project`" in rendered
+    assert "`scope`" in rendered
 
 
 def test_render_cli_instructions_switches_transport_language() -> None:
@@ -86,6 +146,8 @@ def test_render_cli_instructions_switches_transport_language() -> None:
     assert "ConvertTo-Json -Compress" in rendered
     assert "--input-file" in rendered
     assert "MCP tools" not in rendered
+    assert "### Available Tools" in rendered
+    assert "`forget`" in rendered
 
 
 def test_render_cli_mandatory_prompt_template_enforces_olinkb_cli_workflow() -> None:
@@ -104,3 +166,7 @@ def test_render_cli_mandatory_prompt_template_enforces_olinkb_cli_workflow() -> 
     assert "Do not substitute internal chat memory, `/memories/`, or a session summary for OlinKB" in rendered
     assert "On Windows PowerShell, do not emit bash-style escaped JSON" in rendered
     assert "If any required OlinKB command fails, stop that workflow step, explain the failure, and ask whether to continue without OlinKB" in rendered
+    assert "propose_memory_promotion" in rendered
+    assert "forget" in rendered
+    assert "memory_type" in rendered
+    assert "scope" in rendered

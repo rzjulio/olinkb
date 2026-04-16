@@ -4,6 +4,7 @@ import json
 import pytest
 
 from olinkb import tool_cli
+from olinkb.tool_handlers import dispatch_tool_call
 
 
 def test_run_tool_command_prints_json_result(monkeypatch, capsys) -> None:
@@ -139,3 +140,21 @@ def test_run_tool_command_returns_json_error_for_tool_failure(monkeypatch, capsy
             "message": "boom",
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_dispatch_tool_call_rejects_missing_required_arguments() -> None:
+    with pytest.raises(ValueError, match="missing required arguments: content, memory_type"):
+        await dispatch_tool_call("save_memory", {})
+
+
+@pytest.mark.asyncio
+async def test_dispatch_tool_call_rejects_unexpected_arguments() -> None:
+    with pytest.raises(ValueError, match="unexpected arguments: bogus"):
+        await dispatch_tool_call("boot_session", {"bogus": "value"})
+
+
+@pytest.mark.asyncio
+async def test_dispatch_tool_call_rejects_unknown_tool() -> None:
+    with pytest.raises(ValueError, match="Unknown tool: nonexistent"):
+        await dispatch_tool_call("nonexistent", {})

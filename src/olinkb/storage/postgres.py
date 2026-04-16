@@ -110,6 +110,13 @@ class PostgresStorage:
         self._pool_max_size = max(1, pool_max_size)
         self._pool: asyncpg.Pool | None = None
 
+    def _require_pool(self) -> asyncpg.Pool:
+        if self._pool is None:
+            raise RuntimeError(
+                "PostgresStorage is not connected. Call 'await storage.connect()' before using storage methods."
+            )
+        return self._pool
+
     async def connect(self) -> None:
         if self._pool is None:
             self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=self._pool_max_size)
@@ -121,7 +128,7 @@ class PostgresStorage:
 
     async def run_migrations(self) -> list[str]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
         migration_dir = Path(__file__).parent / "migrations"
         applied: list[str] = []
 
@@ -160,7 +167,7 @@ class PostgresStorage:
         display_name: str | None = None,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         row = await self._pool.fetchrow(
             """
@@ -183,7 +190,7 @@ class PostgresStorage:
 
     async def ensure_member(self, username: str, team: str) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         row = await self._pool.fetchrow(
             "SELECT id, username, display_name, role, team, is_active FROM team_members WHERE username = $1",
@@ -203,7 +210,7 @@ class PostgresStorage:
         role: str = "developer",
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
         validate_member_role(role)
 
         row = await self._pool.fetchrow(
@@ -237,7 +244,7 @@ class PostgresStorage:
         default_role: str = "developer",
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         row = await self._pool.fetchrow(
             """
@@ -276,7 +283,7 @@ class PostgresStorage:
 
     async def get_project_member(self, *, username: str, project: str) -> dict[str, Any] | None:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         row = await self._pool.fetchrow(
             """
@@ -293,7 +300,7 @@ class PostgresStorage:
 
     async def load_pending_proposals(self, *, project: str, limit: int = 5) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         namespace = f"project://{project}"
         total_count = await self._pool.fetchval(
@@ -338,7 +345,7 @@ class PostgresStorage:
         actor_username: str,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         async with self._pool.acquire() as conn:
             existing = await conn.fetchrow(
@@ -416,7 +423,7 @@ class PostgresStorage:
         reviewer_username: str,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         if action not in {"approve", "reject"}:
             raise ValueError(f"Unsupported review action: {action}")
@@ -504,7 +511,7 @@ class PostgresStorage:
 
     async def start_session(self, author_id: UUID, author_username: str, project: str | None) -> str:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         session_id = await self._pool.fetchval(
             """
@@ -526,7 +533,7 @@ class PostgresStorage:
         memories_written: int,
     ) -> None:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         await self._pool.execute(
             """
@@ -545,7 +552,7 @@ class PostgresStorage:
 
     async def get_session(self, session_id: str) -> dict[str, Any] | None:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         row = await self._pool.fetchrow(
             """
@@ -567,7 +574,7 @@ class PostgresStorage:
         limit: int = 2,
     ) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         rows = await self._pool.fetch(
             """
@@ -593,7 +600,7 @@ class PostgresStorage:
         full_content_limit: int = 5,
     ) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         project_prefix = f"project://{project}/%" if project else "__no_project_match__"
         personal_prefix = f"personal://{username}/%"
@@ -602,6 +609,7 @@ class PostgresStorage:
             SELECT uri, title, content, memory_type, scope, namespace, author_username, metadata, updated_at
             FROM memories
             WHERE deleted_at IS NULL
+              AND approval_status = 'approved'
               AND (
                     uri LIKE 'system://%'
                  OR uri LIKE 'team://conventions/%'
@@ -641,7 +649,7 @@ class PostgresStorage:
         project: str | None = None,
     ) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         scope_filters = scope_filters_for_query(scope)
         project_namespace = f"project://{project}" if project else None
@@ -724,7 +732,7 @@ class PostgresStorage:
         project: str | None = None,
     ) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         rows = await self._pool.fetch(
             """
@@ -766,7 +774,7 @@ class PostgresStorage:
         project: str | None = None,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         normalized_query = query.strip()
         fetch_limit = max(1, limit) + 1
@@ -882,7 +890,7 @@ class PostgresStorage:
         project: str | None = None,
     ) -> int:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         normalized_query = query.strip()
         project_namespace = f"project://{project}" if project else None
@@ -930,7 +938,7 @@ class PostgresStorage:
 
     async def load_team_members(self, usernames: list[str]) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         if not usernames:
             return []
@@ -953,7 +961,7 @@ class PostgresStorage:
         limit_per_author: int = 4,
     ) -> list[dict[str, Any]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         if not usernames:
             return []
@@ -984,7 +992,7 @@ class PostgresStorage:
         if not memory_ids:
             return
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
         await self._pool.execute(
             """
             UPDATE memories
@@ -1009,7 +1017,7 @@ class PostgresStorage:
         author_username: str,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
         namespace = extract_namespace(uri)
@@ -1124,7 +1132,7 @@ class PostgresStorage:
         actor_username: str,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         async with self._pool.acquire() as conn:
             existing = await conn.fetchrow(
@@ -1158,7 +1166,7 @@ class PostgresStorage:
 
     async def export_viewer_snapshot(self) -> dict[str, list[dict[str, Any]]]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         memories = await self._pool.fetch(
             """
@@ -1209,7 +1217,7 @@ class PostgresStorage:
         boot_full_content_limit: int = 5,
     ) -> dict[str, Any]:
         await self.connect()
-        assert self._pool is not None
+        self._require_pool()
 
         boot_full = await self.load_boot_memories(
             username=username,

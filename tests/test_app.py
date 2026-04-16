@@ -176,7 +176,145 @@ async def test_sqlite_storage_roundtrip_save_and_remember(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_boot_session_accepts_explicit_team_override() -> None:
+async def test_sqlite_full_flow_boot_save_search_end(tmp_path) -> None:
+    settings = Settings(
+        pg_url=None,
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=0,
+        cache_max_entries=0,
+        storage_backend="sqlite",
+        sqlite_path=tmp_path / "flow.db",
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+
+    try:
+        # Boot empty DB
+        boot = await app.boot_session(author="rzjulio", project="olinkb")
+        session_id = boot["session_id"]
+        assert UUID(session_id)
+        assert boot["loaded_count"] == 0
+        assert boot["memories"] == []
+
+        # Save several memory types
+        uris = []
+        for i in range(5):
+            result = await app.save_memory(
+                uri=f"project://olinkb/decisions/flow-{i}",
+                title=f"Flow decision {i}",
+                content=f"What: Decision {i}.\nWhy: Flow testing.\nContext: SQLite integration.",
+                memory_type="decision",
+                scope="project",
+                tags="flow,test",
+                metadata={"source": "test", "index": i},
+                session_id=session_id,
+            )
+            assert result["status"] == "create"
+            uris.append(result["uri"])
+
+        # Save a personal memory
+        personal = await app.save_memory(
+            uri="personal://rzjulio/prefs/editor",
+            title="Editor preference",
+            content="What: Prefer VS Code.\nWhy: Best extensions.",
+            memory_type="preference",
+            scope="personal",
+        )
+        assert personal["status"] == "create"
+
+        # Boot again should load all project + personal memories
+        boot2 = await app.boot_session(author="rzjulio", project="olinkb")
+        assert boot2["loaded_count"] == 6
+        for mem in boot2["memories"]:
+            assert isinstance(mem.get("tags"), list)
+            assert isinstance(mem.get("metadata"), dict)
+
+        # Search project scope
+        results = await app.remember("flow decision", scope="project", include_content=True)
+        assert len(results) >= 1
+        found_uris = {r["uri"] for r in results}
+        assert any(u in found_uris for u in uris)
+        for r in results:
+            assert "content" in r
+            assert isinstance(r.get("relevance"), float)
+            assert r["relevance"] > 0
+
+        # Search personal scope
+        personal_results = await app.remember("editor preference", scope="personal", include_content=True)
+        assert any(r["uri"] == "personal://rzjulio/prefs/editor" for r in personal_results)
+
+        # Search all scope
+        all_results = await app.remember("decision", scope="all", include_content=False)
+        assert len(all_results) >= 1
+        for r in all_results:
+            assert "content" not in r or r.get("result_type") == "session_summary"
+
+        # End session
+        end_result = await app.end_session(
+            session_id=session_id,
+            summary="Tested full SQLite flow with multiple scopes.",
+        )
+        assert end_result["session_id"] == session_id
+        assert end_result["summary"] == "Tested full SQLite flow with multiple scopes."
+
+        # Verify session was ended in storage
+        stored = await app.storage.get_session(session_id)
+        assert stored is not None
+        assert stored["ended_at"] is not None
+    finally:
+        await app.storage.close()
+
+
+@pytest.mark.asyncio
+async def test_sqlite_search_with_volume(tmp_path) -> None:
+    settings = Settings(
+        pg_url=None,
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=0,
+        cache_max_entries=0,
+        storage_backend="sqlite",
+        sqlite_path=tmp_path / "volume.db",
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+
+    try:
+        boot = await app.boot_session(author="rzjulio", project="olinkb")
+        session_id = boot["session_id"]
+
+        # Save 50 memories
+        for i in range(50):
+            await app.save_memory(
+                uri=f"project://olinkb/facts/vol-{i}",
+                title=f"Volume fact {i}",
+                content=f"What: Fact {i} about performance.\nWhy: Volume test.\nContext: Benchmarking SQLite.",
+                memory_type="fact",
+                scope="project",
+                tags="volume,benchmark",
+                metadata={"iteration": i},
+                session_id=session_id,
+            )
+
+        # Boot should cap at 40
+        boot2 = await app.boot_session(author="rzjulio", project="olinkb")
+        assert boot2["loaded_count"] <= 40
+
+        # Some should have content stripped (hybrid payload)
+        has_content = sum(1 for m in boot2["memories"] if "content" in m)
+        no_content = sum(1 for m in boot2["memories"] if "content" not in m)
+        assert has_content > 0
+        assert no_content > 0
+
+        # Search should find relevant results
+        results = await app.remember("performance benchmark", scope="project", limit=10, include_content=True)
+        assert len(results) > 0
+        assert all(r.get("relevance", 0) > 0 for r in results)
+    finally:
+        await app.storage.close()
     settings = Settings(
         pg_url="postgresql://unused",
         user="rzjulio",
