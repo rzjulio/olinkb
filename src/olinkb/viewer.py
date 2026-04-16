@@ -920,6 +920,48 @@ def render_viewer_html(
       cursor: grab;
     }}
     .graph-stage canvas.dragging {{ cursor: grabbing; }}
+    .graph-legend {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 8px 16px 4px;
+      justify-content: center;
+    }}
+    .graph-legend-item {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }}
+    .graph-legend-swatch {{
+      width: 18px;
+      height: 3px;
+      border-radius: 2px;
+      flex: none;
+    }}
+    .live-loading-bar {{
+      height: 2px;
+      background: transparent;
+      overflow: hidden;
+      flex: none;
+    }}
+    .live-loading-bar.active {{
+      background: var(--line-faint);
+    }}
+    .live-loading-bar.active::after {{
+      content: "";
+      display: block;
+      height: 100%;
+      width: 30%;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: loading-slide 1s ease-in-out infinite;
+    }}
+    @keyframes loading-slide {{
+      0% {{ transform: translateX(-100%); }}
+      100% {{ transform: translateX(430%); }}
+    }}
     .empty-state {{ color: var(--muted); font-size: 0.9rem; line-height: 1.6; }}
     .note-alert {{
       display: grid;
@@ -1109,6 +1151,7 @@ def render_viewer_html(
 <body>
   <div id="app-shell" class="app-shell">
     <aside class="sidebar-pane">
+      <div class="live-loading-bar" id="live-loading"></div>
       <div class="vault-header">
         <div class="vault-header-row">
           <div>
@@ -1156,6 +1199,12 @@ def render_viewer_html(
       </div>
       <div class="graph-stage">
         <canvas id="graph-canvas"></canvas>
+      </div>
+      <div class="graph-legend" id="graph-legend">
+        <span class="graph-legend-item"><span class="graph-legend-swatch" style="background:var(--edge-namespace)"></span>Namespace</span>
+        <span class="graph-legend-item"><span class="graph-legend-swatch" style="background:var(--edge-tag)"></span>Tag</span>
+        <span class="graph-legend-item"><span class="graph-legend-swatch" style="background:var(--edge-author)"></span>Author</span>
+        <span class="graph-legend-item"><span class="graph-legend-swatch" style="background:var(--edge-reference)"></span>Reference</span>
       </div>
     </aside>
   </div>
@@ -1206,6 +1255,7 @@ def render_viewer_html(
 
       const elements = {{
         search: document.getElementById("search"),
+        liveLoading: document.getElementById("live-loading"),
         vaultStats: document.getElementById("vault-stats"),
         searchPagination: document.getElementById("search-pagination"),
         approvalQueue: document.getElementById("approval-queue"),
@@ -1267,6 +1317,7 @@ def render_viewer_html(
       setupGraphResizer();
       setupAuth();
       setupComposer();
+      setupKeyboard();
       if (liveApiPath) {{
         render();
         loadAuthSession();
@@ -1274,6 +1325,40 @@ def render_viewer_html(
         window.setInterval(loadLiveData, 10000);
       }} else {{
         render();
+      }}
+
+      function setupKeyboard() {{
+        document.addEventListener("keydown", (event) => {{
+          if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT") return;
+          if (event.key === "Escape") {{
+            if (state.live.composerOpen) {{ closeComposer?.(); return; }}
+            if (state.live.auth?.loginOpen) {{ closeAuthModal?.(); return; }}
+            return;
+          }}
+          if (event.key === "j" || event.key === "ArrowDown") {{ event.preventDefault(); navigateMemory(1); return; }}
+          if (event.key === "k" || event.key === "ArrowUp") {{ event.preventDefault(); navigateMemory(-1); return; }}
+        }});
+      }}
+
+      function navigateMemory(direction) {{
+        const memories = getVisibleMemories();
+        if (!memories.length) return;
+        const currentIndex = memories.findIndex((memory) => memory.id === state.selectedId);
+        const nextIndex = Math.max(0, Math.min(memories.length - 1, currentIndex + direction));
+        if (memories[nextIndex].id === state.selectedId) return;
+        state.selectedId = memories[nextIndex].id;
+        render();
+      }}
+
+      function scrollSelectedIntoView() {{
+        if (!state.selectedId) return;
+        const activeNode = elements.memoryList.querySelector(`.tree-note.active, .approval-item.active`);
+        if (activeNode) activeNode.scrollIntoView({{ block: "nearest", behavior: "smooth" }});
+      }}
+
+      function updateLoadingIndicator() {{
+        if (!elements.liveLoading) return;
+        elements.liveLoading.classList.toggle("active", !!state.live.loading);
       }}
 
       function resetLivePagination() {{
@@ -1300,6 +1385,7 @@ def render_viewer_html(
         if (state.search) requestUrl.searchParams.set("q", state.search);
         if (state.live.cursor) requestUrl.searchParams.set("cursor", state.live.cursor);
         state.live.loading = true;
+        updateLoadingIndicator();
         try {{
           const response = await fetch(requestUrl, {{ cache: "no-store" }});
           if (!response.ok) return;
@@ -1314,7 +1400,10 @@ def render_viewer_html(
           render();
         }} catch (_error) {{
         }} finally {{
-          if (requestToken === state.live.requestToken) state.live.loading = false;
+          if (requestToken === state.live.requestToken) {{
+            state.live.loading = false;
+            updateLoadingIndicator();
+          }}
         }}
       }}
 
@@ -1360,6 +1449,7 @@ def render_viewer_html(
         elements.graphSummary.textContent = `${{formatNumber(memoryNodes.length)}} notes · ${{formatNumber(projectCount)}} projects · ${{formatNumber(typeCount)}} types · ${{formatNumber(deletedCount)}} forgotten`;
         graphController.resize();
         graphController.update(graph, state.selectedId);
+        scrollSelectedIntoView();
       }}
 
       function setupComposer() {{
@@ -2822,10 +2912,13 @@ def render_viewer_html(
 
           runtime.nodes.forEach((node) => {{
             const hovered = node.id === runtime.hoverId;
-            if (!hovered || node.showLabel === false) return;
+            const selected = node.id === runtime.selectedId;
+            if ((!hovered && !selected) || node.showLabel === false) return;
             const radius = getNodeRadius(node);
-            context.fillStyle = cssVar('--text', 'rgba(220, 221, 222, 0.92)');
-            context.font = `${{11 / viewport.scale}}px Avenir Next, sans-serif`;
+            context.fillStyle = hovered
+              ? cssVar('--text', 'rgba(220, 221, 222, 0.92)')
+              : cssVar('--muted', 'rgba(153, 163, 176, 0.8)');
+            context.font = `${{(hovered ? 11 : 10) / viewport.scale}}px Avenir Next, sans-serif`;
             context.fillText(node.label, node.x + radius + 8, node.y + 4);
           }});
           context.restore();

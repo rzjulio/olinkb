@@ -367,7 +367,8 @@ def test_viewer_build_prints_snapshot_guidance(monkeypatch, capsys) -> None:
     output = capsys.readouterr().out
 
     assert exit_code == 0
-    assert "Static viewer snapshot written to olinkb-viewer/index.html" in output
+    expected_path = str(Path("olinkb-viewer/index.html"))
+    assert f"Static viewer snapshot written to {expected_path}" in output
     assert "For large-scale exploration, use: olinkb viewer" in output
 
 
@@ -538,6 +539,7 @@ Keep this section.
     assert "call `save_memory`." not in instructions
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Unix-specific path layout")
 @pytest.mark.parametrize(
     ("platform_name", "os_name", "expected_suffix"),
     [
@@ -596,10 +598,13 @@ def test_get_global_instructions_path_uses_user_home(monkeypatch, tmp_path) -> N
     fake_home.mkdir()
 
     monkeypatch.setenv("HOME", str(fake_home))
+    if os.name == "nt":
+        monkeypatch.setenv("USERPROFILE", str(fake_home))
 
     assert bootstrap.get_global_instructions_path() == fake_home / ".copilot" / "instructions" / bootstrap.INSTRUCTIONS_FILENAME
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Unix-specific path layout")
 @pytest.mark.parametrize(
     ("platform_name", "os_name", "expected_suffix"),
     [
@@ -639,10 +644,13 @@ def test_get_global_skill_path_uses_user_home(monkeypatch, tmp_path) -> None:
     fake_home.mkdir()
 
     monkeypatch.setenv("HOME", str(fake_home))
+    if os.name == "nt":
+        monkeypatch.setenv("USERPROFILE", str(fake_home))
 
     assert bootstrap.get_global_skill_path() == fake_home / ".copilot" / "skills" / bootstrap.MEMORY_RELEVANCE_SKILL_NAME / "SKILL.md"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Unix-specific path layout")
 def test_get_global_shell_env_path_uses_user_home(monkeypatch, tmp_path) -> None:
     fake_home = tmp_path / "home"
     fake_home.mkdir()
@@ -652,6 +660,7 @@ def test_get_global_shell_env_path_uses_user_home(monkeypatch, tmp_path) -> None
     assert bootstrap.get_global_shell_env_path() == fake_home / ".config" / "olinkb" / "env.sh"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Unix-specific path layout")
 def test_get_global_command_wrapper_path_uses_user_home(monkeypatch, tmp_path) -> None:
     fake_home = tmp_path / "home"
     fake_home.mkdir()
@@ -838,6 +847,15 @@ def test_run_init_workspace_supports_global_scope(tmp_path, monkeypatch) -> None
     monkeypatch.setattr(bootstrap, "get_global_command_wrapper_path", lambda: global_wrapper_path)
     monkeypatch.setattr(bootstrap, "get_global_settings_path", lambda: global_settings_path)
     monkeypatch.setattr(bootstrap, "get_shell_profile_paths", lambda: [zprofile_path, zshrc_path])
+    _orig_persist = bootstrap.persist_shell_profile_hooks
+    def _persist_posix(profile_paths):
+        saved = os.name
+        os.name = "posix"
+        try:
+            return _orig_persist(profile_paths)
+        finally:
+            os.name = saved
+    monkeypatch.setattr(bootstrap, "persist_shell_profile_hooks", _persist_posix)
     monkeypatch.setattr("builtins.input", fake_input)
 
     exit_code = cli.run_init_workspace(args)
@@ -857,8 +875,8 @@ def test_run_init_workspace_supports_global_scope(tmp_path, monkeypatch) -> None
     assert "OLINKB_PG_URL" in global_shell_env_path.read_text(encoding="utf-8")
     assert "python" in global_wrapper_path.read_text(encoding="utf-8")
     assert "olinkb.cli" in global_wrapper_path.read_text(encoding="utf-8")
-    assert "olinkb/env.sh" in zprofile_path.read_text(encoding="utf-8")
-    assert "olinkb/env.sh" in zshrc_path.read_text(encoding="utf-8")
+    assert str(Path("olinkb/env.sh")) in zprofile_path.read_text(encoding="utf-8")
+    assert str(Path("olinkb/env.sh")) in zshrc_path.read_text(encoding="utf-8")
     assert not (tmp_path / ".github" / "copilot-instructions.md").exists()
 
 
@@ -1008,6 +1026,15 @@ def test_uninstall_workspace_global_scope_removes_persisted_artifacts_and_hooks(
     monkeypatch.setattr(bootstrap, "get_global_settings_path", lambda: global_settings_path)
     monkeypatch.setattr(bootstrap, "get_shell_profile_paths", lambda: [zprofile_path, zshrc_path])
     monkeypatch.setattr(bootstrap, "remove_windows_user_path", lambda wrapper_dir: "skipped")
+    _orig_remove = bootstrap.remove_shell_profile_hooks
+    def _remove_posix(profile_paths):
+        saved = os.name
+        os.name = "posix"
+        try:
+            return _orig_remove(profile_paths)
+        finally:
+            os.name = saved
+    monkeypatch.setattr(bootstrap, "remove_shell_profile_hooks", _remove_posix)
 
     result = bootstrap.uninstall_workspace(workspace_path=tmp_path, scope="global")
 

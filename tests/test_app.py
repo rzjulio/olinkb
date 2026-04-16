@@ -74,7 +74,11 @@ class FakeStorage:
 
     async def save_memory(self, **kwargs):
         self.save_memory_calls.append(kwargs)
-        return {"status": kwargs.get("status", "created"), "uri": kwargs["uri"]}
+        return {
+            "status": kwargs.get("status", "created"),
+            "uri": kwargs["uri"],
+            "approval_status": kwargs.get("approval_status", "approved"),
+        }
 
     async def propose_memory_promotion(self, **kwargs):
         self.propose_calls.append(kwargs)
@@ -1091,3 +1095,178 @@ async def test_end_session_keeps_brief_summary_as_session_only() -> None:
 
     assert result["memories_written"] == 0
     assert storage.save_memory_calls == []
+
+
+@pytest.mark.asyncio
+async def test_save_documentation_by_developer_gets_pending_status() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "developer"
+    storage.project_role = "developer"
+    app.storage = storage
+
+    result = await app.save_memory(
+        uri="project://olinkb/documentation/api-guide",
+        title="API Guide",
+        content="# API Guide\nHow to use the REST API.",
+        memory_type="documentation",
+        scope="project",
+    )
+
+    assert len(storage.save_memory_calls) == 1
+    assert storage.save_memory_calls[0]["approval_status"] == "pending"
+    assert "awaiting_approval" not in result
+
+
+@pytest.mark.asyncio
+async def test_save_documentation_by_lead_gets_pending_with_awaiting_approval() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "lead"
+    storage.project_role = "lead"
+    app.storage = storage
+
+    result = await app.save_memory(
+        uri="project://olinkb/documentation/api-guide",
+        title="API Guide",
+        content="# API Guide\nHow to use the REST API.",
+        memory_type="documentation",
+        scope="project",
+    )
+
+    assert storage.save_memory_calls[0]["approval_status"] == "pending"
+    assert result["awaiting_approval"] is True
+    assert "approval_hint" in result
+
+
+@pytest.mark.asyncio
+async def test_save_development_standard_by_developer_gets_pending() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "developer"
+    storage.project_role = "developer"
+    app.storage = storage
+
+    await app.save_memory(
+        uri="project://olinkb/development-standards/code-style",
+        title="Code Style Guide",
+        content="# Code Style\nUse Black formatter.",
+        memory_type="development_standard",
+        scope="project",
+    )
+
+    assert storage.save_memory_calls[0]["approval_status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_save_non_managed_type_always_approved() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "developer"
+    storage.project_role = "developer"
+    app.storage = storage
+
+    await app.save_memory(
+        uri="project://olinkb/bugfixes/login-crash",
+        title="Fix login crash",
+        content="What: Fixed null pointer in login",
+        memory_type="bugfix",
+        scope="project",
+    )
+
+    assert storage.save_memory_calls[0]["approval_status"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_save_documentation_by_admin_gets_pending_with_awaiting_approval() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "admin"
+    storage.project_role = "admin"
+    app.storage = storage
+
+    result = await app.save_memory(
+        uri="project://olinkb/documentation/api-guide",
+        title="API Guide",
+        content="# API Guide\nHow to use the REST API.",
+        memory_type="documentation",
+        scope="project",
+    )
+
+    assert storage.save_memory_calls[0]["approval_status"] == "pending"
+    assert result["awaiting_approval"] is True
+    assert "review_memory_proposal" in result["approval_hint"]
+
+
+@pytest.mark.asyncio
+async def test_save_non_managed_type_by_lead_has_no_awaiting_approval() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project="olinkb",
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    storage.member_role = "lead"
+    storage.project_role = "lead"
+    app.storage = storage
+
+    result = await app.save_memory(
+        uri="project://olinkb/decisions/use-fts5",
+        title="Use FTS5 for search",
+        content="What: Use FTS5 for full-text search",
+        memory_type="decision",
+        scope="project",
+    )
+
+    assert storage.save_memory_calls[0]["approval_status"] == "approved"
+    assert "awaiting_approval" not in result

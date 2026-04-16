@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import pytest
 import mcp.types as types
 
@@ -55,7 +56,7 @@ def test_importing_server_does_not_eagerly_import_mcp() -> None:
 
     result = subprocess.run(
         [
-            os.environ.get("PYTHON", "python3"),
+            sys.executable,
             "-c",
             "import json, sys; import olinkb.server; print(json.dumps({'mcp': 'mcp' in sys.modules}))",
         ],

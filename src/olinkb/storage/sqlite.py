@@ -853,6 +853,7 @@ class SqliteStorage:
         metadata: dict[str, Any] | None,
         author_id: str,
         author_username: str,
+        approval_status: str = "approved",
     ) -> dict[str, Any]:
         await self.connect()
         connection = self._require_connection()
@@ -887,8 +888,10 @@ class SqliteStorage:
                 """
                 UPDATE memories
                 SET title = ?, content = ?, memory_type = ?, scope = ?, namespace = ?, author_id = ?, author_username = ?,
-                    tags = ?, metadata = ?, content_hash = ?, deleted_at = NULL, updated_at = ?, approval_status = 'approved',
-                    proposed_memory_type = NULL, proposed_by = NULL, proposed_by_username = NULL, proposed_at = NULL,
+                    tags = ?, metadata = ?, content_hash = ?, deleted_at = NULL, updated_at = ?, approval_status = ?,
+                    proposed_memory_type = NULL, proposed_by = CASE WHEN ? = 'pending' THEN ? ELSE NULL END,
+                    proposed_by_username = CASE WHEN ? = 'pending' THEN ? ELSE NULL END,
+                    proposed_at = CASE WHEN ? = 'pending' THEN ? ELSE NULL END,
                     proposal_note = NULL, reviewed_by = NULL, reviewed_by_username = NULL, reviewed_at = NULL, review_note = NULL
                 WHERE uri = ?
                 """,
@@ -904,6 +907,10 @@ class SqliteStorage:
                     serialized_metadata,
                     content_hash,
                     now,
+                    approval_status,
+                    approval_status, author_id,
+                    approval_status, author_username,
+                    approval_status, now,
                     uri,
                 ),
             )
@@ -912,31 +919,61 @@ class SqliteStorage:
             old_content = existing["content"]
         else:
             memory_id = str(uuid4())
-            connection.execute(
-                """
-                INSERT INTO memories (
-                    id, uri, title, content, memory_type, scope, namespace, author_id, author_username,
-                    tags, metadata, content_hash, vitality_score, retrieval_count, last_accessed, deleted_at,
-                    created_at, updated_at, approval_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1.0, 0, NULL, NULL, ?, ?, 'approved')
-                """,
-                (
-                    memory_id,
-                    uri,
-                    title,
-                    content,
-                    memory_type,
-                    scope,
-                    namespace,
-                    author_id,
-                    author_username,
-                    serialized_tags,
-                    serialized_metadata,
-                    content_hash,
-                    now,
-                    now,
-                ),
-            )
+            if approval_status == "pending":
+                connection.execute(
+                    """
+                    INSERT INTO memories (
+                        id, uri, title, content, memory_type, scope, namespace, author_id, author_username,
+                        tags, metadata, content_hash, vitality_score, retrieval_count, last_accessed, deleted_at,
+                        created_at, updated_at, approval_status, proposed_by, proposed_by_username, proposed_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1.0, 0, NULL, NULL, ?, ?, 'pending', ?, ?, ?)
+                    """,
+                    (
+                        memory_id,
+                        uri,
+                        title,
+                        content,
+                        memory_type,
+                        scope,
+                        namespace,
+                        author_id,
+                        author_username,
+                        serialized_tags,
+                        serialized_metadata,
+                        content_hash,
+                        now,
+                        now,
+                        author_id,
+                        author_username,
+                        now,
+                    ),
+                )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO memories (
+                        id, uri, title, content, memory_type, scope, namespace, author_id, author_username,
+                        tags, metadata, content_hash, vitality_score, retrieval_count, last_accessed, deleted_at,
+                        created_at, updated_at, approval_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1.0, 0, NULL, NULL, ?, ?, 'approved')
+                    """,
+                    (
+                        memory_id,
+                        uri,
+                        title,
+                        content,
+                        memory_type,
+                        scope,
+                        namespace,
+                        author_id,
+                        author_username,
+                        serialized_tags,
+                        serialized_metadata,
+                        content_hash,
+                        now,
+                        now,
+                    ),
+                )
             status = "create"
             old_content = None
 
@@ -971,6 +1008,7 @@ class SqliteStorage:
             "id": memory_id,
             "namespace": namespace,
             "scope": scope,
+            "approval_status": approval_status,
         }
 
     async def forget_memory(

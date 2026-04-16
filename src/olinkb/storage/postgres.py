@@ -1015,6 +1015,7 @@ class PostgresStorage:
         metadata: dict[str, Any] | None,
         author_id: UUID,
         author_username: str,
+        approval_status: str = "approved",
     ) -> dict[str, Any]:
         await self.connect()
         self._require_pool()
@@ -1044,10 +1045,15 @@ class PostgresStorage:
                         """
                         INSERT INTO memories (
                             uri, title, content, memory_type, scope, namespace,
-                            author_id, author_username, tags, content_hash, metadata
+                            author_id, author_username, tags, content_hash, metadata,
+                            approval_status, proposed_by, proposed_by_username, proposed_at
                         )
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11::jsonb)
-                        RETURNING id, uri, namespace, scope
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11::jsonb,
+                                $12,
+                                CASE WHEN $12 = 'pending' THEN $7 ELSE NULL END,
+                                CASE WHEN $12 = 'pending' THEN $8 ELSE NULL END,
+                                CASE WHEN $12 = 'pending' THEN NOW() ELSE NULL END)
+                        RETURNING id, uri, namespace, scope, approval_status
                         """,
                         uri,
                         title,
@@ -1060,6 +1066,7 @@ class PostgresStorage:
                         tags,
                         content_hash,
                         json.dumps(structured_metadata),
+                        approval_status,
                     )
                     operation = "create"
                     old_content = None
@@ -1076,9 +1083,19 @@ class PostgresStorage:
                             content_hash = $8,
                             metadata = $9::jsonb,
                             deleted_at = NULL,
-                            updated_at = NOW()
+                            updated_at = NOW(),
+                            approval_status = $10,
+                            proposed_memory_type = NULL,
+                            proposed_by = CASE WHEN $10 = 'pending' THEN author_id ELSE NULL END,
+                            proposed_by_username = CASE WHEN $10 = 'pending' THEN author_username ELSE NULL END,
+                            proposed_at = CASE WHEN $10 = 'pending' THEN NOW() ELSE NULL END,
+                            proposal_note = NULL,
+                            reviewed_by = NULL,
+                            reviewed_by_username = NULL,
+                            reviewed_at = NULL,
+                            review_note = NULL
                         WHERE uri = $1
-                        RETURNING id, uri, namespace, scope
+                        RETURNING id, uri, namespace, scope, approval_status
                         """,
                         uri,
                         title,
@@ -1089,6 +1106,7 @@ class PostgresStorage:
                         tags,
                         content_hash,
                         json.dumps(structured_metadata),
+                        approval_status,
                     )
                     operation = "update"
                     old_content = existing["content"]
@@ -1121,6 +1139,7 @@ class PostgresStorage:
             "uri": row["uri"],
             "namespace": row["namespace"],
             "scope": row["scope"],
+            "approval_status": row["approval_status"],
         }
 
     async def forget_memory(
@@ -1311,6 +1330,12 @@ class PostgresStorage:
         serialized["metadata"] = self._extract_metadata_from_content(serialized.get("content") or "")
         return self._finalize_memory_payload(serialized, include_content=include_content)
 
+    _APPROVAL_LABELS = {
+        "approved": "[APROBADA]",
+        "pending": "[PENDIENTE DE APROBACIÓN]",
+        "rejected": "[RECHAZADA]",
+    }
+
     @staticmethod
     def _finalize_memory_payload(serialized: dict[str, Any], *, include_content: bool) -> dict[str, Any]:
         if not include_content:
@@ -1318,6 +1343,8 @@ class PostgresStorage:
             if preview:
                 serialized["preview"] = preview
             serialized.pop("content", None)
+        status = str(serialized.get("approval_status") or "approved")
+        serialized["approval_label"] = PostgresStorage._APPROVAL_LABELS.get(status, status)
         return serialized
 
     @staticmethod

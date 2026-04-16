@@ -41,6 +41,7 @@ class SaveConnection:
                 "uri": args[0],
                 "namespace": args[5],
                 "scope": args[4],
+                "approval_status": args[11] if len(args) > 11 else "approved",
             }
         raise AssertionError(f"Unexpected fetchrow query: {query}")
 

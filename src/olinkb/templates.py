@@ -71,6 +71,15 @@ def render_instructions_template(*, mode: str = "mcp") -> str:
 - `system` — global system-level (requires lead/admin)
 When in doubt, use `project`. OlinKB can infer scope from the URI or project context when omitted."""
 
+    doc_approval_guide = """### Documentation Approval Workflow
+All `documentation`, `business_documentation`, and `development_standard` memories are created with status **[PENDIENTE DE APROBACIÓN]** regardless of the author's role.
+- Developers: you can create and edit documentation freely, but it will remain pending until a lead/admin reviews and approves it via `review_memory_proposal`.
+- Leads/admins: your documentation is also saved as pending. The response will include `awaiting_approval: true` and an `approval_hint`. **You MUST ask the user if they want to approve the documentation now.** If they confirm, call `review_memory_proposal` with the returned `uri` and `action='approve'`.
+- When searching with `remember`, each result includes an `approval_label` field: `[APROBADA]`, `[PENDIENTE DE APROBACIÓN]`, or `[RECHAZADA]`. Always communicate this status to the user.
+- Pending documentation does NOT appear in `boot_session` preloaded memories. Only approved documentation is loaded at boot.
+- If a pending documentation is edited, the approval resets — a lead/admin must re-approve the updated version.
+- Non-documentation types (`decision`, `bugfix`, `procedure`, etc.) are NOT subject to approval and are saved as approved immediately."""
+
     effective_format = """- Effective memory format:
     What: [2-3 sentences with the concrete action, behavior change, or discovery, including specific examples when useful]
     Why: [root cause, motivation, impact, and why simpler or naive approaches were not enough]
@@ -148,6 +157,8 @@ All tools are invoked as `olinkb tool <tool_name> --json '{{...}}'`. The 10 avai
 
 {scope_guide}
 
+{doc_approval_guide}
+
 ### Before Ending
 - Close the session with `olinkb tool end_session --json ...` and capture a brief summary of what was accomplished.
 - `end_session` is mandatory session closure, but it never replaces earlier `capture_memory` or `save_memory` calls.
@@ -207,6 +218,8 @@ Use this as the default memory workflow across repositories unless the active re
 
 {scope_guide}
 
+{doc_approval_guide}
+
 ### Before Ending
 - Call `end_session` with a brief summary of what was accomplished.
 - `end_session` is mandatory session closure, but it never replaces earlier `capture_memory` or `save_memory` calls.
@@ -253,8 +266,9 @@ Rules:
 - If `end_session` fails, report that the session closure was not recorded.
 - Do not defer durable memory saves until the end of the session.
 
-Quick reference for `memory_type`: decision, discovery, bugfix, procedure, convention, constraint, failure_pattern, tool_affordance, fact.
+Quick reference for `memory_type`: decision, discovery, bugfix, procedure, convention, constraint, failure_pattern, tool_affordance, fact, event, preference, documentation, business_documentation, development_standard.
 Quick reference for `scope`: personal, project (default), team.
+Note: documentation, business_documentation, and development_standard are ALWAYS saved as pending. Leads/admins will receive an `awaiting_approval` flag — ask them to confirm before calling `review_memory_proposal` to approve. Search results include `approval_label` to indicate status.
 """
 
 
@@ -325,6 +339,11 @@ Pick the most specific type that fits:
 - `failure_pattern` — a recurring failure with symptoms and workaround
 - `tool_affordance` — a tool capability or integration pattern
 - `fact` — a verified factual statement
+- `event` — a notable occurrence (deployment, outage, milestone)
+- `preference` — a personal or team stylistic preference
+- `documentation` — technical documentation (pending approval if created by developer)
+- `business_documentation` — business-level documentation (pending approval if created by developer)
+- `development_standard` — engineering standards (pending approval if created by developer)
 
 ## Scope Selection
 

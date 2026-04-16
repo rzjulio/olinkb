@@ -15,16 +15,23 @@ STRUCTURED_METADATA_PATTERN = re.compile(
 WORD_PATTERN = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", re.IGNORECASE)
 SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 TITLE_MAX_LENGTH = 80
-AUTO_SAVE_THRESHOLD = 70
-SUGGEST_THRESHOLD = 42
-DOC_SUGGEST_THRESHOLD = 55
-HIGH_CONFIDENCE_DOC_THRESHOLD = 78
+AUTO_SAVE_THRESHOLD = 65
+SUGGEST_THRESHOLD = 38
+DOC_SUGGEST_THRESHOLD = 50
+HIGH_CONFIDENCE_DOC_THRESHOLD = 72
 
 TYPE_BUCKETS = {
     "bugfix": "bugfixes",
     "decision": "decisions",
     "procedure": "procedures",
     "discovery": "discoveries",
+    "constraint": "constraints",
+    "failure_pattern": "failure-patterns",
+    "tool_affordance": "tool-affordances",
+    "fact": "facts",
+    "event": "events",
+    "preference": "preferences",
+    "convention": "conventions",
     "documentation": "documentation",
     "business_documentation": "business-documentation",
     "development_standard": "development-standards",
@@ -42,6 +49,11 @@ KEYWORDS = {
         "failure",
         "incident",
         "broken",
+        "crash",
+        "stacktrace",
+        "traceback",
+        "exception",
+        "patch",
     ),
     "decision": (
         "decision",
@@ -49,22 +61,30 @@ KEYWORDS = {
         "chose",
         "chosen",
         "opted",
-        "prefer",
-        "keep",
         "adopt",
         "approach",
+        "alternative",
+        "evaluated",
+        "compared",
+        "selected",
+        "rejected",
+        "instead of",
+        "over the",
     ),
     "procedure": (
         "steps",
         "step",
-        "run",
-        "command",
         "install",
         "setup",
         "workflow",
         "how to",
         "procedure",
         "guide",
+        "recipe",
+        "playbook",
+        "runbook",
+        "tutorial",
+        "sequence",
     ),
     "discovery": (
         "learned",
@@ -75,9 +95,114 @@ KEYWORDS = {
         "insight",
         "gotcha",
         "pattern",
+        "noticed",
+        "turns out",
+        "unexpected",
+        "surprising",
+        "counterintuitive",
+        "non-obvious",
+    ),
+    "constraint": (
+        "constraint",
+        "limitation",
+        "limit",
+        "restricted",
+        "cannot",
+        "must not",
+        "forbidden",
+        "maximum",
+        "minimum",
+        "hard limit",
+        "boundary",
+        "invariant",
+        "cap",
+        "ceiling",
+        "quota",
+        "threshold",
+    ),
+    "failure_pattern": (
+        "fails silently",
+        "silent failure",
+        "intermittent",
+        "flaky",
+        "workaround",
+        "symptoms",
+        "recurring",
+        "keeps happening",
+        "known issue",
+        "false positive",
+        "race condition",
+        "deadlock",
+        "timeout",
+        "retry",
+    ),
+    "tool_affordance": (
+        "shortcut",
+        "trick",
+        "tip",
+        "affordance",
+        "integration",
+        "plugin",
+        "extension",
+        "flag",
+        "cli option",
+        "config option",
+        "hidden feature",
+        "undocumented",
+        "useful command",
+    ),
+    "fact": (
+        "version",
+        "specification",
+        "runs on",
+        "hosted on",
+        "deployed to",
+        "environment",
+        "stack",
+        "architecture",
+    ),
+    "event": (
+        "migrated",
+        "migration",
+        "deployed",
+        "deployment",
+        "outage",
+        "incident",
+        "released",
+        "release",
+        "launched",
+        "rollback",
+        "downtime",
+        "upgrade",
+        "upgraded",
+        "cutover",
+        "milestone",
+    ),
+    "preference": (
+        "prefer",
+        "preference",
+        "i like",
+        "my style",
+        "personal",
+        "favorite",
+        "default to",
+        "habit",
+    ),
+    "convention": (
+        "convention",
+        "standard",
+        "guideline",
+        "rule",
+        "always",
+        "never",
+        "naming",
+        "style",
+        "team agrees",
+        "we agreed",
+        "policy",
+        "best practice",
     ),
     "documentation": (
-        "architecture",
         "overview",
         "documentation",
         "documentacion",
@@ -88,30 +213,33 @@ KEYWORDS = {
         "end-to-end",
         "how it works",
         "design",
+        "this document",
     ),
     "business_documentation": (
         "business",
         "stakeholder",
         "roadmap",
         "customer",
-        "product",
-        "policy",
-        "functional",
-        "quarter",
         "revenue",
+        "business case",
+        "market",
+        "competitor",
+        "quarterly",
+        "okr",
+        "kpi",
     ),
     "development_standard": (
-        "standard",
-        "standards",
-        "convention",
-        "guideline",
-        "rule",
-        "must",
-        "should",
-        "always",
-        "never",
-        "naming",
-        "style",
+        "engineering standard",
+        "development standard",
+        "code style",
+        "linting",
+        "formatting",
+        "naming convention",
+        "code review",
+        "pull request",
+        "branch strategy",
+        "ci cd",
+        "testing standard",
     ),
 }
 
@@ -123,6 +251,20 @@ LOW_SIGNAL_PHRASES = {
     "done",
     "listo",
     "perfect",
+    "perfecto",
+    "got it",
+    "understood",
+    "noted",
+    "sure",
+    "yes",
+    "no",
+    "si",
+    "nice",
+    "cool",
+    "great",
+    "genial",
+    "entendido",
+    "gracias",
 }
 
 
@@ -220,6 +362,16 @@ def analyze_memory_candidate(
     }
 
 
+def _keyword_matches(keyword: str, text: str) -> bool:
+    """Check keyword match using word boundaries, allowing common suffixes for single words."""
+    escaped = re.escape(keyword)
+    if " " in keyword:
+        pattern = rf"(?<![a-z0-9]){escaped}(?![a-z0-9])"
+    else:
+        pattern = rf"(?<![a-z0-9]){escaped}(?:s|es|ed|ing|tion|ation|ment|ly|er|ers)?(?![a-z0-9])"
+    return bool(re.search(pattern, text))
+
+
 def _compute_type_scores(context: AnalysisContext, metadata: dict[str, Any]) -> tuple[dict[str, int], dict[str, Any]]:
     normalized_content = _normalize_text(context.content)
     normalized_title = _normalize_text(context.title or "")
@@ -244,20 +396,13 @@ def _compute_type_scores(context: AnalysisContext, metadata: dict[str, Any]) -> 
     scores = {memory_type: 0 for memory_type in KEYWORDS}
     for memory_type, keywords in KEYWORDS.items():
         for keyword in keywords:
-            if keyword in normalized_text:
+            if _keyword_matches(keyword, normalized_text):
                 scores[memory_type] += 12 if " " in keyword else 8
 
-    if "this document" in normalized_text or "document explains" in normalized_text:
+    if _keyword_matches("this document", normalized_text) or _keyword_matches("document explains", normalized_text):
         scores["documentation"] += 14
-    if "architecture guide" in normalized_text or "architecture" in normalized_title:
+    if _keyword_matches("architecture guide", normalized_text) or _keyword_matches("architecture", normalized_title):
         scores["documentation"] += 12
-
-    if word_count >= 24:
-        for memory_type in scores:
-            scores[memory_type] += 8
-    if word_count >= 50:
-        for memory_type in scores:
-            scores[memory_type] += 6
 
     structure_bonus = min(len(structured_fields), 4) * 7
     for memory_type in ("bugfix", "decision", "procedure", "discovery"):
@@ -283,7 +428,9 @@ def _compute_type_scores(context: AnalysisContext, metadata: dict[str, Any]) -> 
         scores["documentation"] += min(command_count, 2) * 2
 
     if context.memory_type_hint and context.memory_type_hint in scores:
-        scores[context.memory_type_hint] += 15
+        scores[context.memory_type_hint] += 25
+
+    signals["has_valid_hint"] = bool(context.memory_type_hint and context.memory_type_hint in scores)
 
     lowered_content = normalized_content.strip()
     if lowered_content in LOW_SIGNAL_PHRASES:
@@ -299,15 +446,22 @@ def _select_memory_type(type_scores: dict[str, int]) -> str:
         "development_standard",
         "documentation",
         "bugfix",
+        "failure_pattern",
+        "constraint",
         "procedure",
         "decision",
+        "convention",
+        "tool_affordance",
         "discovery",
+        "event",
+        "preference",
+        "fact",
     ]
     best_score = max(type_scores.values())
     if best_score <= 0:
         return "fact"
     for memory_type in priority:
-        if type_scores[memory_type] == best_score:
+        if type_scores.get(memory_type) == best_score:
             return memory_type
     return "fact"
 
@@ -315,6 +469,10 @@ def _select_memory_type(type_scores: dict[str, int]) -> str:
 def _compute_relevance_score(type_scores: dict[str, int], signals: dict[str, Any], documentation_candidate: bool) -> int:
     best_score = max(type_scores.values()) if type_scores else 0
     score = min(95, best_score)
+    if signals["word_count"] >= 24:
+        score += 8
+    if signals["word_count"] >= 50:
+        score += 6
     if signals["structured_fields"]:
         score += min(len(signals["structured_fields"]), 4) * 4
     if signals["file_count"]:
@@ -323,6 +481,8 @@ def _compute_relevance_score(type_scores: dict[str, int], signals: dict[str, Any
         score += min(signals["command_count"], 2) * 3
     if documentation_candidate and signals["markdown_heading_count"]:
         score += 6
+    if signals.get("has_valid_hint"):
+        score += 15
     if signals["word_count"] < 10:
         score -= 20
     elif signals["word_count"] < 20:

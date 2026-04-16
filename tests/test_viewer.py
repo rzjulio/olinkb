@@ -449,7 +449,7 @@ def test_render_viewer_html_uses_obsidian_like_layout() -> None:
     assert 'offsetX: Math.sin(phase * 0.82 + 0.3) * 3' in html
     assert 'offsetY: Math.cos(phase * 0.94) * 2' in html
     assert 'scale: 1 + (Math.sin(phase) * 0.005) + (Math.sin(phase * 0.47 + 0.8) * 0.002)' in html
-    assert 'if (!hovered || node.showLabel === false) return;' in html
+    assert 'if ((!hovered && !selected) || node.showLabel === false) return;' in html
     assert html.index("runtime.edges.forEach((edge) =>") < html.index("runtime.nodes.forEach((node) =>")
     assert html.count("runtime.nodes.forEach((node) =>") >= 2
     assert 'function getNodeRadius(node)' in html

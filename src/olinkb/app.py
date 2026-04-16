@@ -7,6 +7,7 @@ from olinkb.config import Settings, get_settings
 from olinkb.automation import analyze_memory_candidate
 from olinkb.domain import (
     APPROVER_MEMBER_ROLES,
+    MANAGED_MEMORY_TYPES,
     enrich_memory_tags,
     extract_scope_key,
     infer_scope_from_uri,
@@ -306,6 +307,16 @@ class OlinKBApp:
         project_member = await self._project_member_for_uri(uri=effective_uri, member=member, username=username)
         self._authorize_memory_write(scope=effective_scope, memory_type=memory_type, username=username, uri=effective_uri, member=member, project_member=project_member)
         resolved_tags = enrich_memory_tags(memory_type, parse_tags(tags), effective_metadata)
+
+        effective_role = (project_member or {}).get("role", member.get("role", "developer"))
+        is_managed = memory_type in MANAGED_MEMORY_TYPES
+        is_approver = effective_role in APPROVER_MEMBER_ROLES
+
+        # All managed documentation types start as pending regardless of role.
+        # Approvers get an awaiting_approval flag so the agent asks for
+        # explicit confirmation before calling review_memory_proposal.
+        approval_status = "pending" if is_managed else "approved"
+
         result = await self.storage.save_memory(
             uri=effective_uri,
             title=effective_title,
@@ -316,11 +327,21 @@ class OlinKBApp:
             metadata=effective_metadata,
             author_id=member["id"],
             author_username=username,
+            approval_status=approval_status,
         )
         self.cache.invalidate_prefix(self._boot_cache_prefix(username))
         self.cache.invalidate_prefix("remember:")
         if session_id and result["status"] != "unchanged":
             self.sessions.bump_writes(session_id)
+
+        if is_managed and is_approver:
+            result["awaiting_approval"] = True
+            result["approval_hint"] = (
+                "Esta documentación se guardó como PENDIENTE. "
+                "Pregunta al usuario si desea aprobarla ahora. "
+                "Si confirma, llama a review_memory_proposal con "
+                f"uri='{effective_uri}' y action='approve'."
+            )
         return result
 
     async def propose_memory_promotion(
