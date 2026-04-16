@@ -139,7 +139,7 @@ class FakeStorage:
             session
             for session in self.session_rows.values()
             if session.get("author_username") == author_username
-            and session.get("project") == project
+            and (project is None or session.get("project") == project)
             and session.get("ended_at") is None
         ]
         matches.sort(key=lambda session: str(session.get("id", "")), reverse=True)
@@ -877,6 +877,38 @@ async def test_end_session_resolves_single_persisted_open_session_when_session_i
     }
 
     result = await app.end_session(None, "Closed after styling verification.")
+
+    assert result["session_id"] == session_id
+    assert result["status"] == "recovered"
+    assert storage.end_session_calls[0]["session_id"] == session_id
+
+
+@pytest.mark.asyncio
+async def test_end_session_resolves_single_persisted_open_session_without_default_project() -> None:
+    settings = Settings(
+        pg_url="postgresql://unused",
+        user="rzjulio",
+        team="default-team",
+        default_project=None,
+        cache_ttl_seconds=300,
+        cache_max_entries=100,
+        server_name="OlinKB",
+    )
+    app = OlinKBApp(settings=settings)
+    storage = FakeStorage()
+    app.storage = storage
+    session_id = str(uuid4())
+    storage.session_rows[session_id] = {
+        "id": session_id,
+        "author_username": "rzjulio",
+        "project": "olinkb",
+        "summary": None,
+        "memories_read": 0,
+        "memories_written": 0,
+        "ended_at": None,
+    }
+
+    result = await app.end_session(None, "Closed after viewer verification.")
 
     assert result["session_id"] == session_id
     assert result["status"] == "recovered"

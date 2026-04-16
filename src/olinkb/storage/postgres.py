@@ -576,20 +576,34 @@ class PostgresStorage:
         await self.connect()
         self._require_pool()
 
-        rows = await self._pool.fetch(
-            """
-            SELECT id::text AS id, author_username, project, summary, memories_read, memories_written, ended_at
-            FROM sessions
-            WHERE author_username = $1
-              AND project IS NOT DISTINCT FROM $2
-              AND ended_at IS NULL
-            ORDER BY started_at DESC
-            LIMIT $3
-            """,
-            author_username,
-            project,
-            limit,
-        )
+        if project is None:
+            rows = await self._pool.fetch(
+                """
+                SELECT id::text AS id, author_username, project, summary, memories_read, memories_written, ended_at
+                FROM sessions
+                WHERE author_username = $1
+                  AND ended_at IS NULL
+                ORDER BY started_at DESC
+                LIMIT $2
+                """,
+                author_username,
+                limit,
+            )
+        else:
+            rows = await self._pool.fetch(
+                """
+                SELECT id::text AS id, author_username, project, summary, memories_read, memories_written, ended_at
+                FROM sessions
+                WHERE author_username = $1
+                  AND project IS NOT DISTINCT FROM $2
+                  AND ended_at IS NULL
+                ORDER BY started_at DESC
+                LIMIT $3
+                """,
+                author_username,
+                project,
+                limit,
+            )
         return [dict(row) for row in rows]
 
     async def load_boot_memories(

@@ -92,6 +92,39 @@ def test_load_payload_accepts_shell_escaped_json_object() -> None:
     assert tool_cli.load_payload(args) == {"query": "alpha"}
 
 
+def test_load_payload_accepts_powershell_object_literal() -> None:
+    args = argparse.Namespace(json_input="{project:olinkb}", input_file=None)
+
+    assert tool_cli.load_payload(args) == {"project": "olinkb"}
+
+
+def test_load_payload_accepts_powershell_object_literal_with_spaces_and_boolean() -> None:
+    args = argparse.Namespace(
+        json_input="{include_content:false,query:what does the olinkb project do architecture purpose features}",
+        input_file=None,
+    )
+
+    assert tool_cli.load_payload(args) == {
+        "include_content": False,
+        "query": "what does the olinkb project do architecture purpose features",
+    }
+
+
+def test_load_payload_accepts_powershell_object_literal_with_commas_inside_string_values() -> None:
+    args = argparse.Namespace(
+        json_input=(
+            "{summary:Fixed PowerShell CLI JSON parsing for olinkb tool --json, added regression tests, "
+            "updated open-session recovery.,session_id:4453b376-c961-4000-910f-bb04e0915078}"
+        ),
+        input_file=None,
+    )
+
+    assert tool_cli.load_payload(args) == {
+        "summary": "Fixed PowerShell CLI JSON parsing for olinkb tool --json, added regression tests, updated open-session recovery.",
+        "session_id": "4453b376-c961-4000-910f-bb04e0915078",
+    }
+
+
 def test_load_payload_rejects_non_object_json() -> None:
     args = argparse.Namespace(json_input='["alpha"]', input_file=None)
 

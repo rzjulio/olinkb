@@ -509,7 +509,6 @@ class SqliteStorage:
                 SELECT *
                 FROM sessions
                 WHERE author_username = ?
-                  AND project IS NULL
                   AND ended_at IS NULL
                 ORDER BY started_at DESC
                 LIMIT ?
